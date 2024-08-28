@@ -1,0 +1,22 @@
+print:
+  name: Print Image
+  description: Print a custom image
+  target:
+    entity:
+      domain: niimbot
+  fields:
+    payload:
+      name: Payload
+      description: payload to draw
+      required: true
+      example: look into supported_types.md for examples
+    background:
+      name: Backgroundcolor
+      description: black, white, red
+      required: true
+      example: white
+    rotate:
+      name: rotate
+      description: 0, 90, 180, 270
+      required: false
+      example: 90

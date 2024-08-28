@@ -1,0 +1,5 @@
+{
+  "name": "niimbot",
+  "render_readme": true,
+  "homeassistant": "2022.12.1"
+}
