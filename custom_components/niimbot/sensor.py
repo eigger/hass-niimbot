@@ -1,6 +1,4 @@
 """Support for niimbot ble sensors."""
-from __future__ import annotations
-
 import logging
 import dataclasses
 
@@ -33,7 +31,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from .const import DOMAIN, VOLUME_BECQUEREL, VOLUME_PICOCURIE, COUNT_PULSES
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,21 +51,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Niimbot BLE sensors."""
-    is_metric = hass.config.units is METRIC_SYSTEM
-
     coordinator: DataUpdateCoordinator[BLEData] = hass.data[DOMAIN][entry.entry_id]
 
     # we need to change some units
     sensors_mapping = SENSORS_MAPPING_TEMPLATE.copy()
-    if not is_metric:
-        for key, val in sensors_mapping.items():
-            if val.native_unit_of_measurement is not VOLUME_BECQUEREL:
-                continue
-            #val.native_unit_of_measurement = VOLUME_PICOCURIE
-            sensors_mapping[key] = dataclasses.replace(
-                val,
-                native_unit_of_measurement=VOLUME_PICOCURIE,
-            )
 
     entities = []
     _LOGGER.debug("got sensors: %s", coordinator.data.sensors)

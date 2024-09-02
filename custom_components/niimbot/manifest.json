@@ -1,40 +1,14 @@
 {
   "domain": "niimbot",
-  "name": "Niimbot BLE",
-  "bluetooth": [
-    {
-      "local_name": "FR:RU*"
-    },
-    {
-      "local_name": "FR:RE*"
-    },
-    {
-      "local_name": "FR:GI*"
-    },
-    {
-      "local_name": "FR:H*"
-    },
-    {
-      "local_name": "FR:R2*"
-    },
-    {
-      "local_name": "FR:RD*"
-    },
-    {
-      "local_name": "FR:GL*"
-    },
-    {
-      "local_name": "FR:GJ*"
-    },
-    {
-      "local_name": "FR:I*"
-    }
-  ],
+  "name": "Niimbot",
   "codeowners": ["@eigger"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
   "documentation": "https://www.github.com/eigger/hass-niimbot",
   "iot_class": "local_polling",
   "issue_tracker": "https://www.github.com/eigger/hass-niimbot/issues",
-  "version": "1.0"
+  "version": "1.0",
+  "requirements": [
+    "qrcode[pil]==7.4.2"
+  ]
 }

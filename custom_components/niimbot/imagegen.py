@@ -1,4 +1,3 @@
-from __future__ import annotations
 import io
 import logging
 import os
@@ -16,7 +15,6 @@ import base64
 from .const import DOMAIN
 from .util import get_image_folder, get_image_path
 from PIL import Image, ImageDraw, ImageFont
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt
@@ -30,18 +28,9 @@ black = (0, 0, 0,255)
 red = (255, 0, 0,255)
 yellow = (255, 255, 0,255)
 queue = []
-notsetup = True;
-running = False;
+notsetup = True
+running = False
 
-# setup
-def setup(hass,notsetup):
-    if notsetup:
-        hass.bus.listen(DOMAIN + "_event", handle_event)
-        notsetup = False
-    return True
-# handle_event
-def handle_event(self):
-    handlequeue()
 # is_decimal
 def is_decimal(string):
     if not string:
@@ -58,31 +47,7 @@ def min_max(data):
         mi = min(mi, d)
         ma = max(ma, d)
     return mi, ma
-# img downloader
-def downloadimg(entity_id, service, hass):
-    entity = hass.states.get(entity_id)
-    if not (entity and 'width' in entity.attributes):
-        raise HomeAssistantError("id was not found yet, please wait for the display to check in at least once " + entity_id)
-    url = service.data.get("url", "")
-    rotate = service.data.get("rotation", 0)
-    # get image
-    response = requests.get(url)
-    # load the res of the esl
-    res = [hass.states.get(entity_id).attributes['width'], hass.states.get(entity_id).attributes['height']]
-    img = Image.open(io.BytesIO(response.content))
-    if img.mode != 'RGB':
-        img = img.convert('RGB')
-    if rotate != 0:
-        img = img.rotate(-rotate, expand=1)
-    width, height = img.size
-    if width != res[0] or height != res[1]:
-        img = img.resize((res[0], res[1]))
-    buf = io.BytesIO()
-    img.save(buf, format='JPEG', quality="maximum")
-    img.save(os.path.join(os.path.dirname(__file__), entity_id + '.jpg'), format='JPEG', quality="maximum")
-    byte_im = buf.getvalue()
-    return byte_im
-#g et_wrapped_text
+
 def get_wrapped_text(text: str, font: ImageFont.ImageFont,line_length: int):
         lines = ['']
         for word in text.split():
@@ -621,205 +586,6 @@ def customimage(entity_id, service, hass):
     rgb_image.save(buf, format='JPEG', quality="maximum")
     byte_im = buf.getvalue()
     return byte_im
-
-# adds an image to the queue
-def queueimg(url, content):
-    queue.append([url,content])
-# if the timing is right, processes the queue
-def handlequeue():
-    global running
-    if running:
-        return True
-    if len(queue) == 0:
-        return True
-    running = True;
-    timebetweencalls = 10;
-    file_path = os.path.join(os.path.dirname(__file__), "lastapinteraction" + '.txt')
-    filecontent = "0";
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            filecontent = file.read()
-    curtime = round(datetime.timestamp(datetime.now()))
-    if round(float(filecontent)) + timebetweencalls < curtime:
-        with open(file_path, 'w') as file:
-            file.write(str(datetime.timestamp(datetime.now())))
-        tp = queue.pop(0)
-        running = False;
-        response = requests.post(tp[0], headers={'Content-Type': tp[1].content_type}, data=tp[1])
-        if response.status_code != 200:
-            _LOGGER.warning(response.status_code)
-            queue.append(tp)
-    running = False;
-# upload an image to the tag
-def uploadimg(img, mac, ip, dither,ttl,preloadtype,preloadlut,hass):
-    setup(hass,notsetup)
-    url = "http://" + ip + "/imgupload"
-    mp_encoder = ""
-    if preloadtype == 0:
-       mp_encoder = MultipartEncoder(
-            fields={
-                'mac': mac,
-                'contentmode': "25",
-                'dither': "1" if dither else "0",
-                'ttl': str( ttl),
-                'image': ('image.jpg', img, 'image/jpeg'),
-            }
-        )
-    else:
-       mp_encoder = MultipartEncoder(
-            fields={
-                'mac': mac,
-                'contentmode': "25",
-                'dither': "1" if dither else "0",
-                'ttl': str( ttl),
-                'preloadtype': str( preloadtype),
-                'preloadlut': str( preloadlut),
-                'image': ('image.jpg', img, 'image/jpeg'),
-            }
-        )
-    queueimg(url, mp_encoder)
-# upload a cmd to the tag
-def uploadcfg(cfg, mac, contentmode, ip):
-    url = "http://" + ip + "/get_db?mac=" + mac
-    response = requests.get(url)
-    respjson = json.loads(response.text)
-    alias = respjson["tags"][0]["alias"];
-    rotate = respjson["tags"][0]["rotate"];
-    lut = respjson["tags"][0]["lut"];
-    url = "http://" + ip + "/save_cfg"
-    mp_encoder = MultipartEncoder(
-        fields={
-            'mac': mac,
-            'contentmode': str(contentmode),
-            'modecfgjson': cfg,
-            'alias': alias,
-            'rotate': str(rotate),
-            'lut':str(lut),
-        }
-    )
-    response = requests.post(url, headers={'Content-Type': mp_encoder.content_type}, data=mp_encoder)
-    if response.status_code != 200:
-        _LOGGER.warning(response.status_code)
-#5 line text generator for 1.54 esls (depricated)
-def gen5line(entity_id, service, hass):
-    entity = hass.states.get(entity_id)
-    if not (entity and 'width' in entity.attributes):
-        raise HomeAssistantError("id was not found yet, please wait for the display to check in at least once " + entity_id)
-    line1 = service.data.get("line1", "")
-    line2 = service.data.get("line2", "")
-    line3 = service.data.get("line3", "")
-    line4 = service.data.get("line4", "")
-    line5 = service.data.get("line5", "")
-    border = service.data.get("border", "w")
-    format1 = service.data.get("format1", "mwwb")
-    format2 = service.data.get("format2", "mwwb")
-    format3 = service.data.get("format3", "mwwb")
-    format4 = service.data.get("format4", "mwwb")
-    format5 = service.data.get("format5", "mwwb")
-    w = 152
-    h = 152
-    img = Image.new('RGBA', (w, h), color=white)
-    d = ImageDraw.Draw(img)
-    # we don't want interpolation
-    d.fontmode = "1"
-    # border
-    d.rectangle([(0, 0), (w - 1, h - 1)], fill=white, outline=getIndexColor(border))
-    # text backgrounds
-    d.rectangle([(1, 1), (150, 30)], fill=getIndexColor(format1[1]), outline=getIndexColor(format1[2]))
-    d.rectangle([(1, 31), (150, 60)], fill=getIndexColor(format2[1]), outline=getIndexColor(format2[2]))
-    d.rectangle([(1, 61), (150, 90)], fill=getIndexColor(format3[1]), outline=getIndexColor(format3[2]))
-    d.rectangle([(1, 91), (150, 120)], fill=getIndexColor(format4[1]), outline=getIndexColor(format4[2]))
-    d.rectangle([(1, 121), (150, 150)], fill=getIndexColor(format5[1]), outline=getIndexColor(format5[2]))
-    # text lines
-    d = textgen(d, str(line1), getIndexColor(format1[3]), format1[0], 0)
-    d = textgen(d, str(line2), getIndexColor(format2[3]), format2[0], 30)
-    d = textgen(d, str(line3), getIndexColor(format3[3]), format3[0], 60)
-    d = textgen(d, str(line4), getIndexColor(format4[3]), format4[0], 90)
-    d = textgen(d, str(line5), getIndexColor(format5[3]), format5[0], 120)
-    rgb_image = img.convert('RGB')
-    rgb_image.save(os.path.join(os.path.dirname(__file__), entity_id + '.jpg'), format='JPEG', quality="maximum")
-    buf = io.BytesIO()
-    rgb_image.save(buf, format='JPEG', quality="maximum")
-    byte_im = buf.getvalue()
-    return byte_im
-#4 line text generator for 2.9 esls (depricated)
-def gen4line(entity_id, service, hass):
-    entity = hass.states.get(entity_id)
-    if not (entity and 'width' in entity.attributes):
-        raise HomeAssistantError("id was not found yet, please wait for the display to check in at least once " + entity_id)
-    line1 = service.data.get("line1", "")
-    line2 = service.data.get("line2", "")
-    line3 = service.data.get("line3", "")
-    line4 = service.data.get("line4", "")
-    border = service.data.get("border", "w")
-    format1 = service.data.get("format1", "mwwb")
-    format2 = service.data.get("format2", "mwwb")
-    format3 = service.data.get("format3", "mwwb")
-    format4 = service.data.get("format4", "mwwb")
-    w = 296
-    h = 128
-    img = Image.new('RGBA', (w, h), color=white)
-    d = ImageDraw.Draw(img)
-    # we don't want interpolation
-    d.fontmode = "1"
-    # border
-    d.rectangle([(0, 0), (w - 2, h - 2)], fill=getIndexColor(border))
-    # text backgrounds
-    d.rectangle([(2, 2), (292, 32)], fill=getIndexColor(format1[1]), outline=getIndexColor(format1[2]))
-    d.rectangle([(2, 33), (292, 63)], fill=getIndexColor(format2[1]), outline=getIndexColor(format2[2]))
-    d.rectangle([(2, 64), (292, 94)], fill=getIndexColor(format3[1]), outline=getIndexColor(format3[2]))
-    d.rectangle([(2, 95), (292, 124)], fill=getIndexColor(format4[1]), outline=getIndexColor(format4[2]))
-    # text lines
-    d = textgen2(d, str(line1), getIndexColor(format1[3]), format1[0], 2)
-    d = textgen2(d, str(line2), getIndexColor(format2[3]), format2[0], 33)
-    d = textgen2(d, str(line3), getIndexColor(format3[3]), format3[0], 64)
-    d = textgen2(d, str(line4), getIndexColor(format4[3]), format4[0], 95)
-    rgb_image = img.convert('RGB')
-    rgb_image.save(os.path.join(os.path.dirname(__file__), entity_id + '.jpg'), format='JPEG', quality="maximum")
-    buf = io.BytesIO()
-    rgb_image.save(buf, format='JPEG', quality="maximum")
-    byte_im = buf.getvalue()
-
-    return byte_im
-# handles Text alignment(depricated)
-def textgen(d, text, col, just, yofs):
-    rbm = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'rbm.ttf'), 11)
-    ppb = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'ppb.ttf'), 23)
-    x = 76
-    if just == "l":
-        x = 3
-    if just == "r":
-        x = 147
-    if "\n" in text:
-        split1 = text.split("\n")[0]
-        split2 = text.split("\n")[1]
-        d.text((x, 8 + yofs), split1, fill=col, anchor=just + "m", font=rbm)
-        d.text((x, 22 + yofs), split2, fill=col, anchor=just + "m", font=rbm)
-    elif d.textlength(text, font=ppb) < 147:
-        d.text((x, 15 + yofs), text, fill=col, anchor=just + "m", font=ppb)
-    else:
-        d.text((x, 15 + yofs), text, fill=col, anchor=just + "m", font=rbm)
-    return d
-# handles Text alignment(depricated)
-def textgen2(d, text, col, just, yofs):
-    rbm = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'rbm.ttf'), 11)
-    ppb = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'ppb.ttf'), 23)
-    x = 148
-    if just == "l":
-        x = 3
-    if just == "r":
-        x = 290
-    if "\n" in text:
-        split1 = text.split("\n")[0]
-        split2 = text.split("\n")[1]
-        d.text((x, 8 + yofs), split1, fill=col, anchor=just + "m", font=rbm)
-        d.text((x, 22 + yofs), split2, fill=col, anchor=just + "m", font=rbm)
-    elif d.textlength(text, font=ppb) < 280:
-        d.text((x, 15 + yofs), text, fill=col, anchor=just + "m", font=ppb)
-    else:
-        d.text((x, 15 + yofs), text, fill=col, anchor=just + "m", font=rbm)
-    return d
-
 
 def check_for_missing_required_arguments(element, required_keys, func_name):
     missing_keys = []

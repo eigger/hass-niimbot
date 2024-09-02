@@ -1,11 +1,7 @@
 """Config flow for Niimbot BlE integration."""
-
-from __future__ import annotations
-
 import dataclasses
 import logging
 from typing import Any
-
 from .niimprint import NiimbotDevice, BLEData
 from bleak import BleakError
 import voluptuous as vol
@@ -27,17 +23,8 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass
 class Discovery:
     """A discovered bluetooth device."""
-
     name: str
     discovery_info: BluetoothServiceInfo
-    device: BLEData
-
-
-def get_name(device: BLEData) -> str:
-    """Generate name with identifier for device."""
-
-    return f"{device.name}"
-
 
 class NiimbotDeviceUpdateError(Exception):
     """Custom error class for device updates."""
@@ -53,37 +40,6 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered_device: Discovery | None = None
         self._discovered_devices: dict[str, Discovery] = {}
 
-    async def _get_device_data(
-        self, discovery_info: BluetoothServiceInfo
-    ) -> BLEData:
-        ble_device = bluetooth.async_ble_device_from_address(
-            self.hass, discovery_info.address
-        )
-        if ble_device is None:
-            _LOGGER.debug("no ble_device in _get_device_data")
-            raise NiimbotDeviceUpdateError("No ble_device")
-
-        niimbot = NiimbotDevice(_LOGGER)
-
-        try:
-            data = await niimbot.update_device(ble_device)
-            data.name = discovery_info.advertisement.local_name
-            data.address = discovery_info.address
-            data.identifier = discovery_info.advertisement.local_name
-        except BleakError as err:
-            _LOGGER.error(
-                "Error connecting to and getting data from %s: %s",
-                discovery_info.address,
-                err,
-            )
-            raise NiimbotDeviceUpdateError("Failed getting device data") from err
-        except Exception as err:
-            _LOGGER.error(
-                "Unknown error occurred from %s: %s", discovery_info.address, err
-            )
-            raise err
-        return data
-
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfo
     ) -> FlowResult:
@@ -92,16 +48,9 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        try:
-            device = await self._get_device_data(discovery_info)
-        except NiimbotDeviceUpdateError:
-            return self.async_abort(reason="cannot_connect")
-        except Exception:  # pylint: disable=broad-except
-            return self.async_abort(reason="unknown")
-
-        name = get_name(device)
+        name = discovery_info.advertisement.local_name
         self.context["title_placeholders"] = {"name": name}
-        self._discovered_device = Discovery(name, discovery_info, device)
+        self._discovered_device = Discovery(name, discovery_info)
 
         return await self.async_step_bluetooth_confirm()
 
@@ -148,19 +97,18 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if discovery_info.advertisement.local_name is None:
                 continue
-
-            if not (
-                discovery_info.advertisement.local_name.startswith("FR:RU")
-                or discovery_info.advertisement.local_name.startswith("FR:RE")
-                or discovery_info.advertisement.local_name.startswith("FR:GI")
-                or discovery_info.advertisement.local_name.startswith("FR:H")
-                or discovery_info.advertisement.local_name.startswith("FR:R2")
-                or discovery_info.advertisement.local_name.startswith("FR:RD")
-                or discovery_info.advertisement.local_name.startswith("FR:GL")
-                or discovery_info.advertisement.local_name.startswith("FR:GJ")
-                or discovery_info.advertisement.local_name.startswith("FR:I")
-            ):
-                continue
+            # if not (
+            #     discovery_info.advertisement.local_name.startswith("FR:RU")
+            #     or discovery_info.advertisement.local_name.startswith("FR:RE")
+            #     or discovery_info.advertisement.local_name.startswith("FR:GI")
+            #     or discovery_info.advertisement.local_name.startswith("FR:H")
+            #     or discovery_info.advertisement.local_name.startswith("FR:R2")
+            #     or discovery_info.advertisement.local_name.startswith("FR:RD")
+            #     or discovery_info.advertisement.local_name.startswith("FR:GL")
+            #     or discovery_info.advertisement.local_name.startswith("FR:GJ")
+            #     or discovery_info.advertisement.local_name.startswith("FR:I")
+            # ):
+            #     continue
 
             _LOGGER.debug("Found My Device")
             _LOGGER.debug("Niimbot0 Discovery address: %s", address)
@@ -173,21 +121,15 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.debug(
                 "Niimbot0 advertisement: %s", discovery_info.advertisement.local_name
             )
-            try:
-                device = await self._get_device_data(discovery_info)
-            except NiimbotDeviceUpdateError:
-                return self.async_abort(reason="cannot_connect")
-            except Exception:  # pylint: disable=broad-except
-                return self.async_abort(reason="unknown")
-            name = get_name(device)
-            self._discovered_devices[address] = Discovery(name, discovery_info, device)
+            name = discovery_info.advertisement.local_name
+            self._discovered_devices[address] = Discovery(name, discovery_info)
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
 
         titles = {
-            address: get_name(discovery.device)
-            for (address, discovery) in self._discovered_devices.items()
+            title: f"{discovery.name} ({discovery.discovery_info.address})"
+            for (title, discovery) in self._discovered_devices.items()
         }
         return self.async_show_form(
             step_id="user",

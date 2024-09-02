@@ -1,15 +1,12 @@
 """The Niimbot BLE integration."""
-from __future__ import annotations
-
 from datetime import timedelta
 import logging
-
 from .niimprint import NiimbotDevice, BLEData
-
+from .imagegen import *
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.unit_system import METRIC_SYSTEM
@@ -24,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 def setup(hass, config):
     # callback for the draw custom service
     async def printservice(service: ServiceCall) -> None:
-        ip = hass.states.get(DOMAIN + ".ip").state 
+        address = hass.states.get(DOMAIN + ".address").state 
         entity_ids = service.data.get("entity_id")
         #sometimes you get a string, that's not nice to iterate over for ids....
         if isinstance(entity_ids, str):
@@ -34,16 +31,13 @@ def setup(hass, config):
         ttl = service.data.get("ttl", 60)
         preloadtype = service.data.get("preloadtype", 0)
         preloadlut = service.data.get("preloadlut", 0)
-        dry_run = service.data.get("dry-run", False)
         for entity_id in entity_ids:
             _LOGGER.info("Called entity_id: %s" % (entity_id))
             imgbuff = await hass.async_add_executor_job(customimage,entity_id, service, hass)
             id = entity_id.split(".")
-            if (dry_run is False):
-                result = await hass.async_add_executor_job(uploadimg, imgbuff, id[1], ip, dither,ttl,preloadtype,preloadlut,hass)
-            else:
-                _LOGGER.info("Running dry-run - no upload to AP!")
-                result = True
+            ble_device = bluetooth.async_ble_device_from_address(hass, address)
+            niimbot = NiimbotDevice()
+            result = await hass.async_add_executor_job(niimbot.print_image, imgbuff)
                 
 
     # register the services
@@ -54,21 +48,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
-
-    elevation = hass.config.elevation
-    is_metric = hass.config.units is METRIC_SYSTEM
     assert address is not None
     await close_stale_connections_by_address(address)
     
     ble_device = bluetooth.async_ble_device_from_address(hass, address)
-
     if not ble_device:
         raise ConfigEntryNotReady(f"Could not find Niimbot device with address {address}")
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        niimbot = NiimbotDevice(_LOGGER, elevation, is_metric)
+        niimbot = NiimbotDevice()
 
         try:
             data = await niimbot.update_device(ble_device)
