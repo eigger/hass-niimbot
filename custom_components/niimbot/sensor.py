@@ -105,7 +105,7 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
             model=ble_data.model,
             hw_version=ble_data.hw_version,
             sw_version=ble_data.sw_version,
-            identifiers={(DOMAIN, "niimbot")}
+            identifiers={(DOMAIN, name)}
         )
 
     @property
