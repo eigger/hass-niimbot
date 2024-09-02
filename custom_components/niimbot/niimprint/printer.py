@@ -84,7 +84,7 @@ class BLETransport(BaseTransport):
         return await self.read_notify(10)
 
     async def write(self, data: bytes):
-        return await self.write(CHARACTERISTIC_UUID, data)
+        return await self.write_ble(CHARACTERISTIC_UUID, data)
     
     async def read_notify(self, timeout: int) -> bytes:
         """Wait for notification data to be received within the timeout."""
@@ -94,7 +94,7 @@ class BLETransport(BaseTransport):
         self._event.clear()  # Reset the event for the next notification
         return data
 
-    async def write(self, uuid: str, data: bytes):
+    async def write_ble(self, uuid: str, data: bytes):
         """Write data to the BLE characteristic."""
         await self._client.write_gatt_char(uuid, data)
 
