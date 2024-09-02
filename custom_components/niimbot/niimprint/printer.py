@@ -240,12 +240,13 @@ class PrinterClient:
         }
 
     async def heartbeat(self):
+        await self._transport.start_notify()
         packet = await self._transceive(RequestCodeEnum.HEARTBEAT, b"\x01")
         closingstate = None
         powerlevel = None
         paperstate = None
         rfidreadstate = None
-
+        await self._transport.stop_notify()
         match len(packet.data):
             case 20:
                 paperstate = packet.data[18]
