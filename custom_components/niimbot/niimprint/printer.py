@@ -145,7 +145,7 @@ class PrinterClient:
         await self.start_page_print()
         await self.set_dimension(image.height, image.width)
         # self.set_quantity(1)  # Same thing (B21)
-        for pkt in await self._encode_image(image):
+        for pkt in self._encode_image(image):
             await self._send(pkt)
         await self.end_page_print()
         #time.sleep(0.3)  # FIXME: Check get_print_status()
@@ -155,7 +155,7 @@ class PrinterClient:
             await sleep(0.1)
         
 
-    async def _encode_image(self, image: Image):
+    def _encode_image(self, image: Image):
         img = ImageOps.invert(image.convert("L")).convert("1")
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
