@@ -10,23 +10,13 @@ print:
       description: payload to draw
       required: true
       example: look into supported_types.md for examples
-    background:
-      name: Backgroundcolor
-      description: black, white, red
-      required: false
-      example: white
-    rotate:
-      name: rotate
-      description: 0, 90, 180, 270
-      required: false
-      example: 90
     width:
       name: width
       description: width of label
       required: true
-      example: 320
+      example: 240
     height:
       name: height
       description: height of label
       required: true
-      example: 320
+      example: 120

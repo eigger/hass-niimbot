@@ -78,8 +78,8 @@ def customimage(entity_id, service, hass):
     payload = service.data.get("payload", "")
     rotate = service.data.get("rotate", 0)
     background = getIndexColor(service.data.get("background","white"))
-    canvas_width = service.data.get("width", 0)
-    canvas_height = service.data.get("height", 0)
+    canvas_width = service.data.get("width", 240)
+    canvas_height = service.data.get("height", 120)
     if rotate == 0:
         img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
     elif rotate == 90:
