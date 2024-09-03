@@ -15,7 +15,7 @@ from bleak import BleakClient, BleakError
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
-from .printer import PrinterClient
+from .printer import PrinterClient, InfoEnum
 _LOGGER = logging.getLogger(__name__)
 
 @dataclasses.dataclass
@@ -29,6 +29,7 @@ class BLEData:
     address: str = ""
     model: str = "Unknown"
     serial_number: str = "Unknown"
+    battery: float = 0.0
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )
@@ -45,16 +46,18 @@ class NiimbotDevice:
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
-        #client = await establish_connection(BleakClient, ble_device, ble_device.address)
-        # printer = PrinterClient(client)
+        client = await establish_connection(BleakClient, ble_device, ble_device.address)
+        printer = PrinterClient(client)
         device = BLEData()
         device.name = ble_device.name
         device.address = ble_device.address
         device.model = device.name.split("_")[0] if "_" in device.name else "Unknown"
-        # heartbeat = await printer.heartbeat()
-        # device.sensors['powerlevel'] = heartbeat['powerlevel']
+        device.serial_number = await printer.get_info(InfoEnum.DEVICESERIAL)
+        device.hw_version = await printer.get_info(InfoEnum.HARDVERSION)
+        device.sw_version = await printer.get_info(InfoEnum.SOFTVERSION)
+        device.battery = await printer.get_info(InfoEnum.BATTERY)
         device.sensors['address'] =  ble_device.address
-        #await client.disconnect()
+        await client.disconnect()
 
         return device
     
