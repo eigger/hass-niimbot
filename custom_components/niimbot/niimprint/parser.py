@@ -48,15 +48,17 @@ class NiimbotDevice:
         """Connects to the device through BLE and retrieves relevant data"""
         client = await establish_connection(BleakClient, ble_device, ble_device.address)
         printer = PrinterClient(client, self.logger)
+        await printer.start_notify()
         device = BLEData()
         device.name = ble_device.name
         device.address = ble_device.address
-        device.model = device.name.split("_")[0] if "_" in device.name else "Unknown"
+        device.model = device.name.split("-")[0] if "-" in device.name else "Unknown"
         device.serial_number = await printer.get_info(InfoEnum.DEVICESERIAL)
         device.hw_version = await printer.get_info(InfoEnum.HARDVERSION)
         device.sw_version = await printer.get_info(InfoEnum.SOFTVERSION)
         device.battery = await printer.get_info(InfoEnum.BATTERY)
         device.sensors['address'] =  ble_device.address
+        await printer.stop_notify()
         await client.disconnect()
 
         return device
