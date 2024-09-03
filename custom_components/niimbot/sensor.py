@@ -36,11 +36,11 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
-    "address": SensorEntityDescription(
+    "battery": SensorEntityDescription(
         key="address",
-        #device_class=SensorDeviceClass.MEASUREMENT,
-        #native_unit_of_measurement=UnitOfPressure.VOLT,
-        name="MAC",
+        device_class=SensorDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        name="battery",
     ),
 }
 

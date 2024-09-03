@@ -29,7 +29,6 @@ class BLEData:
     address: str = ""
     model: str = "Unknown"
     serial_number: str = "Unknown"
-    battery: float = 0.0
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )
@@ -53,11 +52,10 @@ class NiimbotDevice:
         device.name = ble_device.name
         device.address = ble_device.address
         device.model = device.name.split("-")[0] if "-" in device.name else "Unknown"
-        # device.serial_number = await printer.get_info(InfoEnum.DEVICESERIAL)
+        device.serial_number = await printer.get_info(InfoEnum.DEVICESERIAL)
         # device.hw_version = await printer.get_info(InfoEnum.HARDVERSION)
         # device.sw_version = await printer.get_info(InfoEnum.SOFTVERSION)
-        device.battery = await printer.get_info(InfoEnum.BATTERY)
-        device.sensors['address'] =  ble_device.address
+        device.sensors['battery'] =  await printer.get_info(InfoEnum.BATTERY)
         await printer.stop_notify()
         await client.disconnect()
 
