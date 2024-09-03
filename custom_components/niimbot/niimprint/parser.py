@@ -64,16 +64,17 @@ class NiimbotDevice:
             device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
         if not device.sw_version:
             device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
-        if not device.density:
-            device.density = str(await printer.get_info(InfoEnum.DENSITY))
-        if not device.printspeed:
-            device.printspeed = str(await printer.get_info(InfoEnum.PRINTSPEED))
-        if not device.labeltype:
-            device.labeltype = str(await printer.get_info(InfoEnum.LABELTYPE))
-        if not device.languagetype:
-            device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
-        if not device.autoshutdowntime:
-            device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
+
+        # if not device.density:
+        #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
+        # if not device.printspeed:
+        #     device.printspeed = str(await printer.get_info(InfoEnum.PRINTSPEED))
+        # if not device.labeltype:
+        #     device.labeltype = str(await printer.get_info(InfoEnum.LABELTYPE))
+        # if not device.languagetype:
+        #     device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
+        # if not device.autoshutdowntime:
+        #     device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
         if not device.devicetype:
             device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
 
