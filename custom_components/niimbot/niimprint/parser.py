@@ -22,13 +22,13 @@ _LOGGER = logging.getLogger(__name__)
 class BLEData:
     """Response data with information about the Niimbot device"""
 
-    hw_version: str = "Unknown"
-    sw_version: str = "Unknown"
+    hw_version: str = None
+    sw_version: str = None
     name: str = ""
     identifier: str = ""
     address: str = ""
     model: str = "Unknown"
-    serial_number: str = "Unknown"
+    serial_number: str = None
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )
@@ -52,10 +52,19 @@ class NiimbotDevice:
         device.name = ble_device.name
         device.address = ble_device.address
         device.model = device.name.split("-")[0] if "-" in device.name else "Unknown"
-        device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
-        device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
-        device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
-        device.sensors['battery'] =  float(await printer.get_info(InfoEnum.BATTERY))
+
+        if not device.serial_number:
+            device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
+        if not device.hw_version:
+            device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
+        if not device.sw_version:
+            device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
+        device.sensors['battery'] = float(await printer.get_info(InfoEnum.BATTERY))
+        heartbeat = await printer.heartbeat()
+        device.sensors['closingstate'] =  heartbeat["closingstate"]
+        device.sensors['powerlevel'] =  heartbeat["powerlevel"]
+        device.sensors['paperstate'] =  heartbeat["paperstate"]
+        device.sensors['rfidreadstate'] =  heartbeat["rfidreadstate"]
         await printer.stop_notify()
         await client.disconnect()
 

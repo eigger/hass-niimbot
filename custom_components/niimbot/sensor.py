@@ -37,13 +37,36 @@ _LOGGER = logging.getLogger(__name__)
 
 SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
     "battery": SensorEntityDescription(
-        key="address",
+        key="battery",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
         name="battery",
     ),
+    "closingstate": SensorEntityDescription(
+        key="closingstate",
+        #device_class=SensorDeviceClass.BATTERY,
+        #native_unit_of_measurement=PERCENTAGE,
+        name="closingstate",
+    ),
+    "powerlevel": SensorEntityDescription(
+        key="powerlevel",
+        #device_class=SensorDeviceClass.BATTERY,
+        #native_unit_of_measurement=PERCENTAGE,
+        name="powerlevel",
+    ),
+    "paperstate": SensorEntityDescription(
+        key="paperstate",
+        #device_class=SensorDeviceClass.BATTERY,
+        #native_unit_of_measurement=PERCENTAGE,
+        name="paperstate",
+    ),
+    "rfidreadstate": SensorEntityDescription(
+        key="rfidreadstate",
+        #device_class=SensorDeviceClass.BATTERY,
+        #native_unit_of_measurement=PERCENTAGE,
+        name="rfidreadstate",
+    ),
 }
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
