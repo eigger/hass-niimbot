@@ -73,8 +73,8 @@ class NiimbotDevice:
         #     device.labeltype = str(await printer.get_info(InfoEnum.LABELTYPE))
         # if not device.languagetype:
         #     device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
-        # if not device.autoshutdowntime:
-        #     device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
+        if not device.autoshutdowntime:
+            device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
         if not device.devicetype:
             device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
 
