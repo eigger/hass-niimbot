@@ -29,10 +29,15 @@ class BLEData:
     address: str = ""
     model: str = "Unknown"
     serial_number: str = None
+    density: str = None
+    printspeed: str = None
+    labeltype: str = None
+    languagetype: str = None
+    autoshutdowntime: str = None
+    devicetype: str = None
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )
-
 
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
@@ -59,6 +64,26 @@ class NiimbotDevice:
             device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
         if not device.sw_version:
             device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
+        if not device.density:
+            device.density = str(await printer.get_info(InfoEnum.DENSITY))
+        if not device.printspeed:
+            device.printspeed = str(await printer.get_info(InfoEnum.PRINTSPEED))
+        if not device.labeltype:
+            device.labeltype = str(await printer.get_info(InfoEnum.LABELTYPE))
+        if not device.languagetype:
+            device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
+        if not device.autoshutdowntime:
+            device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
+        if not device.devicetype:
+            device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
+
+        device.sensors['density'] = device.density
+        device.sensors['printspeed'] = device.printspeed
+        device.sensors['labeltype'] = device.labeltype
+        device.sensors['languagetype'] = device.languagetype
+        device.sensors['autoshutdowntime'] = device.autoshutdowntime
+        device.sensors['devicetype'] = device.devicetype
+
         heartbeat = await printer.heartbeat()
         device.sensors['closingstate'] =  heartbeat["closingstate"]
         device.sensors['powerlevel'] =  heartbeat["powerlevel"]

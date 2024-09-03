@@ -44,27 +44,43 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
     ),
     "closingstate": SensorEntityDescription(
         key="closingstate",
-        #device_class=SensorDeviceClass.BATTERY,
-        #native_unit_of_measurement=PERCENTAGE,
         name="closingstate",
     ),
     "powerlevel": SensorEntityDescription(
         key="powerlevel",
-        #device_class=SensorDeviceClass.BATTERY,
-        #native_unit_of_measurement=PERCENTAGE,
         name="powerlevel",
     ),
     "paperstate": SensorEntityDescription(
         key="paperstate",
-        #device_class=SensorDeviceClass.BATTERY,
-        #native_unit_of_measurement=PERCENTAGE,
         name="paperstate",
     ),
     "rfidreadstate": SensorEntityDescription(
         key="rfidreadstate",
-        #device_class=SensorDeviceClass.BATTERY,
-        #native_unit_of_measurement=PERCENTAGE,
         name="rfidreadstate",
+    ),
+    "density": SensorEntityDescription(
+        key="density",
+        name="density",
+    ),
+    "printspeed": SensorEntityDescription(
+        key="printspeed",
+        name="printspeed",
+    ),
+    "labeltype": SensorEntityDescription(
+        key="labeltype",
+        name="labeltype",
+    ),
+    "languagetype": SensorEntityDescription(
+        key="languagetype",
+        name="languagetype",
+    ),
+    "autoshutdowntime": SensorEntityDescription(
+        key="autoshutdowntime",
+        name="autoshutdowntime",
+    ),
+    "devicetype": SensorEntityDescription(
+        key="devicetype",
+        name="devicetype",
     ),
 }
 
