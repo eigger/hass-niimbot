@@ -18,32 +18,6 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup(hass, config):
-    # callback for the draw custom service
-    async def printservice(service: ServiceCall) -> None:
-        address = hass.states.get(DOMAIN + ".address").state 
-        entity_ids = service.data.get("entity_id")
-        #sometimes you get a string, that's not nice to iterate over for ids....
-        if isinstance(entity_ids, str):
-            entity_ids=[entity_ids]
-
-        dither = service.data.get("dither", False)
-        ttl = service.data.get("ttl", 60)
-        preloadtype = service.data.get("preloadtype", 0)
-        preloadlut = service.data.get("preloadlut", 0)
-        for entity_id in entity_ids:
-            _LOGGER.info("Called entity_id: %s" % (entity_id))
-            imgbuff = await hass.async_add_executor_job(customimage,entity_id, service, hass)
-            id = entity_id.split(".")
-            ble_device = bluetooth.async_ble_device_from_address(hass, address)
-            niimbot = NiimbotDevice()
-            result = await hass.async_add_executor_job(niimbot.print_image, imgbuff)
-                
-
-    # register the services
-    hass.services.register(DOMAIN, "print", printservice)
-    return True
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -55,11 +29,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not ble_device:
         raise ConfigEntryNotReady(f"Could not find Niimbot device with address {address}")
 
+    niimbot = NiimbotDevice(address, _LOGGER)
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        niimbot = NiimbotDevice()
-
         try:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
@@ -78,8 +51,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    @callback
+    # callback for the draw custom service
+    async def printservice(service: ServiceCall) -> None:
+        imgbuff = await hass.async_add_executor_job(customimage, entry.entry_id, service, hass)
+        ble_device = bluetooth.async_ble_device_from_address(hass, address)
+        await niimbot.print_image(ble_device, imgbuff)             
+
+    # register the services
+    hass.services.async_register(DOMAIN, "print", printservice)
 
     return True
 

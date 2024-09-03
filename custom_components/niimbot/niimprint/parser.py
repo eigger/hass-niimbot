@@ -22,12 +22,12 @@ _LOGGER = logging.getLogger(__name__)
 class BLEData:
     """Response data with information about the Niimbot device"""
 
-    hw_version: str = ""
-    sw_version: str = ""
+    hw_version: str = "Unknown"
+    sw_version: str = "Unknown"
     name: str = ""
     identifier: str = ""
     address: str = ""
-    model: str = ""
+    model: str = "Unknown"
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )
@@ -37,25 +37,30 @@ class BLEData:
 # pylint: disable=too-many-branches
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
-    def __init__(self):
+    def __init__(self, address, logger):
+        self.address = address
+        self.logger = logger
         super().__init__()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
-        client = await establish_connection(BleakClient, ble_device, ble_device.address)
+        #client = await establish_connection(BleakClient, ble_device, ble_device.address)
         # printer = PrinterClient(client)
         device = BLEData()
         device.name = ble_device.name
         device.address = ble_device.address
+        device.model = device.name.split("_")[0] if "_" in device.name else "Unknown"
         # heartbeat = await printer.heartbeat()
         # device.sensors['powerlevel'] = heartbeat['powerlevel']
         device.sensors['address'] =  ble_device.address
-        await client.disconnect()
+        #await client.disconnect()
 
         return device
     
     async def print_image(self, ble_device: BLEDevice, image: Image):
         client = await establish_connection(BleakClient, ble_device, ble_device.address)
-        printer = PrinterClient(client)
-        printer.print_image(image)
+        printer = PrinterClient(client, self.logger)
+        await printer.start_notify()
+        await printer.print_image(image)
+        await printer.stop_notify()
         await client.disconnect()

@@ -77,13 +77,9 @@ def should_show_element(element):
 def customimage(entity_id, service, hass):
     payload = service.data.get("payload", "")
     rotate = service.data.get("rotate", 0)
-    dither = service.data.get("dither", False)
     background = getIndexColor(service.data.get("background","white"))
-    entity = hass.states.get(entity_id)
-    if not (entity and 'width' in entity.attributes):
-        raise HomeAssistantError("id was not found yet, please wait for the display to check in at least once " + entity_id)
-    canvas_width = hass.states.get(entity_id).attributes['width']
-    canvas_height = hass.states.get(entity_id).attributes['height']
+    canvas_width = service.data.get("width", 0)
+    canvas_height = service.data.get("height", 0)
     if rotate == 0:
         img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
     elif rotate == 90:

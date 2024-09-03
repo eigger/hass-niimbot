@@ -6,7 +6,7 @@ import struct
 
 from PIL import Image, ImageOps
 from serial.tools.list_ports import comports as list_comports
-from bleak import BleakScanner, BleakClient, BleakError
+from bleak import BleakClient, BleakError
 from typing import Any, Callable, Tuple, TypeVar, cast
 from asyncio import Event, wait_for, sleep
 
@@ -18,7 +18,6 @@ class BleakCharacteristicMissing(BleakError):
 class BleakServiceMissing(BleakError):
     """Raised when a service is missing."""
 
-from bleak_retry_connector import establish_connection
 from .packet import NiimbotPacket
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
@@ -92,10 +91,12 @@ class BLETransport(BaseTransport):
         data = self._command_data
         self._command_data = None
         self._event.clear()  # Reset the event for the next notification
+        print(f"read: {data}")
         return data
 
     async def write_ble(self, uuid: str, data: bytes):
         """Write data to the BLE characteristic."""
+        print(f"write: {data}")
         await self._client.write_gatt_char(uuid, data)
 
     def _notification_handler(self, _: Any, data: bytearray):
@@ -115,22 +116,28 @@ class BLETransport(BaseTransport):
                 raise
         return cast(WrapFuncType, wrapper)
     
-    async def start_notify(self, uuid: str = CHARACTERISTIC_UUID):
+    async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic."""
         await self._client.start_notify(uuid, self._notification_handler)
         await sleep(0.5)
 
-    async def stop_notify(self, uuid: str = CHARACTERISTIC_UUID):
+    async def stop_notify(self, uuid: str):
         """Stop notifications from the BLE characteristic."""
         await self._client.stop_notify(uuid)
 
 class PrinterClient:
-    def __init__(self, client: BleakClient):
+    def __init__(self, client: BleakClient, logger):
         self._transport = BLETransport(client)
         self._packetbuf = bytearray()
+        self._logger = logger
+
+    async def start_notify(self):
+        await self._transport.start_notify(CHARACTERISTIC_UUID)
+
+    async def stop_notify(self):
+        await self._transport.stop_notify(CHARACTERISTIC_UUID)
 
     async def print_image(self, image: Image, density: int = 3):
-        await self._transport.start_notify()
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print()
@@ -146,7 +153,7 @@ class PrinterClient:
         while not await self.end_print():
             #time.sleep(0.1)
             await sleep(0.1)
-        await self._transport.stop_notify()
+        
 
     async def _encode_image(self, image: Image):
         img = ImageOps.invert(image.convert("L")).convert("1")
@@ -177,6 +184,7 @@ class PrinterClient:
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
         logging.debug(f"{prefix}: {msg}")
+        self._logger.info(f"{prefix}: {msg}")
 
     async def _transceive(self, reqcode, data, respoffset=1):
         respcode = respoffset + reqcode
@@ -240,13 +248,11 @@ class PrinterClient:
         }
 
     async def heartbeat(self):
-        await self._transport.start_notify()
         packet = await self._transceive(RequestCodeEnum.HEARTBEAT, b"\x01")
         closingstate = None
         powerlevel = None
         paperstate = None
         rfidreadstate = None
-        await self._transport.stop_notify()
         match len(packet.data):
             case 20:
                 paperstate = packet.data[18]

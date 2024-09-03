@@ -2,8 +2,8 @@ print:
   name: Print Image
   description: Print a custom image
   target:
-    entity:
-      domain: niimbot
+    device:
+      manufacturer: Niimbot
   fields:
     payload:
       name: Payload
@@ -13,10 +13,20 @@ print:
     background:
       name: Backgroundcolor
       description: black, white, red
-      required: true
+      required: false
       example: white
     rotate:
       name: rotate
       description: 0, 90, 180, 270
       required: false
       example: 90
+    width:
+      name: width
+      description: width of label
+      required: true
+      example: 320
+    height:
+      name: height
+      description: height of label
+      required: true
+      example: 320
