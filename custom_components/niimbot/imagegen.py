@@ -581,7 +581,7 @@ def customimage(entity_id, service, hass):
     buf = io.BytesIO()
     rgb_image.save(buf, format='JPEG', quality="maximum")
     byte_im = buf.getvalue()
-    return byte_im
+    return byte_im, patha
 
 def check_for_missing_required_arguments(element, required_keys, func_name):
     missing_keys = []
