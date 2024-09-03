@@ -59,12 +59,12 @@ class NiimbotDevice:
             device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
         if not device.sw_version:
             device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
-        device.sensors['battery'] = float(await printer.get_info(InfoEnum.BATTERY))
         heartbeat = await printer.heartbeat()
         device.sensors['closingstate'] =  heartbeat["closingstate"]
         device.sensors['powerlevel'] =  heartbeat["powerlevel"]
         device.sensors['paperstate'] =  heartbeat["paperstate"]
         device.sensors['rfidreadstate'] =  heartbeat["rfidreadstate"]
+        device.sensors['battery'] = float(heartbeat["powerlevel"]) * 25.0
         await printer.stop_notify()
         await client.disconnect()
 
