@@ -20,8 +20,10 @@ class BleakServiceMissing(BleakError):
 
 from .packet import NiimbotPacket
 
-SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
-CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
+# SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
+# CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
+SERVICE_UUID = "fef1"
+CHARACTERISTIC_UUID = "fef1"
 
 class InfoEnum(enum.IntEnum):
     DENSITY = 1
