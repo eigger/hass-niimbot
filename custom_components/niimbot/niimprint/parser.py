@@ -54,7 +54,7 @@ class NiimbotDevice:
         device.model = device.name.split("-")[0] if "-" in device.name else "Unknown"
         device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
         device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
-        # device.sw_version = await printer.get_info(InfoEnum.SOFTVERSION)
+        device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
         device.sensors['battery'] =  float(await printer.get_info(InfoEnum.BATTERY))
         await printer.stop_notify()
         await client.disconnect()
