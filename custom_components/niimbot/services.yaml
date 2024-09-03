@@ -4,6 +4,8 @@ print:
   target:
     device:
       manufacturer: Niimbot
+    entity:
+      domain: niimbot
   fields:
     payload:
       name: Payload
