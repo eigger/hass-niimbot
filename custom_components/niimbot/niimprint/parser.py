@@ -28,6 +28,7 @@ class BLEData:
     identifier: str = ""
     address: str = ""
     model: str = "Unknown"
+    serial_number: str = "Unknown"
     sensors: dict[str, str | float | None] = dataclasses.field(
         default_factory=lambda: {}
     )

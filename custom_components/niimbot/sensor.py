@@ -31,7 +31,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from .const import DOMAIN, VERSION
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,11 +100,12 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
                     ble_data.address,
                 )
             },
-            name=name,
-            manufacturer="Niimbot",
-            model=ble_data.model,
-            hw_version=ble_data.hw_version,
-            sw_version=VERSION
+            name = name,
+            manufacturer = "Niimbot",
+            model = ble_data.model,
+            hw_version = ble_data.hw_version,
+            sw_version = ble_data.sw_version,
+            serial_number = ble_data.serial_number
         )
 
     @property
