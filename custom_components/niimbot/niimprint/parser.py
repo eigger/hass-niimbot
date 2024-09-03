@@ -47,7 +47,7 @@ class NiimbotDevice:
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
         client = await establish_connection(BleakClient, ble_device, ble_device.address)
-        printer = PrinterClient(client)
+        printer = PrinterClient(client, self.logger)
         device = BLEData()
         device.name = ble_device.name
         device.address = ble_device.address
