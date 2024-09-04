@@ -9,16 +9,16 @@ from math import radians
 import requests
 import qrcode
 import shutil
-import asyncio
-import time
+from io import BytesIO
 import base64
 from .const import DOMAIN
 from .util import get_image_folder, get_image_path
 from PIL import Image, ImageDraw, ImageFont
+import barcode
+from barcode.writer import ImageWriter
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt
-from homeassistant.components.recorder import get_instance
 from datetime import timedelta, datetime
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,20 +76,21 @@ def should_show_element(element):
 # custom image generator
 def customimage(entity_id, service, hass):
     payload = service.data.get("payload", "")
-    rotate = service.data.get("rotate", 0)
+    rotate = service.data.get("rotate", 90)
     background = getIndexColor(service.data.get("background","white"))
-    canvas_width = service.data.get("width", 240)
-    canvas_height = service.data.get("height", 120)
-    if rotate == 0:
-        img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
-    elif rotate == 90:
-        img = Image.new('RGBA', (canvas_height, canvas_width), color=background)
-    elif rotate == 180:
-        img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
-    elif rotate == 270:
-        img = Image.new('RGBA', (canvas_height, canvas_width), color=background)
-    else:
-        img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
+    canvas_width = service.data.get("width", 640)
+    canvas_height = service.data.get("height", 384)
+    img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
+    # if rotate == 0:
+    #     img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
+    # elif rotate == 90:
+    #     img = Image.new('RGBA', (canvas_height, canvas_width), color=background)
+    # elif rotate == 180:
+    #     img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
+    # elif rotate == 270:
+    #     img = Image.new('RGBA', (canvas_height, canvas_width), color=background)
+    # else:
+    #     img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
     pos_y = 0
     for element in payload:
         _LOGGER.debug("type: " + element["type"])
@@ -313,6 +314,41 @@ def customimage(entity_id, service, hass):
             position = (pos_x,pos_y)
             imgqr = imgqr.convert("RGBA")
             img.paste(imgqr, position, imgqr)
+            img.convert('RGBA')
+        # barcode
+        if element["type"] == "barcode":
+            check_for_missing_required_arguments(element, ["x", "y", "data"], "qrcode")
+            data = element['data']
+            pos_x = element['x']
+            pos_y = element['y']
+            color = element['color'] if 'color' in element else "black"
+            bgcolor = element['bgcolor'] if 'bgcolor' in element else "white"
+            code = element['code'] if 'code' in element else "code128"
+            module_width = element['module_width'] if 'module_width' in element else 0.2
+            module_height = element['module_height'] if 'module_height' in element else 15.0
+            quiet_zone = element['quiet_zone'] if 'quiet_zone' in element else 6.5
+            font_size = element['font_size'] if 'font_size' in element else 10
+            text_distance = element['text_distance'] if 'text_distance' in element else 5.0
+            write_text = element['write_text'] if 'write_text' in element else True
+            barcode_format = barcode.get_barcode_class(code)
+            options = {
+                "module_width": float(module_width),  # 바코드 라인 하나의 폭 (기본값 0.2)
+                "module_height": float(module_height),  # 바코드 높이 (기본값 15.0)
+                "quiet_zone": float(quiet_zone),  # 바코드 주변의 여백 (기본값 6.5)
+                "font_size": int(font_size),  # 텍스트의 폰트 크기 (기본값 10)
+                "text_distance": float(text_distance),  # 텍스트와 바코드 간 거리 (기본값 5.0)
+                "background": bgcolor,  # 배경색 (기본값 white)
+                "foreground": color,  # 바코드 색상 (기본값 black)
+                "write_text": write_text,  # 바코드 아래에 텍스트 표시 (기본값 True)
+            }
+            buffer = BytesIO()
+            barcode_image = barcode_format(data, writer=ImageWriter())
+            barcode_image.write(buffer, options=options)
+            buffer.seek(0)  # 스트림의 시작 위치로 이동
+            imagebc = Image.open(buffer)
+            position = (pos_x,pos_y)
+            imagebc = imagebc.convert("RGBA")
+            img.paste(imagebc, position, imagebc)
             img.convert('RGBA')
         # diagram
         if element["type"] == "diagram":
@@ -563,12 +599,8 @@ def customimage(entity_id, service, hass):
                 # Draw text
                 img_draw.text((text_x, text_y), percentage_text, font=font, fill=text_color, anchor='lt') # TODO anchor is still off
 
-
-
-
-
     #post processing
-    img = img.rotate(rotate, expand=True)
+    img = img.rotate(-rotate, expand=True)
     rgb_image = img.convert('RGB')
     patha = os.path.join(os.path.dirname(__file__), entity_id + '.jpg')
     pathb = get_image_path(hass, entity_id)
@@ -578,10 +610,7 @@ def customimage(entity_id, service, hass):
         os.makedirs(pathc)
     rgb_image.save(patha, format='JPEG', quality="maximum")
     shutil.copy2(patha,pathb)
-    buf = io.BytesIO()
-    rgb_image.save(buf, format='JPEG', quality="maximum")
-    byte_im = buf.getvalue()
-    return byte_im, patha
+    return rgb_image
 
 def check_for_missing_required_arguments(element, required_keys, func_name):
     missing_keys = []

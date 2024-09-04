@@ -96,11 +96,10 @@ class NiimbotDevice:
 
         return device
     
-    async def print_image(self, ble_device: BLEDevice, image: Image, path):
+    async def print_image(self, ble_device: BLEDevice, image: Image):
         client = await establish_connection(BleakClient, ble_device, ble_device.address)
         printer = PrinterClient(client, self.logger)
         await printer.start_notify()
-        img = Image.open(path)
-        await printer.print_image(img)
+        await printer.print_image(image)
         await printer.stop_notify()
         await client.disconnect()

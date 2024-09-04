@@ -56,9 +56,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     @callback
     # callback for the draw custom service
     async def printservice(service: ServiceCall) -> None:
-        img, path = await hass.async_add_executor_job(customimage, entry.entry_id, service, hass)
+        image = await hass.async_add_executor_job(customimage, entry.entry_id, service, hass)
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        await niimbot.print_image(ble_device, img, path)             
+        await niimbot.print_image(ble_device, image)             
 
     # register the services
     hass.services.async_register(DOMAIN, "print", printservice)
