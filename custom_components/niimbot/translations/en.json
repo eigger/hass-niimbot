@@ -14,7 +14,8 @@
             },
             "user": {
                 "data": {
-                    "address": "Device"
+                    "address": "Device",
+                    "continuous_connection": "Continuous Connection"
                 },
                 "description": "Choose a device to set up"
             }

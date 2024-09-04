@@ -1,6 +1,6 @@
 print:
   name: Print Image
-  description: Print a custom image
+  description: Print Niimbot Label image
   target:
     device:
       manufacturer: Niimbot
@@ -9,7 +9,7 @@ print:
       name: Payload
       description: payload to draw
       required: true
-      example: look into supported_types.md for examples
+      example: examples
     rotate:
       name: rotate
       description: 0, 90, 180, 270

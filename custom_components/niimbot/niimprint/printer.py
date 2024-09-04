@@ -5,7 +5,6 @@ import math
 import struct
 
 from PIL import Image, ImageOps
-from serial.tools.list_ports import comports as list_comports
 from bleak import BleakClient, BleakError
 from typing import Any, Callable, Tuple, TypeVar, cast
 from asyncio import Event, wait_for, sleep

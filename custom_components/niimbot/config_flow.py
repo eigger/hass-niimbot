@@ -2,20 +2,18 @@
 import dataclasses
 import logging
 from typing import Any
-from .niimprint import NiimbotDevice, BLEData
-from bleak import BleakError
 import voluptuous as vol
 
-from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfo,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.core import callback
+from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_CONTINUOUS_CONNECTION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         """Confirm discovery."""
         if user_input is not None:
             return self.async_create_entry(
-                title=self.context["title_placeholders"]["name"], data={}
+                title=self.context["title_placeholders"]["name"], data=user_input
             )
 
         self._set_confirm_only()
@@ -85,7 +83,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
             self._discovered_device = discovery
 
-            return self.async_create_entry(title=discovery.name, data={})
+            return self.async_create_entry(title=discovery.name, data=user_input)
 
         current_addresses = self._async_current_ids()
         for discovery_info in async_discovered_service_info(self.hass):
@@ -136,6 +134,36 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(titles),
+                    vol.Required(CONF_CONTINUOUS_CONNECTION, default=False): bool
                 },
             ),
         )
+    
+#     @staticmethod
+#     @callback
+#     def async_get_options_flow(config_entry):
+#         return OptionsFlowHandler(config_entry)
+
+# class OptionsFlowHandler(OptionsFlow):
+#     def __init__(self, config_entry: ConfigEntry) -> None:
+#         """Initialize options flow."""
+#         self.config_entry = config_entry
+
+#     async def async_step_init(
+#         self, user_input: dict[str, Any] | None = None
+#     ) -> FlowResult:
+#         """Manage the options."""
+#         if user_input is not None:
+#             return self.async_create_entry(title="", data=user_input)
+
+#         return self.async_show_form(
+#             step_id="init",
+#             data_schema=vol.Schema(
+#                 {
+#                     vol.Required(
+#                         "continuous_connection",
+#                         default=self.config_entry.options.get("continuous_connection"),
+#                     ): bool
+#                 }
+#             ),
+#         )
