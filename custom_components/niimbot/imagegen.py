@@ -324,7 +324,7 @@ def customimage(entity_id, service, hass):
             color = element['color'] if 'color' in element else "black"
             bgcolor = element['bgcolor'] if 'bgcolor' in element else "white"
             code = element['code'] if 'code' in element else "code128"
-            module_width = element['module_width'] if 'module_width' in element else 0.15
+            module_width = element['module_width'] if 'module_width' in element else 0.2
             module_height = element['module_height'] if 'module_height' in element else 7
             quiet_zone = element['quiet_zone'] if 'quiet_zone' in element else 6.5
             font_size = element['font_size'] if 'font_size' in element else 5
