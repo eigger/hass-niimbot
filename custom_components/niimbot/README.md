@@ -243,3 +243,66 @@ send: 55 55 01 07 00 01 00 00 00 00 00 07 aa aa
 send: 55 55 03 01 01 03 aa aa
 send: 55 55 13 06 00 f0 00 a0 00 01 44 aa aa
 send: 55 55 85 1a 00 23 00 00 00 01 00 00 00 00 07 ff ff ff ff ff ff ff ff ff ff ff e0 00 00 00 a5 aa aa
+
+
+index-Bl-bJOtw.js:794 new NiimbotBluetoothClient
+index-Bl-bJOtw.js:794 >> 03 55 55 c1 01 01 c1 aa aa (Connect)
+index-Bl-bJOtw.js:794 << 55 55 c2 01 03 c0 aa aa (In_Connect)
+index-Bl-bJOtw.js:794 >> 55 55 a5 01 01 a5 aa aa (PrinterStatusData)
+index-Bl-bJOtw.js:794 << 55 55 b5 10 30 30 03 20 00 c8 00 00 00 0f 01 02 04 01 98 00 df aa aa (In_PrinterStatusData)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 08 49 aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 48 02 10 00 5a aa aa (In_PrinterInfoPrinterCode)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 0b 4a aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 4b 0a 47 37 32 33 30 34 30 32 35 39 3a aa aa (In_PrinterInfoSerialNumber)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 0d 4c aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 4d 06 23 07 04 37 39 e5 80 aa aa (In_PrinterInfoBluetoothAddress)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 0a 4b aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 4a 01 04 4f aa aa (In_PrinterInfoChargeLevel)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 07 46 aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 47 01 03 45 aa aa (In_PrinterInfoAutoShutDownTime)
+index-Bl-bJOtw.js:794 >> 55 55 40 01 03 42 aa aa (PrinterInfo)
+index-Bl-bJOtw.js:794 << 55 55 43 01 01 43 aa aa (In_PrinterInfoLabelType)
+index-Bl-bJOtw.js:794 printerInfoFetched
+index-Bl-bJOtw.js:794 onConnect
+index-Bl-bJOtw.js:815 Detected print task version: V4
+index-Bl-bJOtw.js:33 Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently
+encodeCanvas @ index-Bl-bJOtw.js:33
+I @ index-Bl-bJOtw.js:815
+index-Bl-bJOtw.js:794 >> 55 55 21 01 03 23 aa aa (SetDensity)
+index-Bl-bJOtw.js:794 << 55 55 31 01 01 31 aa aa (In_SetDensity)
+index-Bl-bJOtw.js:794 >> 55 55 23 01 01 23 aa aa (SetLabelType)
+index-Bl-bJOtw.js:794 << 55 55 33 01 01 33 aa aa (In_SetLabelType)
+index-Bl-bJOtw.js:794 >> 55 55 01 07 00 01 00 00 00 00 00 07 aa aa (PrintStart)
+index-Bl-bJOtw.js:794 << 55 55 02 01 01 02 aa aa (In_PrintStart)
+index-Bl-bJOtw.js:794 >> 55 55 03 01 01 03 aa aa (PageStart)
+index-Bl-bJOtw.js:794 << 55 55 04 01 01 04 aa aa (In_PageStart)
+index-Bl-bJOtw.js:794 >> 55 55 13 06 00 f0 01 90 00 01 75 aa aa (SetPageSize)
+index-Bl-bJOtw.js:794 << 55 55 14 02 01 00 17 aa aa (In_SetPageSize)
+index-Bl-bJOtw.js:794 >> 55 55 84 03 00 00 6e e9 aa aa (PrintEmptyRow)
+index-Bl-bJOtw.js:794 >> 55 55 85 38 00 6e 00 01 90 03 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 41 aa aa (PrintBitmapRow)
+index-Bl-bJOtw.js:794 >> 55 55 84 03 00 71 3e c8 aa aa (PrintEmptyRow)
+index-Bl-bJOtw.js:794 >> 55 55 85 38 00 af 00 01 90 03 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 80 aa aa (PrintBitmapRow)
+index-Bl-bJOtw.js:794 >> 55 55 84 03 00 b2 3e 0b aa aa (PrintEmptyRow)
+index-Bl-bJOtw.js:794 >> 55 55 e3 01 01 e3 aa aa (PageEnd)
+index-Bl-bJOtw.js:794 << 55 55 d3 03 00 ef 01 3e aa aa (In_PrinterCheckLine)
+index-Bl-bJOtw.js:794 << 55 55 e4 01 01 e4 aa aa (In_PageEnd)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 00 00 03 1a 00 01 00 00 a1 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 01 00 03 1a 00 01 00 00 a0 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 11 00 03 1a 00 01 00 00 b0 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 20 00 03 1a 00 01 00 00 81 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 31 00 03 1c 00 01 00 00 96 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 43 00 03 1c 00 01 00 00 e4 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 51 00 03 1e 00 01 00 00 f4 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 64 00 03 1e 00 01 00 00 c1 aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 64 5a 03 1e 00 01 00 00 9b aa aa (In_PrintStatus)
+index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 01 64 64 03 1e 00 01 00 00 a4 aa aa (In_PrintStatus)

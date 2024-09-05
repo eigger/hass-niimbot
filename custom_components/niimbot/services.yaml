@@ -19,9 +19,9 @@ print:
       name: width
       description: width of label
       required: false
-      example: 640
+      example: 400
     height:
       name: height
       description: height of label
       required: false
-      example: 384
+      example: 240
