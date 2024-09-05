@@ -317,7 +317,7 @@ def customimage(entity_id, service, hass):
             img.convert('RGBA')
         # barcode
         if element["type"] == "barcode":
-            check_for_missing_required_arguments(element, ["x", "y", "data"], "qrcode")
+            check_for_missing_required_arguments(element, ["x", "y", "data"], "barcode")
             data = element['data']
             pos_x = element['x']
             pos_y = element['y']

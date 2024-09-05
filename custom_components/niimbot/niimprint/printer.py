@@ -152,11 +152,12 @@ class PrinterClient:
             await self._send(pkt)
         await sleep(0.05)
         await self.end_page_print()
-        await sleep(1)
-        # while not await self.get_print_end():
+        await sleep(2)
+        while not await self.get_print_end():
+            await sleep(1)
+        await self.end_print()
+        # while not await self.end_print():
         #     await sleep(0.5)
-        while not await self.end_print():
-            await sleep(0.5)
 
     def _countbitsofbytes(self, data):
         n = int.from_bytes(data, 'big')
