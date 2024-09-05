@@ -153,8 +153,8 @@ class PrinterClient:
         await sleep(0.05)
         await self.end_page_print()
         await sleep(1)
-        while not await self.get_print_end():
-            await sleep(0.5)
+        # while not await self.get_print_end():
+        #     await sleep(0.5)
         while not await self.end_print():
             await sleep(0.5)
 
