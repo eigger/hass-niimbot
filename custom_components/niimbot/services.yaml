@@ -14,7 +14,7 @@ print:
       name: rotate
       description: 0, 90, 180, 270
       required: false
-      example: 90
+      example: 0
     width:
       name: width
       description: width of label

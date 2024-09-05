@@ -76,10 +76,10 @@ def should_show_element(element):
 # custom image generator
 def customimage(entity_id, service, hass):
     payload = service.data.get("payload", "")
-    rotate = service.data.get("rotate", 90)
+    rotate = service.data.get("rotate", 0)
     background = getIndexColor(service.data.get("background","white"))
-    canvas_width = service.data.get("width", 640)
-    canvas_height = service.data.get("height", 384)
+    canvas_width = service.data.get("width", 400)
+    canvas_height = service.data.get("height", 240)
     img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
     # if rotate == 0:
     #     img = Image.new('RGBA', (canvas_width, canvas_height), color=background)
@@ -332,19 +332,19 @@ def customimage(entity_id, service, hass):
             write_text = element['write_text'] if 'write_text' in element else True
             barcode_format = barcode.get_barcode_class(code)
             options = {
-                "module_width": float(module_width),  # ¹ÙÄÚµå ¶óÀÎ ÇÏ³ªÀÇ Æø (±âº»°ª 0.2)
-                "module_height": float(module_height),  # ¹ÙÄÚµå ³ôÀÌ (±âº»°ª 15.0)
-                "quiet_zone": float(quiet_zone),  # ¹ÙÄÚµå ÁÖº¯ÀÇ ¿©¹é (±âº»°ª 6.5)
-                "font_size": int(font_size),  # ÅØ½ºÆ®ÀÇ ÆùÆ® Å©±â (±âº»°ª 10)
-                "text_distance": float(text_distance),  # ÅØ½ºÆ®¿Í ¹ÙÄÚµå °£ °Å¸® (±âº»°ª 5.0)
-                "background": bgcolor,  # ¹è°æ»ö (±âº»°ª white)
-                "foreground": color,  # ¹ÙÄÚµå »ö»ó (±âº»°ª black)
-                "write_text": write_text,  # ¹ÙÄÚµå ¾Æ·¡¿¡ ÅØ½ºÆ® Ç¥½Ã (±âº»°ª True)
+                "module_width": float(module_width),  # ï¿½ï¿½ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ 0.2)
+                "module_height": float(module_height),  # ï¿½ï¿½ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ 15.0)
+                "quiet_zone": float(quiet_zone),  # ï¿½ï¿½ï¿½Úµï¿½ ï¿½Öºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ 6.5)
+                "font_size": int(font_size),  # ï¿½Ø½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½Æ® Å©ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ 10)
+                "text_distance": float(text_distance),  # ï¿½Ø½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Úµï¿½ ï¿½ï¿½ ï¿½Å¸ï¿½ (ï¿½âº»ï¿½ï¿½ 5.0)
+                "background": bgcolor,  # ï¿½ï¿½ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ white)
+                "foreground": color,  # ï¿½ï¿½ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ black)
+                "write_text": write_text,  # ï¿½ï¿½ï¿½Úµï¿½ ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Æ® Ç¥ï¿½ï¿½ (ï¿½âº»ï¿½ï¿½ True)
             }
             buffer = BytesIO()
             barcode_image = barcode_format(data, writer=ImageWriter())
             barcode_image.write(buffer, options=options)
-            buffer.seek(0)  # ½ºÆ®¸²ÀÇ ½ÃÀÛ À§Ä¡·Î ÀÌµ¿
+            buffer.seek(0)  # ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ìµï¿½
             imagebc = Image.open(buffer)
             position = (pos_x,pos_y)
             imagebc = imagebc.convert("RGBA")
@@ -600,7 +600,8 @@ def customimage(entity_id, service, hass):
                 img_draw.text((text_x, text_y), percentage_text, font=font, fill=text_color, anchor='lt') # TODO anchor is still off
 
     #post processing
-    img = img.rotate(-rotate, expand=True)
+    if rotate != 0:
+        img = img.rotate(-rotate, expand=True)
     rgb_image = img.convert('RGB')
     patha = os.path.join(os.path.dirname(__file__), entity_id + '.jpg')
     pathb = get_image_path(hass, entity_id)

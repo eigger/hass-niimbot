@@ -151,11 +151,9 @@ class PrinterClient:
         for pkt in self._encode_image(image):
             await self._send(pkt)
         await self.end_page_print()
-        #time.sleep(0.3)  # FIXME: Check get_print_status()
-        await sleep(0.3)
-        while not await self.end_print():
-            #time.sleep(0.1)
-            await sleep(0.1)
+        while not await self.get_print_end():
+            await sleep(0.5)
+        await self.end_print()
 
     def _countbitsofbytes(self, data):
         n = int.from_bytes(data, 'big')
@@ -167,16 +165,12 @@ class PrinterClient:
         n = (n & 0x0000FFFF) + ((n & 0xFFFF0000) >> 16)
         return n
         
-
     def _encode_image(self, image: Image):
         img = ImageOps.invert(image.convert("L")).convert("1")
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data = "".join("0" if pix == 0 else "1" for pix in line_data)
             line_data = int(line_data, 2).to_bytes(math.ceil(img.width / 8), "big")
-            # if set(line_data) == {0}:
-            #     continue
-            counts = (0, 0, 0)  # It seems like you can always send zeros
             counts = (self._countbitsofbytes(line_data[i*4:(i+1)*4]) for i in range(3) )
             header = struct.pack(">H3BB", y, *counts, 1)
             pkt = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
@@ -314,6 +308,7 @@ class PrinterClient:
     async def start_print_v4(self, total_pages = 1, page_color = 0):
         packet = await self._transceive(RequestCodeEnum.START_PRINT, struct.pack('>HBBBBB', total_pages, 0x00, 0x00, 0x00, 0x00, page_color))
         return bool(packet.data[0])
+
     async def end_print(self):
         packet = await self._transceive(RequestCodeEnum.END_PRINT, b"\x01")
         return bool(packet.data[0])
@@ -343,5 +338,11 @@ class PrinterClient:
 
     async def get_print_status(self):
         packet = await self._transceive(RequestCodeEnum.GET_PRINT_STATUS, b"\x01", 16)
-        page, progress1, progress2 = struct.unpack(">HBB", packet.data)
-        return {"page": page, "progress1": progress1, "progress2": progress2}
+        page, progress1, progress2 = struct.unpack(">HBB", packet.data[:4])
+        return {"page": page, "progress": min(progress1, progress2)}
+
+    async def get_print_end(self):
+        status = await self.get_print_status()
+        if status["progress"] < 100:
+            return False
+        return True
