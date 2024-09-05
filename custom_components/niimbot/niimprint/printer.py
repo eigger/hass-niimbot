@@ -83,7 +83,7 @@ class BLETransport(BaseTransport):
         self._event = Event()
 
     async def read(self, length: int) -> bytes:
-        return await self.read_notify(10)
+        return await self.read_notify(30)
 
     async def write(self, data: bytes):
         return await self.write_ble(CHARACTERISTIC_UUID, data)
