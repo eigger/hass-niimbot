@@ -1,66 +1,62 @@
 
 ```
-                                 >> 55 55 21 01 03 23 aa aa (SetDensity)
-index-CVzwwQV_.js:794 << 55 55 31 01 01 31 aa aa (In_SetDensity)
-index-CVzwwQV_.js:794 >> 55 55 23 01 01 23 aa aa (SetLabelType)
-index-CVzwwQV_.js:794 << 55 55 33 01 01 33 aa aa (In_SetLabelType)
-
-index-CVzwwQV_.js:794 >> 55 55 01 07 00 01 00 00 00 00 00 07 aa aa (PrintStart)
-index-CVzwwQV_.js:794 << 55 55 02 01 01 02 aa aa (In_PrintStart)
-
-index-CVzwwQV_.js:794 >> 55 55 03 01 01 03 aa aa (PageStart)
-index-CVzwwQV_.js:794 << 55 55 04 01 01 04 aa aa (In_PageStart)
-
-index-CVzwwQV_.js:794 >> 55 55 13 06 00 78 00 f0 00 01 9c aa aa (SetPageSize)
-index-CVzwwQV_.js:794 << 55 55 14 02 01 00 17 aa aa (In_SetPageSize)
-
-index-CVzwwQV_.js:794 >> 55 55 84 03 00 00 20 a7 aa aa (PrintEmptyRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 20 00 00 17 02 00 00 00 00 00 00 00 00 00 00 0f ff ff e0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7b aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 22 00 00 1a 01 00 00 00 00 00 00 00 00 00 00 0f ff ff e0 00 00 00 00 03 80 00 00 00 00 00 00 00 00 00 00 f4 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 23 00 00 09 01 00 00 00 00 00 00 00 00 00 00 00 07 c0 00 00 00 00 00 07 80 00 00 00 00 00 00 00 00 00 00 ca aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 24 00 00 08 04 00 00 00 00 00 00 00 00 00 00 00 03 c0 00 00 00 00 00 07 80 00 00 00 00 00 00 00 00 00 00 cd aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 28 00 00 1e 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 01 fc 01 e0 0f bf f0 00 00 00 00 00 00 00 00 00 00 09 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 29 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 07 ff 00 f0 0f 3f f0 00 00 00 00 00 00 00 00 00 00 a3 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2a 00 00 24 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 0f ff 80 f8 1e 3f f0 00 00 00 00 00 00 00 00 00 00 34 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2b 00 00 1a 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 1f 07 c0 78 3c 07 80 00 00 00 00 00 00 00 00 00 00 49 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2c 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3c 01 e0 3c 7c 07 80 00 00 00 00 00 00 00 00 00 00 4c aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2d 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 38 00 e0 3e 78 07 80 00 00 00 00 00 00 00 00 00 00 40 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2e 00 00 18 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 f0 1e f0 07 80 00 00 00 00 00 00 00 00 00 00 b4 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 2f 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 f0 0f e0 07 80 00 00 00 00 00 00 00 00 00 00 bb aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 30 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 7f ff f0 07 e0 07 80 00 00 00 00 00 00 00 00 00 00 62 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 31 00 00 20 02 00 00 00 00 00 00 00 00 00 00 00 03 c0 7f ff f0 07 c0 07 80 00 00 00 00 00 00 00 00 00 00 41 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 33 00 00 13 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 0f e0 07 80 00 00 00 00 00 00 00 00 00 00 53 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 34 00 00 14 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 0f f0 07 80 00 00 00 00 00 00 00 00 00 00 43 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 35 00 00 14 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 1e f0 07 80 00 00 00 00 00 00 00 00 00 00 53 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 36 00 00 15 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 3e 78 07 80 00 00 00 00 00 00 00 00 00 00 f9 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 37 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3c 00 e0 3c 3c 07 80 00 00 00 00 00 00 00 00 00 00 18 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 38 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3e 01 e0 78 3c 07 80 00 00 00 00 00 00 00 00 00 00 5e aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 39 00 00 1c 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 1f 07 e0 f8 1e 07 80 00 00 00 00 00 00 00 00 00 00 df aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 3a 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 0f ff c0 f0 0f 07 f0 00 00 00 00 00 00 00 00 00 00 40 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 3b 00 00 1e 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 07 ff 81 e0 0f 03 f0 00 00 00 00 00 00 00 00 00 00 23 aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 85 24 00 3c 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 01 fc 03 e0 07 81 f0 00 00 00 00 00 00 00 00 00 00 2e aa aa (PrintBitmapRow)
-index-CVzwwQV_.js:794 >> 55 55 84 03 00 3d 3b 81 aa aa (PrintEmptyRow)
-index-CVzwwQV_.js:794 >> 55 55 e3 01 01 e3 aa aa (PageEnd)
-index-CVzwwQV_.js:794 << 55 55 d3 03 00 77 01 a6 aa aa (In_PrinterCheckLine)
-index-CVzwwQV_.js:794 << 55 55 e4 01 01 e4 aa aa (In_PageEnd)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 00 00 03 05 00 01 00 00 be aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 06 00 03 05 00 01 00 00 b8 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 2a 00 03 13 00 01 00 00 82 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 64 00 03 1e 00 01 00 00 c1 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 64 02 03 1e 00 01 00 00 c3 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 64 06 03 1e 00 01 00 00 c7 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 64 25 03 1e 00 01 00 00 e4 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 00 64 51 03 1e 00 01 00 00 90 aa aa (In_PrintStatus)
-index-CVzwwQV_.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
-index-CVzwwQV_.js:794 << 55 55 b3 0a 00 01 64 64 03 1e 00 01 00 00 a4 aa aa (In_PrintStatus)
+>> 55 55 21 01 03 23 aa aa (SetDensity)
+<< 55 55 31 01 01 31 aa aa (In_SetDensity)
+>> 55 55 23 01 01 23 aa aa (SetLabelType)
+<< 55 55 33 01 01 33 aa aa (In_SetLabelType)
+>> 55 55 01 07 00 01 00 00 00 00 00 07 aa aa (PrintStart)
+<< 55 55 02 01 01 02 aa aa (In_PrintStart)
+>> 55 55 03 01 01 03 aa aa (PageStart)
+<< 55 55 04 01 01 04 aa aa (In_PageStart)
+>> 55 55 13 06 00 78 00 f0 00 01 9c aa aa (SetPageSize)
+<< 55 55 14 02 01 00 17 aa aa (In_SetPageSize)
+>> 55 55 84 03 00 00 20 a7 aa aa (PrintEmptyRow)
+>> 55 55 85 24 00 20 00 00 17 02 00 00 00 00 00 00 00 00 00 00 0f ff ff e0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7b aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 22 00 00 1a 01 00 00 00 00 00 00 00 00 00 00 0f ff ff e0 00 00 00 00 03 80 00 00 00 00 00 00 00 00 00 00 f4 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 23 00 00 09 01 00 00 00 00 00 00 00 00 00 00 00 07 c0 00 00 00 00 00 07 80 00 00 00 00 00 00 00 00 00 00 ca aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 24 00 00 08 04 00 00 00 00 00 00 00 00 00 00 00 03 c0 00 00 00 00 00 07 80 00 00 00 00 00 00 00 00 00 00 cd aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 28 00 00 1e 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 01 fc 01 e0 0f bf f0 00 00 00 00 00 00 00 00 00 00 09 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 29 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 07 ff 00 f0 0f 3f f0 00 00 00 00 00 00 00 00 00 00 a3 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2a 00 00 24 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 0f ff 80 f8 1e 3f f0 00 00 00 00 00 00 00 00 00 00 34 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2b 00 00 1a 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 1f 07 c0 78 3c 07 80 00 00 00 00 00 00 00 00 00 00 49 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2c 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3c 01 e0 3c 7c 07 80 00 00 00 00 00 00 00 00 00 00 4c aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2d 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 38 00 e0 3e 78 07 80 00 00 00 00 00 00 00 00 00 00 40 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2e 00 00 18 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 f0 1e f0 07 80 00 00 00 00 00 00 00 00 00 00 b4 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 2f 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 f0 0f e0 07 80 00 00 00 00 00 00 00 00 00 00 bb aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 30 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 7f ff f0 07 e0 07 80 00 00 00 00 00 00 00 00 00 00 62 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 31 00 00 20 02 00 00 00 00 00 00 00 00 00 00 00 03 c0 7f ff f0 07 c0 07 80 00 00 00 00 00 00 00 00 00 00 41 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 33 00 00 13 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 0f e0 07 80 00 00 00 00 00 00 00 00 00 00 53 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 34 00 00 14 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 0f f0 07 80 00 00 00 00 00 00 00 00 00 00 43 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 35 00 00 14 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 1e f0 07 80 00 00 00 00 00 00 00 00 00 00 53 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 36 00 00 15 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 78 00 00 3e 78 07 80 00 00 00 00 00 00 00 00 00 00 f9 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 37 00 00 17 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3c 00 e0 3c 3c 07 80 00 00 00 00 00 00 00 00 00 00 18 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 38 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 3e 01 e0 78 3c 07 80 00 00 00 00 00 00 00 00 00 00 5e aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 39 00 00 1c 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 1f 07 e0 f8 1e 07 80 00 00 00 00 00 00 00 00 00 00 df aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 3a 00 00 21 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 0f ff c0 f0 0f 07 f0 00 00 00 00 00 00 00 00 00 00 40 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 3b 00 00 1e 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 07 ff 81 e0 0f 03 f0 00 00 00 00 00 00 00 00 00 00 23 aa aa (PrintBitmapRow)
+>> 55 55 85 24 00 3c 00 00 19 01 00 00 00 00 00 00 00 00 00 00 00 03 c0 01 fc 03 e0 07 81 f0 00 00 00 00 00 00 00 00 00 00 2e aa aa (PrintBitmapRow)
+>> 55 55 84 03 00 3d 3b 81 aa aa (PrintEmptyRow)
+>> 55 55 e3 01 01 e3 aa aa (PageEnd)
+<< 55 55 d3 03 00 77 01 a6 aa aa (In_PrinterCheckLine)
+<< 55 55 e4 01 01 e4 aa aa (In_PageEnd)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 00 00 03 05 00 01 00 00 be aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 06 00 03 05 00 01 00 00 b8 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 2a 00 03 13 00 01 00 00 82 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 64 00 03 1e 00 01 00 00 c1 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 64 02 03 1e 00 01 00 00 c3 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 64 06 03 1e 00 01 00 00 c7 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 64 25 03 1e 00 01 00 00 e4 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 00 64 51 03 1e 00 01 00 00 90 aa aa (In_PrintStatus)
+>> 55 55 a3 01 01 a3 aa aa (PrintStatus)
+<< 55 55 b3 0a 00 01 64 64 03 1e 00 01 00 00 a4 aa aa (In_PrintStatus)
 
 
 
@@ -204,3 +200,46 @@ recv: 55:55:d3:03:00:77:01:a6:aa:aa
 recv: 55:55:e4:01:01:e4:aa:aa
 send: 55:55:f3:01:01:f3:aa:aa
 recv: 55:55:f4:01:01:f4:aa:aa
+
+
+send: 55 55 21 01 03 23 aa aa
+send: 55 55 23 01 01 23 aa aa
+send: 55 55 01 07 00 01 00 00 00 00 00 07 aa aa
+send: 55 55 03 01 01 03 aa aa
+send: 55 55 13 06 00 a0 00 f0 00 01 44 aa aa
+send: 55 55 e3 01 01 e3 aa aa
+send: 55 55 f3 01 01 f3 aa aa
+
+
+/*
+B1 print process example (square in square, 160x240)
+
+SetDensity        5555 21 01 02 22aaaa
+SetLabelType      5555 23 01 01 23aaaa
+PrintStart        5555 01 07 00010000000000 07aaaa
+PageStart         5555 03 01 01 03aaaa
+SetPageSize       5555 13 06 00a000f00001 44aaaa
+PrintEmptyRows    5555 84 03 0000 1d 9aaaaa
+PrintBitmapRows   5555 85 24 001d 3e3000 04 000000000000003ffffffffffffffffffffffffffffffff0000000000000 86aaaa
+PrintBitmapRows   5555 85 24 0021 b83000 21 000000000000003c000000000000000000000000000000f0000000000000 e5aaaa
+PrintBitmapRows   5555 85 24 0042 9e3000 04 000000000000003c000000000007fffffe000000000000f0000000000000 7caaaa
+PrintBitmapRows   5555 85 24 0046 b03000 14 000000000000003c00000000000780001e000000000000f0000000000000 26aaaa
+PrintBitmapRows   5555 85 24 005a 9e3000 04 000000000000003c000000000007fffffe000000000000f0000000000000 64aaaa
+PrintBitmapRows   5555 85 24 005e b83000 23 000000000000003c000000000000000000000000000000f0000000000000 98aaaa
+PrintBitmapRows   5555 85 24 0081 3e3000 04 000000000000003ffffffffffffffffffffffffffffffff0000000000000 1aaaaa
+PrintEmptyRows    5555 84 03 0085 1b 19aaaa
+PageEnd           5555 e3 01 01 e3aaaa
+PrintStatus       5555 a3 01 01 a3aaaa (alot)
+PrintEnd          5555 f3 01 01 f3aaaa
+
+
+55 55 85 24 00 20 00 00 17 02 00 00 00 00 00 00 00 00 00 00 0f ff ff e0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7b aa aa
+
+You should send PrintEnd manually after this sequence (after print finished)
+*/
+send: 55 55 21 01 03 23 aa aa
+send: 55 55 23 01 01 23 aa aa
+send: 55 55 01 07 00 01 00 00 00 00 00 07 aa aa
+send: 55 55 03 01 01 03 aa aa
+send: 55 55 13 06 00 f0 00 a0 00 01 44 aa aa
+send: 55 55 85 1a 00 23 00 00 00 01 00 00 00 00 07 ff ff ff ff ff ff ff ff ff ff ff e0 00 00 00 a5 aa aa

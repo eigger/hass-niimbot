@@ -49,6 +49,10 @@ class RequestCodeEnum(enum.IntEnum):
     SET_DIMENSION = 19  # 0x13
     SET_QUANTITY = 21  # 0x15
     GET_PRINT_STATUS = 163  # 0xA3
+    PRINT_BITMAP_ROW_INDEXED = 131 # 0x83
+    PRINT_EMPTY_ROW = 132 # 0x84
+    PRINT_BITMAP_ROW = 133 # 0x85
+    PRINT_CLEAR = 32 # 0x20
 
 
 def _packet_to_int(x):
@@ -139,10 +143,10 @@ class PrinterClient:
     async def print_image(self, image: Image, density: int = 3):
         await self.set_label_density(density)
         await self.set_label_type(1)
-        await self.start_print()
+        await self.start_print_v4()
         # self.allow_print_clear()  # Something unsupported in protocol decoding (B21)
         await self.start_page_print()
-        await self.set_dimension(image.height, image.width)
+        await self.set_page_size_v3(image.height, image.width)
         # self.set_quantity(1)  # Same thing (B21)
         for pkt in self._encode_image(image):
             await self._send(pkt)
@@ -152,6 +156,16 @@ class PrinterClient:
         while not await self.end_print():
             #time.sleep(0.1)
             await sleep(0.1)
+
+    def _countbitsofbytes(self, data):
+        n = int.from_bytes(data, 'big')
+        # https://stackoverflow.com/a/9830282
+        n = (n & 0x55555555) + ((n & 0xAAAAAAAA) >> 1)
+        n = (n & 0x33333333) + ((n & 0xCCCCCCCC) >> 2)
+        n = (n & 0x0F0F0F0F) + ((n & 0xF0F0F0F0) >> 4)
+        n = (n & 0x00FF00FF) + ((n & 0xFF00FF00) >> 8)
+        n = (n & 0x0000FFFF) + ((n & 0xFFFF0000) >> 16)
+        return n
         
 
     def _encode_image(self, image: Image):
@@ -160,9 +174,12 @@ class PrinterClient:
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data = "".join("0" if pix == 0 else "1" for pix in line_data)
             line_data = int(line_data, 2).to_bytes(math.ceil(img.width / 8), "big")
+            # if set(line_data) == {0}:
+            #     continue
             counts = (0, 0, 0)  # It seems like you can always send zeros
+            counts = (self._countbitsofbytes(line_data[i*4:(i+1)*4]) for i in range(3) )
             header = struct.pack(">H3BB", y, *counts, 1)
-            pkt = NiimbotPacket(0x85, header + line_data)
+            pkt = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
             yield pkt
 
     async def _recv(self):
@@ -294,6 +311,9 @@ class PrinterClient:
         packet = await self._transceive(RequestCodeEnum.START_PRINT, b"\x01")
         return bool(packet.data[0])
 
+    async def start_print_v4(self, total_pages = 1, page_color = 0):
+        packet = await self._transceive(RequestCodeEnum.START_PRINT, struct.pack('>HBBBBB', total_pages, 0x00, 0x00, 0x00, 0x00, page_color))
+        return bool(packet.data[0])
     async def end_print(self):
         packet = await self._transceive(RequestCodeEnum.END_PRINT, b"\x01")
         return bool(packet.data[0])
@@ -311,10 +331,11 @@ class PrinterClient:
         return bool(packet.data[0])
 
     async def set_dimension(self, w, h):
-        packet = await self._transceive(
-            RequestCodeEnum.SET_DIMENSION, struct.pack(">HH", w, h)
-        )
+        packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HH", w, h))
         return bool(packet.data[0])
+		
+    async def set_page_size_v3(self, rows, cols, copies_count = 1):
+        packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HHH", rows, cols, copies_count))
 
     async def set_quantity(self, n):
         packet = await self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
