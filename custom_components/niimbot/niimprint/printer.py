@@ -150,11 +150,11 @@ class PrinterClient:
         # self.set_quantity(1)  # Same thing (B21)
         for pkt in self._encode_image(image):
             await self._send(pkt)
-        await sleep(0.05)
+        await sleep(1)
         await self.end_page_print()
-        await sleep(2)
-        while not await self.get_print_end():
-            await sleep(1)
+        await sleep(5)
+        # while not await self.get_print_end():
+        #     await sleep(1)
         await self.end_print()
         # while not await self.end_print():
         #     await sleep(0.5)
