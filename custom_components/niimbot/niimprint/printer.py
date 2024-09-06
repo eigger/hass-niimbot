@@ -64,6 +64,9 @@ class SoundEnum(enum.IntEnum):
 def _packet_to_int(x):
     return int.from_bytes(x.data, "big")
 
+def _packet_to_float(x):
+    return float.from_bytes(x.data, "big")
+
 
 class BaseTransport(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -227,11 +230,9 @@ class PrinterClient:
                 case InfoEnum.DEVICESERIAL:
                     return bytes.fromhex(packet.data.hex()).decode('ascii')
                 case InfoEnum.SOFTVERSION:
-                    return bytes.fromhex(packet.data.hex()).decode('ascii')
-                    #return _packet_to_int(packet) / 100
+                    return _packet_to_float(packet) / 100
                 case InfoEnum.HARDVERSION:
-                    return bytes.fromhex(packet.data.hex()).decode('ascii')
-                    #return _packet_to_int(packet) / 100
+                    return _packet_to_float(packet) / 100
                 case _:
                     return _packet_to_int(packet)
         else:
