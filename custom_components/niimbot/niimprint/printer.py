@@ -346,7 +346,7 @@ class PrinterClient:
         return bool(packet.data[0])
 
     async def set_sound(self, key, on: bool):
-        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BB", key, b"\x01" if on else b"\x00"))
+        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BB", key, 0x01 if on else 0x00))
         return bool(packet.data[0])
 
     async def get_print_status(self):
