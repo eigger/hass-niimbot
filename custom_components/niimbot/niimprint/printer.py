@@ -230,9 +230,11 @@ class PrinterClient:
                 case InfoEnum.DEVICESERIAL:
                     return bytes.fromhex(packet.data.hex()).decode('ascii')
                 case InfoEnum.SOFTVERSION:
-                    return _packet_to_float(packet) / 100
+                    return packet.data.hex()
+                    #return _packet_to_int(packet) / 100
                 case InfoEnum.HARDVERSION:
-                    return _packet_to_float(packet) / 100
+                    return packet.data.hex()
+                    #return _packet_to_int(packet) / 100
                 case _:
                     return _packet_to_int(packet)
         else:
