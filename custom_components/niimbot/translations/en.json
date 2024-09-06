@@ -15,7 +15,8 @@
             "user": {
                 "data": {
                     "address": "Device",
-                    "use_sound": "Use Sound"
+                    "use_sound": "Use Sound",
+                    "scan_interval": "Scan Interval"
                 },
                 "description": "Choose a device to set up"
             }

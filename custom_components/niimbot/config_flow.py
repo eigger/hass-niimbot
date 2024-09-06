@@ -10,10 +10,11 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.core import callback
 from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
-from .const import DOMAIN, CONF_USE_SOUND
+from .const import DOMAIN, CONF_USE_SOUND, DEFAULT_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -134,7 +135,10 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(titles),
-                    vol.Required(CONF_USE_SOUND, default=True): bool
+                    vol.Required(CONF_USE_SOUND, default=True): bool,
+                    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): NumberSelector(
+                        NumberSelectorConfig(min=60, max=9999, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="seconds")
+                    ),
                 },
             ),
         )

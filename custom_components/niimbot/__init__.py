@@ -10,8 +10,9 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
+from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, CONF_USE_SOUND
+from .const import DOMAIN, CONF_USE_SOUND
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -22,6 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
     use_sound = entry.data.get(CONF_USE_SOUND)
+    scan_interval = entry.data.get(CONF_SCAN_INTERVAL)
     assert address is not None
     await close_stale_connections_by_address(address)
     
@@ -45,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER,
         name=DOMAIN,
         update_method=_async_update_method,
-        update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+        update_interval=timedelta(seconds=scan_interval),
     )
 
     await coordinator.async_config_entry_first_refresh()
