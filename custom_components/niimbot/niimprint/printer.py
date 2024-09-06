@@ -37,7 +37,6 @@ class InfoEnum(enum.IntEnum):
 
 
 class RequestCodeEnum(enum.IntEnum):
-    SET_SOUND = 1 # 0x01
     GET_INFO = 64  # 0x40
     GET_RFID = 26  # 0x1A
     HEARTBEAT = 220  # 0xDC
@@ -55,6 +54,7 @@ class RequestCodeEnum(enum.IntEnum):
     PRINT_EMPTY_ROW = 132 # 0x84
     PRINT_BITMAP_ROW = 133 # 0x85
     PRINT_CLEAR = 32 # 0x20
+    SET_SOUND = 88 # 0x58
 
 class SoundEnum(enum.IntEnum):
     BluetoothConnectionSound = 1
@@ -347,7 +347,7 @@ class PrinterClient:
         return bool(packet.data[0])
 
     async def set_sound(self, key, on: bool):
-        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BB", key, 0x01 if on else 0x00))
+        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BBB", 0x01, key, 0x01 if on else 0x00))
         return bool(packet.data[0])
 
     async def get_print_status(self):
