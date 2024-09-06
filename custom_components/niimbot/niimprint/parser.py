@@ -44,6 +44,7 @@ class NiimbotDevice:
         self.continuous_connection = continuous_connection
         self.use_sound = use_sound
         self.lock = asyncio.Lock()
+        self.init = False
         super().__init__()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
@@ -60,13 +61,12 @@ class NiimbotDevice:
                 if client.is_connected:
                     printer = PrinterClient(client)
                     await printer.start_notify()
-                    if not device.serial_number:
+
+                    if not self.init:
+                        self.init = True
                         device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
-                    if not device.hw_version:
                         device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
-                    if not device.sw_version:
                         device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
-                    if not device.devicetype:
                         device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
                         meta = get_printer_meta_by_id(int(device.devicetype))
                         device.model = meta["model"].name if meta else str(device.devicetype)
