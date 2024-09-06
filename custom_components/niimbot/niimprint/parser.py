@@ -9,7 +9,7 @@ from bleak import BleakClient, BleakError
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
-from .printer import PrinterClient, InfoEnum
+from .printer import PrinterClient, InfoEnum, SoundEnum
 from .model import*
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,9 +39,10 @@ class BLEData:
 # pylint: disable=too-many-branches
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
-    def __init__(self, address, continuous_connection):
+    def __init__(self, address, continuous_connection, use_sound):
         self.address = address
         self.continuous_connection = continuous_connection
+        self.use_sound = use_sound
         self.lock = asyncio.Lock()
         super().__init__()
 
@@ -69,6 +70,8 @@ class NiimbotDevice:
                         device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
                         meta = get_printer_meta_by_id(int(device.devicetype))
                         device.model = meta["model"].name if meta else str(device.devicetype)
+                        await printer.set_sound(SoundEnum.BluetoothConnectionSound, self.use_sound)
+                        await printer.set_sound(SoundEnum.PowerSound, self.use_sound)
 
                     # if not device.density:
                     #     device.density = str(await printer.get_info(InfoEnum.DENSITY))

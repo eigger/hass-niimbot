@@ -15,6 +15,7 @@
             "user": {
                 "data": {
                     "address": "Device",
+                    "use_sound": "Use Sound",
                     "continuous_connection": "Continuous Connection"
                 },
                 "description": "Choose a device to set up"

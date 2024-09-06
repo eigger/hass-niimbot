@@ -56,6 +56,10 @@ class RequestCodeEnum(enum.IntEnum):
     PRINT_BITMAP_ROW = 133 # 0x85
     PRINT_CLEAR = 32 # 0x20
 
+class SoundEnum(enum.IntEnum):
+    BluetoothConnectionSound = 1
+    PowerSound = 2
+
 
 def _packet_to_int(x):
     return int.from_bytes(x.data, "big")
@@ -221,11 +225,13 @@ class PrinterClient:
         if packet := await self._transceive(RequestCodeEnum.GET_INFO, bytes((key,)), key):
             match key:
                 case InfoEnum.DEVICESERIAL:
-                    return packet.data.hex()
+                    return bytes.fromhex(packet.data.hex()).decode('ascii')
                 case InfoEnum.SOFTVERSION:
-                    return _packet_to_int(packet) / 100
+                    return bytes.fromhex(packet.data.hex()).decode('ascii')
+                    #return _packet_to_int(packet) / 100
                 case InfoEnum.HARDVERSION:
-                    return _packet_to_int(packet) / 100
+                    return bytes.fromhex(packet.data.hex()).decode('ascii')
+                    #return _packet_to_int(packet) / 100
                 case _:
                     return _packet_to_int(packet)
         else:
@@ -339,8 +345,8 @@ class PrinterClient:
         packet = await self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
         return bool(packet.data[0])
 
-    async def set_sound(self, on: bool):
-        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">B", b"\x01" if on else b"\x00"))
+    async def set_sound(self, key, on: bool):
+        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BB", key, b"\x01" if on else b"\x00"))
         return bool(packet.data[0])
 
     async def get_print_status(self):

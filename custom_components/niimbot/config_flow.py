@@ -13,7 +13,8 @@ from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN, CONF_CONTINUOUS_CONNECTION
+from .const import DOMAIN, CONF_CONTINUOUS_CONNECTION, CONF_USE_SOUND
+from .niimprint.printer import SERVICE_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,18 +96,8 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if discovery_info.advertisement.local_name is None:
                 continue
-            # if not (
-            #     discovery_info.advertisement.local_name.startswith("FR:RU")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RE")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GI")
-            #     or discovery_info.advertisement.local_name.startswith("FR:H")
-            #     or discovery_info.advertisement.local_name.startswith("FR:R2")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RD")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GL")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GJ")
-            #     or discovery_info.advertisement.local_name.startswith("FR:I")
-            # ):
-            #     continue
+            if not SERVICE_UUID in discovery_info.service_uuids:
+                continue
 
             _LOGGER.debug("Found My Device")
             _LOGGER.debug("Niimbot0 Discovery address: %s", address)
@@ -134,6 +125,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(titles),
+                    vol.Required(CONF_USE_SOUND, default=True): bool,
                     vol.Required(CONF_CONTINUOUS_CONNECTION, default=False): bool
                 },
             ),
