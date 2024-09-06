@@ -39,12 +39,11 @@ class BLEData:
 # pylint: disable=too-many-branches
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
-    def __init__(self, address, continuous_connection, use_sound):
+    def __init__(self, address, use_sound):
         self.address = address
-        self.continuous_connection = continuous_connection
         self.use_sound = use_sound
         self.lock = asyncio.Lock()
-        self.init = False
+        self.set_sound = None
         super().__init__()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
@@ -55,23 +54,22 @@ class NiimbotDevice:
             device.address = ble_device.address
         
             try:
-                client = BleakClient(ble_device)
-                if not client.is_connected:
-                    client = await establish_connection(BleakClient, ble_device, ble_device.address)
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
                 if client.is_connected:
                     printer = PrinterClient(client)
                     await printer.start_notify()
-
-                    if not self.init:
-                        self.init = True
+                    if not device.serial_number:
                         device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
+                    if not device.hw_version:
                         device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
+                    if not device.sw_version:
                         device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
+                    if not device.devicetype:
                         device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
                         meta = get_printer_meta_by_id(int(device.devicetype))
                         device.model = meta["model"].name if meta else str(device.devicetype)
-                        await printer.set_sound(SoundEnum.BluetoothConnectionSound, self.use_sound)
-                        await printer.set_sound(SoundEnum.PowerSound, self.use_sound)
+                    if not self.set_sound:
+                        self.set_sound = await printer.set_sound(SoundEnum.BluetoothConnectionSound, self.use_sound)
 
                     # if not device.density:
                     #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
@@ -98,8 +96,7 @@ class NiimbotDevice:
                     device.sensors['rfidreadstate'] =  heartbeat["rfidreadstate"]
                     device.sensors['battery'] = float(heartbeat["powerlevel"]) * 25.0
                     await printer.stop_notify()
-                    if not self.continuous_connection:
-                        await client.disconnect()
+                    await client.disconnect()
             except:
                 await client.disconnect()
 
@@ -108,15 +105,12 @@ class NiimbotDevice:
     async def print_image(self, ble_device: BLEDevice, image: Image):
         async with self.lock: 
             try:
-                client = BleakClient(ble_device)
-                if not client.is_connected:
-                    client = await establish_connection(BleakClient, ble_device, ble_device.address)
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
                 if client.is_connected:
                     printer = PrinterClient(client)
                     await printer.start_notify()
                     await printer.print_image(image)
                     await printer.stop_notify()
-                    if not self.continuous_connection:
-                        await client.disconnect()
+                    await client.disconnect()
             except:
                 await client.disconnect()

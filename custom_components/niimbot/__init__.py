@@ -11,7 +11,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, CONF_CONTINUOUS_CONNECTION, CONF_USE_SOUND
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, CONF_USE_SOUND
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -21,7 +21,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
-    continuous_connection = entry.data.get(CONF_CONTINUOUS_CONNECTION)
     use_sound = entry.data.get(CONF_USE_SOUND)
     assert address is not None
     await close_stale_connections_by_address(address)
@@ -30,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not ble_device:
         raise ConfigEntryNotReady(f"Could not find Niimbot device with address {address}")
 
-    niimbot = NiimbotDevice(address, continuous_connection, use_sound)
+    niimbot = NiimbotDevice(address, use_sound)
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
