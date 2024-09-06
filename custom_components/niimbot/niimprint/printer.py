@@ -341,13 +341,14 @@ class PrinterClient:
 		
     async def set_page_size_v3(self, rows, cols, copies_count = 1):
         packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HHH", rows, cols, copies_count))
+        return bool(packet.data[0])
 
     async def set_quantity(self, n):
         packet = await self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
         return bool(packet.data[0])
 
     async def set_sound(self, key, on: bool):
-        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BBB", 0x01, key, 0x01 if on else 0x00))
+        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">BBB", 0x01, key, 0x01 if on else 0x00), 16)
         return bool(packet.data[0])
 
     async def get_print_status(self):
