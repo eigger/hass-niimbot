@@ -38,10 +38,9 @@ class BLEData:
 # pylint: disable=too-many-branches
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
-    def __init__(self, address, continuous_connection, logger):
+    def __init__(self, address, continuous_connection):
         self.address = address
         self.continuous_connection = continuous_connection
-        self.logger = logger
         super().__init__()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
