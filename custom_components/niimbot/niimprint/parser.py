@@ -50,9 +50,9 @@ class NiimbotDevice:
         device.address = ble_device.address
     
         try:
-            #client = BleakClient(ble_device)
-            #if not client.is_connected:
-            client = await establish_connection(BleakClient, ble_device, ble_device.address)
+            client = BleakClient(ble_device)
+            if not client.is_connected:
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
             if client.is_connected:
                 printer = PrinterClient(client)
                 await printer.start_notify()
@@ -100,9 +100,9 @@ class NiimbotDevice:
     
     async def print_image(self, ble_device: BLEDevice, image: Image):
         try:
-            #client = BleakClient(ble_device)
-            #if not client.is_connected:
-            client = await establish_connection(BleakClient, ble_device, ble_device.address)
+            client = BleakClient(ble_device)
+            if not client.is_connected:
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
             if client.is_connected:
                 printer = PrinterClient(client)
                 await printer.start_notify()
