@@ -42,22 +42,22 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         native_unit_of_measurement=PERCENTAGE,
         name="battery",
     ),
-    # "closingstate": SensorEntityDescription(
-    #     key="closingstate",
-    #     name="closingstate",
-    # ),
+    "closingstate": SensorEntityDescription(
+        key="closingstate",
+        name="closingstate",
+    ),
     # "powerlevel": SensorEntityDescription(
     #     key="powerlevel",
     #     name="powerlevel",
     # ),
-    # "paperstate": SensorEntityDescription(
-    #     key="paperstate",
-    #     name="paperstate",
-    # ),
-    # "rfidreadstate": SensorEntityDescription(
-    #     key="rfidreadstate",
-    #     name="rfidreadstate",
-    # ),
+    "paperstate": SensorEntityDescription(
+        key="paperstate",
+        name="paperstate",
+    ),
+    "rfidreadstate": SensorEntityDescription(
+        key="rfidreadstate",
+        name="rfidreadstate",
+    ),
     # "density": SensorEntityDescription(
     #     key="density",
     #     name="density",
