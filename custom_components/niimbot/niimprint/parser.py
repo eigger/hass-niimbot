@@ -66,7 +66,6 @@ class NiimbotDevice:
                     device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
                     meta = get_printer_meta_by_id(int(device.devicetype))
                     device.model = meta["model"].name if meta else str(device.devicetype)
-                    await printer.set_sound(False)
 
                 # if not device.density:
                 #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
