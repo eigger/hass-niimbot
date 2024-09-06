@@ -9,6 +9,8 @@ from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
 from .printer import PrinterClient, InfoEnum
+from .model import*
+
 _LOGGER = logging.getLogger(__name__)
 
 @dataclasses.dataclass
@@ -47,12 +49,13 @@ class NiimbotDevice:
         device = BLEData()
         device.name = ble_device.name
         device.address = ble_device.address
-        device.model = device.name.split("-")[0] if "-" in device.name else "Unknown"
     
         try:
-            client = await establish_connection(BleakClient, ble_device, ble_device.address)
+            client = BleakClient(ble_device)
+            if not client.is_connected:
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
             if client.is_connected:
-                printer = PrinterClient(client, self.logger)
+                printer = PrinterClient(client)
                 await printer.start_notify()
                 if not device.serial_number:
                     device.serial_number = str(await printer.get_info(InfoEnum.DEVICESERIAL))
@@ -60,6 +63,9 @@ class NiimbotDevice:
                     device.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
                 if not device.sw_version:
                     device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
+                if not device.devicetype:
+                    device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
+                    device.model = get_printer_meta_by_id(device.devicetype)["model"].name
 
                 # if not device.density:
                 #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
@@ -71,15 +77,13 @@ class NiimbotDevice:
                 #     device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
                 # if not device.autoshutdowntime:
                 #     device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
-                # if not device.devicetype:
-                #     device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
+
 
                 device.sensors['density'] = device.density
                 device.sensors['printspeed'] = device.printspeed
                 device.sensors['labeltype'] = device.labeltype
                 device.sensors['languagetype'] = device.languagetype
                 device.sensors['autoshutdowntime'] = device.autoshutdowntime
-                device.sensors['devicetype'] = device.devicetype
 
                 heartbeat = await printer.heartbeat()
                 device.sensors['closingstate'] =  heartbeat["closingstate"]
@@ -97,9 +101,11 @@ class NiimbotDevice:
     
     async def print_image(self, ble_device: BLEDevice, image: Image):
         try:
-            client = await establish_connection(BleakClient, ble_device, ble_device.address)
+            client = BleakClient(ble_device)
+            if not client.is_connected:
+                client = await establish_connection(BleakClient, ble_device, ble_device.address)
             if client.is_connected:
-                printer = PrinterClient(client, self.logger)
+                printer = PrinterClient(client)
                 await printer.start_notify()
                 await printer.print_image(image)
                 await printer.stop_notify()

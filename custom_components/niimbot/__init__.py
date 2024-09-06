@@ -22,7 +22,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
     continuous_connection = entry.data.get(CONF_CONTINUOUS_CONNECTION)
-    print(f"continuous_connection: {continuous_connection}")
     assert address is not None
     await close_stale_connections_by_address(address)
     
@@ -30,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not ble_device:
         raise ConfigEntryNotReady(f"Could not find Niimbot device with address {address}")
 
-    niimbot = NiimbotDevice(address, continuous_connection, _LOGGER)
+    niimbot = NiimbotDevice(address, continuous_connection)
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)

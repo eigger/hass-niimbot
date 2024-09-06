@@ -3,6 +3,7 @@ import enum
 import logging
 import math
 import struct
+import time
 
 from PIL import Image, ImageOps
 from bleak import BleakClient, BleakError
@@ -36,6 +37,7 @@ class InfoEnum(enum.IntEnum):
 
 
 class RequestCodeEnum(enum.IntEnum):
+    SET_SOUND = 1 # 0x01
     GET_INFO = 64  # 0x40
     GET_RFID = 26  # 0x1A
     HEARTBEAT = 220  # 0xDC
@@ -82,31 +84,6 @@ class BLETransport(BaseTransport):
         self._command_data = None
         self._event = Event()
 
-    async def read(self, length: int) -> bytes:
-        return await self.read_notify(30)
-
-    async def write(self, data: bytes):
-        return await self.write_ble(CHARACTERISTIC_UUID, data)
-    
-    async def read_notify(self, timeout: int) -> bytes:
-        """Wait for notification data to be received within the timeout."""
-        await wait_for(self._event.wait(), timeout=timeout)
-        data = self._command_data
-        self._command_data = None
-        self._event.clear()  # Reset the event for the next notification
-        print(f"read: {data}")
-        return data
-
-    async def write_ble(self, uuid: str, data: bytes):
-        """Write data to the BLE characteristic."""
-        print(f"write: {data}")
-        await self._client.write_gatt_char(uuid, data)
-
-    def _notification_handler(self, _: Any, data: bytearray):
-        """Handle incoming notifications and store the received data."""
-        self._command_data = data
-        self._event.set()  # Notify the waiting coroutine that data has arrived
-
     def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
         """Decorator to handle disconnection on missing services/characteristics."""
         async def wrapper(self, *args: Any, **kwargs: Any):
@@ -119,6 +96,31 @@ class BLETransport(BaseTransport):
                 raise
         return cast(WrapFuncType, wrapper)
     
+    async def read(self, length: int) -> bytes:
+        return await self.read_notify(30)
+
+    async def write(self, data: bytes):
+        return await self.write_ble(CHARACTERISTIC_UUID, data)
+    
+    async def read_notify(self, timeout: int) -> bytes:
+        """Wait for notification data to be received within the timeout."""
+        await wait_for(self._event.wait(), timeout=timeout)
+        data = self._command_data
+        self._command_data = None
+        self._event.clear()  # Reset the event for the next notification
+        return data
+
+    @disconnect_on_missing_services
+    async def write_ble(self, uuid: str, data: bytes):
+        """Write data to the BLE characteristic."""
+        await self._client.write_gatt_char(uuid, data)
+
+    def _notification_handler(self, _: Any, data: bytearray):
+        """Handle incoming notifications and store the received data."""
+        self._command_data = data
+        self._event.set()  # Notify the waiting coroutine that data has arrived
+    
+    @disconnect_on_missing_services
     async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic."""
         await self._client.start_notify(uuid, self._notification_handler)
@@ -129,10 +131,9 @@ class BLETransport(BaseTransport):
         await self._client.stop_notify(uuid)
 
 class PrinterClient:
-    def __init__(self, client: BleakClient, logger):
+    def __init__(self, client: BleakClient):
         self._transport = BLETransport(client)
         self._packetbuf = bytearray()
-        self._logger = logger
 
     async def start_notify(self):
         await self._transport.start_notify(CHARACTERISTIC_UUID)
@@ -144,20 +145,18 @@ class PrinterClient:
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print_v4()
-        # self.allow_print_clear()  # Something unsupported in protocol decoding (B21)
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width)
-        # self.set_quantity(1)  # Same thing (B21)
         for pkt in self._encode_image(image):
             await self._send(pkt)
-        await sleep(1)
         await self.end_page_print()
-        await sleep(5)
-        # while not await self.get_print_end():
-        #     await sleep(1)
+        await sleep(1)
+        start_time = time.time()
+        while not await self.get_print_end():
+            if time.time() - start_time > 5:
+                break
+            await sleep(1)
         await self.end_print()
-        # while not await self.end_print():
-        #     await sleep(0.5)
 
     def _countbitsofbytes(self, data):
         n = int.from_bytes(data, 'big')
@@ -199,7 +198,6 @@ class PrinterClient:
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
         logging.debug(f"{prefix}: {msg}")
-        self._logger.info(f"{prefix}: {msg}")
 
     async def _transceive(self, reqcode, data, respoffset=1):
         respcode = respoffset + reqcode
@@ -339,6 +337,10 @@ class PrinterClient:
 
     async def set_quantity(self, n):
         packet = await self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
+        return bool(packet.data[0])
+
+    async def set_sound(self, on: bool):
+        packet = await self._transceive(RequestCodeEnum.SET_SOUND, struct.pack(">B", b"\x01" if on else b"\x00"))
         return bool(packet.data[0])
 
     async def get_print_status(self):
