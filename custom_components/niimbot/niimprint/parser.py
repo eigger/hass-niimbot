@@ -63,8 +63,8 @@ class NiimbotDevice:
             if not device.sw_version:
                 device.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
             if not device.devicetype:
-                device.devicetype = str(await printer.get_info(InfoEnum.DEVICETYPE))
-                device.model = get_printer_meta_by_id(device.devicetype)["model"].name
+                device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
+                #device.model = get_printer_meta_by_id(device.devicetype)["model"].name
 
             # if not device.density:
             #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
