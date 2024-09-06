@@ -96,7 +96,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if discovery_info.advertisement.local_name is None:
                 continue
-            if not SERVICE_UUID in discovery_info.service_uuids:
+            if not SERVICE_UUID.lower() in (uuid.lower() for uuid in discovery_info.service_uuids):
                 continue
 
             _LOGGER.debug("Found My Device")
