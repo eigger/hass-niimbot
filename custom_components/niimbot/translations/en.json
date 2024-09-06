@@ -15,7 +15,7 @@
             "user": {
                 "data": {
                     "address": "Device",
-                    "use_sound": "Use Sound",
+                    "use_sound": "Use Sound"
                 },
                 "description": "Choose a device to set up"
             }
