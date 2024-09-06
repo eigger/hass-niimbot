@@ -110,7 +110,7 @@ class BLETransport(BaseTransport):
         self._event.clear()  # Reset the event for the next notification
         return data
 
-    #@disconnect_on_missing_services
+    @disconnect_on_missing_services
     async def write_ble(self, uuid: str, data: bytes):
         """Write data to the BLE characteristic."""
         await self._client.write_gatt_char(uuid, data)
@@ -120,7 +120,7 @@ class BLETransport(BaseTransport):
         self._command_data = data
         self._event.set()  # Notify the waiting coroutine that data has arrived
     
-    #@disconnect_on_missing_services
+    @disconnect_on_missing_services
     async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic."""
         await self._client.start_notify(uuid, self._notification_handler)
