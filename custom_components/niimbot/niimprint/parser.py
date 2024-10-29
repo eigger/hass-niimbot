@@ -44,6 +44,7 @@ class NiimbotDevice:
         self.use_sound = use_sound
         self.lock = asyncio.Lock()
         self.set_sound = None
+        self.model = None
         super().__init__()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
@@ -68,6 +69,7 @@ class NiimbotDevice:
                         device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
                         meta = get_printer_meta_by_id(int(device.devicetype))
                         device.model = meta["model"].name if meta else str(device.devicetype)
+                        self.model = device.model
                     if not self.set_sound:
                         self.set_sound = await printer.set_sound(SoundEnum.BluetoothConnectionSound, self.use_sound)
 
@@ -109,7 +111,7 @@ class NiimbotDevice:
                 if client.is_connected:
                     printer = PrinterClient(client)
                     await printer.start_notify()
-                    await printer.print_image(image)
+                    await printer.print_image(self.model, image)
                     await printer.stop_notify()
                     await client.disconnect()
             except:

@@ -19,6 +19,7 @@ class BleakServiceMissing(BleakError):
     """Raised when a service is missing."""
 
 from .packet import NiimbotPacket
+from .model import PrinterModel
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
 CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
@@ -148,12 +149,37 @@ class PrinterClient:
     async def stop_notify(self):
         await self._transport.stop_notify(CHARACTERISTIC_UUID)
 
-    async def print_image(self, image: Image, density: int = 3):
+    async def print_image(self, model:str, image: Image, density: int = 3):
+        if model == PrinterModel.B1:
+            return await self.print_image_b1(image, density)
+        elif model == PrinterModel.D110:
+            return await self.print_image_d110(image, density)
+        return await self.print_image_b1(image, density)
+
+    async def print_image_b1(self, image: Image, density: int = 3):
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print_v4()
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width)
+        for pkt in self._encode_image(image):
+            await self._send(pkt)
+        await self.end_page_print()
+        await sleep(1)
+        start_time = time.time()
+        while not await self.get_print_end():
+            if time.time() - start_time > 5:
+                break
+            await sleep(1)
+        await self.end_print()
+
+    async def print_image_d110(self, image: Image, density: int = 3):
+        await self.set_label_density(density)
+        await self.set_label_type(1)
+        await self.start_print()
+        await self.start_page_print()
+        await self.set_page_size_v2(image.height, image.width)
+        await self.set_quantity(1)
         for pkt in self._encode_image(image):
             await self._send(pkt)
         await self.end_page_print()
@@ -338,7 +364,11 @@ class PrinterClient:
     async def set_dimension(self, w, h):
         packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HH", w, h))
         return bool(packet.data[0])
-		
+
+    async def set_page_size_v2(self, rows, cols):
+        packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HH", rows, cols))
+        return bool(packet.data[0])
+    
     async def set_page_size_v3(self, rows, cols, copies_count = 1):
         packet = await self._transceive(RequestCodeEnum.SET_DIMENSION, struct.pack(">HHH", rows, cols, copies_count))
         return bool(packet.data[0])
