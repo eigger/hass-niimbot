@@ -39,5 +39,6 @@ data:
       bgcolor: "white"
   width: 400
   height: 240
+  rotate: 0
 target:
   device_id: your device
