@@ -1,6 +1,13 @@
 # hass-niimbot
 Niimbot Label Printer Home Assistant Integration
 
+## Installation
+1. Install this integration with HACS (adding repository required), or copy the contents of this
+repository into the `custom_components/niimbot` directory.
+2. Restart Home Assistant.
+3. Go to Settings / Integrations and add integration "Niimbot"
+4. Please select a discovered Niimbot device from the list.
+   
 ## example
 ```
 action: niimbot.print
