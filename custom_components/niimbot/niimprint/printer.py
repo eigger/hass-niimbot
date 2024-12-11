@@ -4,6 +4,7 @@ import logging
 import math
 import struct
 import time
+import os
 
 from PIL import Image, ImageOps
 from bleak import BleakClient, BleakError
@@ -162,8 +163,7 @@ class PrinterClient:
         await self.start_print_v4()
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width)
-        for pkt in self._encode_image(image):
-            await self._send(pkt)
+        await self.set_image(image)
         await self.end_page_print()
         await sleep(1)
         start_time = time.time()
@@ -180,8 +180,7 @@ class PrinterClient:
         await self.start_page_print()
         await self.set_page_size_v2(image.height, image.width)
         await self.set_quantity(1)
-        for pkt in self._encode_image(image):
-            await self._send(pkt)
+        await self.set_image(image)
         await self.end_page_print()
         await sleep(1)
         start_time = time.time()
@@ -201,16 +200,33 @@ class PrinterClient:
         n = (n & 0x0000FFFF) + ((n & 0xFFFF0000) >> 16)
         return n
         
-    def _encode_image(self, image: Image):
+    async def set_image(self, image: Image):
         img = ImageOps.invert(image.convert("L")).convert("1")
+        empty_row = 0
+        empty_row_count = 0
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data = "".join("0" if pix == 0 else "1" for pix in line_data)
             line_data = int(line_data, 2).to_bytes(math.ceil(img.width / 8), "big")
             counts = (self._countbitsofbytes(line_data[i*4:(i+1)*4]) for i in range(3) )
             header = struct.pack(">H3BB", y, *counts, 1)
-            pkt = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
-            yield pkt
+            if all(byte == 0 for byte in line_data):
+                if empty_row_count == 0:
+                    empty_row = y
+                empty_row_count += 1
+            else:
+                if empty_row_count > 0:
+                    pkt = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", empty_row, empty_row_count))
+                    self._log_buffer("send", pkt.to_bytes())
+                    await self._send(pkt)
+                empty_row_count = 0
+                pkt = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
+                self._log_buffer("send", pkt.to_bytes())
+                await self._send(pkt)
+        if empty_row_count > 0:
+            pkt = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", empty_row, empty_row_count))
+            self._log_buffer("send", pkt.to_bytes())
+            await self._send(pkt)
 
     async def _recv(self):
         packets = []
@@ -226,11 +242,20 @@ class PrinterClient:
 
     async def _send(self, packet):
         await self._transport.write(packet.to_bytes())
-        await sleep(0.05)
+        await sleep(0.01)
 
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
-        logging.debug(f"{prefix}: {msg}")
+        #logging.debug(f"{prefix}: {msg}")
+        self._write_log(prefix, msg)
+
+    def _write_log(self, prefix: str, msg: str):
+        return
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_message = f"{timestamp} - {prefix}: {msg}\n"
+        with open(os.path.join(os.path.dirname(__file__), 'log.txt'), 'a') as file:
+            file.write(log_message)
 
     async def _transceive(self, reqcode, data, respoffset=1):
         respcode = respoffset + reqcode
