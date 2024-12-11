@@ -164,6 +164,7 @@ class PrinterClient:
         await self.set_page_size_v3(image.height, image.width)
         for pkt in self._encode_image(image):
             await self._send(pkt)
+            await sleep(0.01)
         await self.end_page_print()
         await sleep(1)
         start_time = time.time()
@@ -182,6 +183,7 @@ class PrinterClient:
         await self.set_quantity(1)
         for pkt in self._encode_image(image):
             await self._send(pkt)
+            await sleep(0.01)
         await self.end_page_print()
         await sleep(1)
         start_time = time.time()
@@ -226,7 +228,6 @@ class PrinterClient:
 
     async def _send(self, packet):
         await self._transport.write(packet.to_bytes())
-        await sleep(0.05)
 
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
@@ -248,6 +249,7 @@ class PrinterClient:
                     resp = packet
             if resp:
                 return resp
+            await sleep(0.1)
         return resp
 
     async def get_info(self, key):
