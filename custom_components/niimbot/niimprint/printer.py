@@ -165,12 +165,11 @@ class PrinterClient:
         await self.set_page_size_v3(image.height, image.width)
         await self.set_image(image)
         await self.end_page_print()
-        await sleep(1)
         start_time = time.time()
         while not await self.get_print_end():
             if time.time() - start_time > 5:
                 break
-            await sleep(1)
+            await sleep(0.5)
         await self.end_print()
 
     async def print_image_d110(self, image: Image, density: int = 3):
@@ -182,12 +181,11 @@ class PrinterClient:
         await self.set_quantity(1)
         await self.set_image(image)
         await self.end_page_print()
-        await sleep(1)
         start_time = time.time()
         while not await self.get_print_end():
             if time.time() - start_time > 5:
                 break
-            await sleep(1)
+            await sleep(0.5)
         await self.end_print()
 
     def _countbitsofbytes(self, data):
@@ -216,17 +214,21 @@ class PrinterClient:
                 empty_row_count += 1
             else:
                 if empty_row_count > 0:
-                    pkt = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", empty_row, empty_row_count))
-                    self._log_buffer("send", pkt.to_bytes())
-                    await self._send(pkt)
+                    await self.set_empty_row(empty_row, empty_row_count)
                 empty_row_count = 0
-                pkt = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
-                self._log_buffer("send", pkt.to_bytes())
-                await self._send(pkt)
+                await self.set_bitmap_row(header, line_data)
         if empty_row_count > 0:
-            pkt = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", empty_row, empty_row_count))
-            self._log_buffer("send", pkt.to_bytes())
-            await self._send(pkt)
+            await self.set_empty_row(empty_row, empty_row_count)
+
+    async def set_empty_row(self, row, count):
+        packet = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", row, count))
+        self._log_buffer("send", packet.to_bytes())
+        await self._send(packet)
+
+    async def set_bitmap_row(self, header, data):
+        packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + data)
+        self._log_buffer("send", packet.to_bytes())
+        await self._send(packet)
 
     async def _recv(self):
         packets = []
@@ -252,7 +254,7 @@ class PrinterClient:
     def _write_log(self, prefix: str, msg: str):
         return
         from datetime import datetime
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         log_message = f"{timestamp} - {prefix}: {msg}\n"
         with open(os.path.join(os.path.dirname(__file__), 'log.txt'), 'a') as file:
             file.write(log_message)
