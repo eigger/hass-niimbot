@@ -244,7 +244,7 @@ class PrinterClient:
 
     async def _send(self, packet):
         await self._transport.write(packet.to_bytes())
-        await sleep(0.01)
+        await sleep(0.05)
 
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
