@@ -4,7 +4,7 @@
             "already_configured": "Device is already configured",
             "already_in_progress": "Configuration flow is already in progress",
             "cannot_connect": "Failed to connect",
-            "no_devices_found": "No devices found on the network",
+            "no_devices_found": "No devices found",
             "unknown": "Unexpected error"
         },
         "flow_title": "{name}",
