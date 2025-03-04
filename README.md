@@ -20,8 +20,8 @@ data:
       y: 100
       size: 40
     - type: barcode
-      value: 12345
-      code: code128
+      data: "12345"
+      code: "code128"
       x: 100
       y: 100
     - type: icon
@@ -30,7 +30,7 @@ data:
       y: 120
       size: 120
     - type: dlimg
-      url: "image url"
+      url: "https://image url.png"
       x: 10
       y: 10
       xsize: 120
