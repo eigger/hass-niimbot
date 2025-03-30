@@ -82,8 +82,8 @@ def get_font_file(font_name, hass):
         www_fonts_dir = hass.config.path("www/fonts")
         if os.path.exists(www_fonts_dir):
             _LOGGER.debug(f"Found {www_fonts_dir} in Home Assistant")
-        font_file = os.path.join(www_fonts_dir, font_name)
-        _LOGGER.debug(f"Font => font_name: {font_name} got font_file: {font_file}")
+            font_file = os.path.join(www_fonts_dir, font_name)
+            _LOGGER.debug(f"Font => font_name: {font_name} got font_file: {font_file}")
     return font_file
 
 # custom image generator
