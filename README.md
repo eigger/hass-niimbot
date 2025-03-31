@@ -9,6 +9,7 @@ repository into the `custom_components/niimbot` directory.
 4. Please select a discovered Niimbot device from the list.
    
 ## example
+
 ```
 action: niimbot.print
 data:
@@ -49,3 +50,9 @@ data:
   rotate: 0
 target:
   device_id: your device
+```
+
+## Custom Fonts
+
+* https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations
+* https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d

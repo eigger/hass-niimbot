@@ -73,6 +73,19 @@ def getIndexColor(color):
 # should_show_element
 def should_show_element(element):
     return element['visible'] if 'visible' in element else True
+
+def get_font_file(font_name, hass):
+    font_file = os.path.join(os.path.dirname(__file__), font_name)
+    _LOGGER.debug(f"Font => font_name: {font_name} first checking for default font_file: {font_file}")
+    if not font_file:
+        _LOGGER.debug(f"Font => font_name: {font_name} not found in default package")
+        www_fonts_dir = hass.config.path("www/fonts")
+        if os.path.exists(www_fonts_dir):
+            _LOGGER.debug(f"Found {www_fonts_dir} in Home Assistant")
+            font_file = os.path.join(www_fonts_dir, font_name)
+            _LOGGER.debug(f"Font => font_name: {font_name} got font_file: {font_file}")
+    return font_file
+
 # custom image generator
 def customimage(entity_id, service, hass):
     payload = service.data.get("payload", "")
@@ -171,8 +184,8 @@ def customimage(entity_id, service, hass):
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
             size = element.get('size', 20)
-            font = element.get('font', "ppb.ttf")
-            font_file = os.path.join(os.path.dirname(__file__), font)
+            font_name = element.get('font', "ppb.ttf")
+            font_file = get_font_file(font_name, hass)
             font = ImageFont.truetype(font_file, size)
             if not "y" in element:
                 akt_pos_y = pos_y + element.get('y_padding', 10)
@@ -197,8 +210,8 @@ def customimage(entity_id, service, hass):
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
             size = element.get('size', 20)
-            font = element.get('font', "ppb.ttf")
-            font_file = os.path.join(os.path.dirname(__file__), font)
+            font_name = element.get('font', "ppb.ttf")
+            font_file = get_font_file(font_name, hass)
             font = ImageFont.truetype(font_file, size)
             color = element.get('color', "black")
             anchor = element.get('anchor', "lm")
@@ -355,7 +368,7 @@ def customimage(entity_id, service, hass):
             img_draw = ImageDraw.Draw(img)
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
-            font = element.get('font', "ppb.ttf")
+            font_name = element.get('font', "ppb.ttf")
             pos_x = element['x']
             pos_y = element['y']
             width = element.get('width', canvas_width)
@@ -372,7 +385,7 @@ def customimage(entity_id, service, hass):
                 bar_width = math.floor((width - offset_lines - ((barcount + 1) * bar_margin)) / barcount)
                 _LOGGER.info("Found %i in bars width: %i" % (barcount,bar_width))
                 size = element["bars"].get('legend_size', 10)
-                font_file = os.path.join(os.path.dirname(__file__), font)
+                font_file = get_font_file(font_name, hass)
                 font = ImageFont.truetype(font_file, size)
                 legend_color = element["bars"].get('legend_color', "black")
                 max_val = 0
