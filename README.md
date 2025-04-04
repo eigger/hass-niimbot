@@ -1,6 +1,11 @@
 # hass-niimbot
 Niimbot Label Printer Home Assistant Integration
 
+## Supported Models
+- B1 (confirmed)
+- D110 (confirmed)
+- other models with Bluetooth may work
+
 ## Installation
 1. Install this integration with HACS (adding repository required), or copy the contents of this
 repository into the `custom_components/niimbot` directory.
@@ -8,7 +13,7 @@ repository into the `custom_components/niimbot` directory.
 3. Go to Settings / Integrations and add integration "Niimbot"
 4. Please select a discovered Niimbot device from the list.
    
-## example
+## Examples for B1
 
 ```
 action: niimbot.print
@@ -49,7 +54,26 @@ data:
   height: 240
   rotate: 0
 target:
-  device_id: your device
+  device_id: <your device>
+```
+
+## Example for D110
+
+```
+action: niimbot.print
+data:
+  payload:
+    - type: text
+      value: "Hello World!"
+      font: ppb.ttf
+      x: 10
+      "y": 10
+      size: 30
+  rotate: 90
+  width: 240
+  height: 96
+target:
+  device_id: <your device>
 ```
 
 ## Custom Fonts
