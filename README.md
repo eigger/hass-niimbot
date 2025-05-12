@@ -86,4 +86,5 @@ target:
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d
 
 ## References
+- [MultiMote/nimblue](https://github.com/MultiMote/niimblue.git)
 - [OpenEPaperLink](https://github.com/OpenEPaperLink/Home_Assistant_Integration.git)
