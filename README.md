@@ -81,6 +81,26 @@ data:
 target:
   device_id: <your device>
 ```
+
+## Example for B21 Pro
+
+```yaml
+action: niimbot.print
+data:
+  payload:
+    - type: rectangle
+      x_start: 0
+      x_end: 600
+      y_start: 0
+      y_end: 600
+      fill: black
+  width: 584 # maximum label width
+  height: 354 # maximum label height
+  density: 5 # use this density to get full use of the printer's resolution
+target:
+  area_id: kitchen
+```
+
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d

@@ -1,4 +1,5 @@
 """The Niimbot BLE integration."""
+
 from datetime import timedelta
 import logging
 from .niimprint import NiimbotDevice, BLEData
@@ -18,6 +19,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -26,12 +28,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval = entry.data.get(CONF_SCAN_INTERVAL)
     assert address is not None
     await close_stale_connections_by_address(address)
-    
+
     ble_device = bluetooth.async_ble_device_from_address(hass, address)
     if not ble_device:
-        raise ConfigEntryNotReady(f"Could not find Niimbot device with address {address}")
+        raise ConfigEntryNotReady(
+            f"Could not find Niimbot device with address {address}"
+        )
 
     niimbot = NiimbotDevice(address, use_sound)
+
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
@@ -58,9 +63,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     @callback
     # callback for the draw custom service
     async def printservice(service: ServiceCall) -> None:
-        image = await hass.async_add_executor_job(customimage, entry.entry_id, service, hass)
+        image = await hass.async_add_executor_job(
+            customimage, entry.entry_id, service, hass
+        )
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        await niimbot.print_image(ble_device, image)             
+        density = service.data.get("density", None)
+        if density is not None:
+            density = int(density)
+        await niimbot.print_image(ble_device, image, density=density)
 
     # register the services
     hass.services.async_register(DOMAIN, "print", printservice)
