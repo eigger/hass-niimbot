@@ -272,6 +272,8 @@ def customimage(entity_id, service, hass):
             if "http://" in url or "https://" in url:
                 response = requests.get(url)
                 imgdl = Image.open(io.BytesIO(response.content))
+            elif url.startswith(os.path.sep) or url.startswith("file://"):
+                raise HomeAssistantError('local file paths are not permitted')
             elif "data:" in url:
                 s = url[5:]
                 if not s or ',' not in s:
