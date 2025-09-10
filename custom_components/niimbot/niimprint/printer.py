@@ -167,7 +167,7 @@ class PrinterClient:
 
     async def print_image(self, model: str, image: Image, density: int = 3):
         self.send_await = PrinterClient.send_await
-        _LOGGER.debug("Printing on printer model %s %s", model)
+        _LOGGER.debug("Printing on printer model %s", model)
         if model == PrinterModel.B1:
             return await self.print_image_b1(image, density)
         elif model == PrinterModel.D110:
@@ -209,7 +209,10 @@ class PrinterClient:
         await self.end_print()
 
     async def print_image_d110m_v4(self, image: Image, density: int = 3):
-        _LOGGER.debug("print_image_d110m_v4")
+        _LOGGER.debug(
+            "print_image_d110m_v4; will wait only %s after packet sends",
+            self.send_await,
+        )
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print_9b()
@@ -255,12 +258,20 @@ class PrinterClient:
                     empty_row = y
                 empty_row_count += 1
             else:
-                if empty_row_count > 0:
-                    await self.set_empty_row(empty_row, empty_row_count)
-                empty_row_count = 0
+                # Printer can only "print" maximum 255 empty rows.
+                # Do them a max of 255 at a time.
+                while empty_row_count > 0:
+                    empty_rows_to_print = min([255, empty_row_count])
+                    await self.set_empty_row(empty_row, empty_rows_to_print)
+                    empty_row = empty_row + empty_rows_to_print
+                    empty_row_count = empty_row_count - empty_rows_to_print
                 await self.set_bitmap_row(header, line_data)
-        if empty_row_count > 0:
-            await self.set_empty_row(empty_row, empty_row_count)
+        # Finish by printing any empty rows too.
+        while empty_row_count > 0:
+            empty_rows_to_print = min([255, empty_row_count])
+            await self.set_empty_row(empty_row, empty_rows_to_print)
+            empty_row = empty_row + empty_rows_to_print
+            empty_row_count = empty_row_count - empty_rows_to_print
 
     async def set_empty_row(self, row, count):
         packet = NiimbotPacket(
