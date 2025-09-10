@@ -274,7 +274,6 @@ class PrinterClient:
             empty_row_count = empty_row_count - empty_rows_to_print
 
     async def set_empty_row(self, row, count):
-        _LOGGER.debug("Set empty row %s count %s", row, count)
         packet = NiimbotPacket(
             RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", row, count)
         )
