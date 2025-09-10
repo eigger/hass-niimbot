@@ -102,6 +102,47 @@ target:
   area_id: kitchen
 ```
 
+## Script example for multiline text with width auto-fit
+
+```yaml
+sequence:
+  - action: niimbot.print
+    data:
+      payload:
+        - type: new_multiline
+          x: 0
+          "y": 20
+          size: 100
+          width: 560
+          height: None
+          fit_width: true
+          spacing: 35
+          font: rbm.ttf
+          value: "{{ contents }}"
+      width: 584
+      height: 350
+      density: 5
+    target:
+      area_id: kitchen
+fields:
+  contents:
+    selector:
+      text:
+        multiline: true
+    name: Contents
+    required: true
+    description: >-
+      Contents of the label (e.g. the full address of a letter's recipient) each
+      part in a separate line.
+alias: Print label with multiple lines of text
+description: >-
+  Use this tool to quick-print any label, for example a recipient label for
+  mailing a letter.  Give the contents of the label, in multiple lines, in the
+  `content` field, for the print to be successful.  The text will resize to fit
+  the width, and the height will fit a maximum of five lines.
+```
+
+
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d
