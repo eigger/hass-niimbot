@@ -21,6 +21,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.const import CONF_SCAN_INTERVAL
+
 from homeassistant.components.image import Image
 
 from .const import (
@@ -128,6 +129,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise RuntimeError(
                 "could not find printer with address {address} through your Bluetooth network"
             )
+
         if service.data.get("preview"):
             d = io.BytesIO()
             image.save(d, format="PNG")
