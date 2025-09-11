@@ -40,3 +40,8 @@ print:
       description: Size of the batch of lines sent to the printer between confirmations. By default, the integration confirms each line sent to the printer.
       required: false
       default: 1
+    preview:
+      name: Preview the image data
+      description: Instead of printing, return the image as a base64-encoded `data:<...>` URL.  Tremendously useful for designing labels without wasting them.  Combine with a script to write into an HTML file within your public HA folder for quick iteration.
+      required: false
+      default: false

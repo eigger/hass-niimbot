@@ -212,6 +212,89 @@ down to 10 milliseconds (0.01 seconds) of waiting between print lines,
 and up to 16 lines in a batch prior to confirmation, which speeds up
 complex labels more than *fourfold*.
 
+## Previewing labels without consuming labels
+
+The `niimbot.print` service supports previews, if the data parameter
+`preview` is present when you call it, and the `response_variable`
+is set to some variable name.  When you call the service that way,
+a `data:` string containing the generated image (encoded as a URL)
+is returned to the calling script.
+
+You can use this image data to save consumables -- iterate on a label
+design to perfect it, without actually printing the label.  Here is
+how you would do that:
+
+* Ensure your Home Assistant instance has a `www` folder under its
+  `/config` directory.
+* Add the following code to your `configuration.yaml` (adjust the
+  path to `www` to your setup).
+
+```yaml
+shell_command:
+  update_label: >-
+    bash -c 'set -o pipefail; echo "$0" | cut -d, -f2 | base64 -d >/config/www/label.png' {{ image_data }}
+```
+
+Now, every time you call the service `shell_command.update_label`,
+with data parameter `image_data` set to the `data:` URL returned by
+`niimbot.print`, the file `label.png` will be updated on disk inside
+`www`.
+
+* Add a *Local file* camera (via *Devices and Services -> Add Integration*)
+  and when it asks you for the path, point it to `/config/www/label.png`.
+  This "camera" entity will update automatically every time `label.png`
+  is updated by anything.  Very neat!
+
+* Create a script that will call `niimbot.print` and then `shell_command.update_label`
+  in sequence.  Here is a sample that will prompt you for a payload (list of
+  elements) and will then promptly preview such a payload into `label.png`:
+
+```yaml
+alias: Iterate on a label
+description: ""
+fields:
+  payload:
+    selector:
+      object: {}
+    default: []
+    name: Payload
+sequence:
+  - action: niimbot.print
+    target:
+      device_id: 088a38fae16cef438c4c2592b0ac3c91
+    data:
+      payload: "{{ payload }}"
+      width: 584
+      height: 350
+      density: 5
+      preview: true
+    response_variable: previewed
+    alias: "\"Print\" a label to a data: image"
+  - action: shell_command.update_label
+    metadata: {}
+    data:
+      image_data: "{{ previewed.image }}"
+    alias: Update label.png on disk
+```
+
+The grand finale?  Add a camera card to your dashboard:
+
+```yaml
+show_state: true
+show_name: true
+camera_view: auto
+fit_mode: cover
+type: picture-entity
+# The following line contains the entity ID of my local file "camera".
+entity: camera.local_file
+```
+
+Now you can iterate on your label in a browser window by running the script
+and changing the payload in real time, with another browser window open,
+showing the label as it gets updated in real time.
+
+Never waste a single sticker or label ever again!
+
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d

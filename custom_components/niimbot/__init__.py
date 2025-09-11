@@ -1,13 +1,22 @@
 """The Niimbot BLE integration."""
 
-from datetime import timedelta
+import base64
+import io
 import logging
+
+from datetime import timedelta
 from .niimprint import NiimbotDevice, BLEData
 from .imagegen import customimage
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
@@ -95,7 +104,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     @callback
     # callback for the draw custom service
-    async def printservice(service: ServiceCall) -> None:
+    async def printservice(service: ServiceCall) -> ServiceResponse:
         image = await hass.async_add_executor_job(
             customimage, entry.entry_id, service, hass
         )
@@ -104,8 +113,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise RuntimeError(
                 "could not find printer with address {address} through your Bluetooth network"
             )
+        if service.data.get("preview"):
+            d = io.BytesIO()
+            image.save(d, format="PNG")
+            d.seek(0)
+            encoded = base64.b64encode(d.read()).decode("ascii")
+            image_data = f"data:image/png;base64,{encoded}"
+            return {"image": image_data}
 
-        await niimbot.print_image(
+        return await niimbot.print_image(
             ble_device,
             image,
             density=int(service.data["density"]) if "density" in service.data else 3,
@@ -118,7 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # register the services
-    hass.services.async_register(DOMAIN, "print", printservice)
+    hass.services.async_register(
+        DOMAIN, "print", printservice, supports_response=SupportsResponse.OPTIONAL
+    )
 
     return True
 
