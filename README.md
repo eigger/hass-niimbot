@@ -214,15 +214,39 @@ complex labels more than *fourfold*.
 
 ## Previewing labels without consuming labels
 
-The `niimbot.print` service supports previews, if the data parameter
-`preview` is present when you call it, and the `response_variable`
-is set to some variable name.  When you call the service that way,
-a `data:` string containing the generated image (encoded as a URL)
-is returned to the calling script.
+The `niimbot.print` service supports *not printing*, if the data parameter
+`preview` is present when you call it.
 
-You can use this image data to save consumables -- iterate on a label
-design to perfect it, without actually printing the label.  Here is
-how you would do that:
+### Last label made image entity
+
+You might think "but what is the point of just running a preview that
+prints nothing?"
+
+Think again.  An entity with ID `image.<your device>_last_label_made`
+is updated every time you print or preview a label.  Stick it to
+a dashboard of yours, and now you can always recall what label
+you last made.
+
+(Note that the label is not preserved between Home Assistant restarts.)
+
+You can use this image entity to save consumables -- iterate on a label
+design to perfect it (perhaps using the developer tools Actions tab),
+without actually printing the label.
+
+You could also have an automation that uses the image snapshot services
+to take a snapshot of your label every time it changes.
+
+If you don't want this entity, simply disable it from the entity settings.
+
+Never waste a single sticker or label ever again!
+
+### Scripting with the image data
+
+If you call the `niimbot.print` service with the `response_variable`
+set to some variable name, a `data:` string containing the generated
+image (encoded as a URL) is returned to the calling script.
+
+Here is a trivial example of how you could use this data:
 
 * Ensure your Home Assistant instance has a `www` folder under its
   `/config` directory.
@@ -288,12 +312,6 @@ type: picture-entity
 # The following line contains the entity ID of my local file "camera".
 entity: camera.local_file
 ```
-
-Now you can iterate on your label in a browser window by running the script
-and changing the payload in real time, with another browser window open,
-showing the label as it gets updated in real time.
-
-Never waste a single sticker or label ever again!
 
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations

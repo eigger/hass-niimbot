@@ -21,6 +21,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.components.image import Image
 
 from .const import (
     CONF_USE_SOUND,
@@ -30,9 +31,11 @@ from .const import (
     DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DOMAIN,
+    EMPTY_PNG,
+    ImageAndBLEData,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.IMAGE]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,10 +99,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_method=_async_update_method,
         update_interval=timedelta(seconds=scan_interval),
     )
-
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    image_coordinator: DataUpdateCoordinator[ImageAndBLEData] = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=DOMAIN,
+    )
+    image_coordinator.async_set_updated_data(
+        (Image(content_type="image/png", content=EMPTY_PNG), coordinator.data)
+    )
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        "coordinator": coordinator,
+        "image_coordinator": image_coordinator,
+    }
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     @callback
@@ -117,7 +132,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             d = io.BytesIO()
             image.save(d, format="PNG")
             d.seek(0)
-            encoded = base64.b64encode(d.read()).decode("ascii")
+            read = d.read()
+            image_coordinator.async_set_updated_data(
+                (Image(content_type="image/png", content=read), coordinator.data)
+            )
+            encoded = base64.b64encode(read).decode("ascii")
             image_data = f"data:image/png;base64,{encoded}"
             return {"image": image_data}
 
