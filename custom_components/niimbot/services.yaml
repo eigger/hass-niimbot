@@ -9,19 +9,34 @@ print:
       name: Payload
       description: payload to draw
       required: true
-      example: examples
+      example: See examples in README.md.
     rotate:
-      name: rotate
+      name: Rotate
       description: 0, 90, 180, 270
       required: false
       example: 0
     width:
-      name: width
-      description: width of label
+      name: Width
+      description: Width of label
       required: false
       example: 400
     height:
-      name: height
-      description: height of label
+      name: Height
+      description: Height of label
       required: false
       example: 240
+    density:
+      name: Density
+      description: Print density (1 to 5). Some printers support only up to 3 (208 DPI or so). Others support up to 5 (300 DPI).
+      required: false
+      default: 3
+    wait_between_print_lines:
+      name: Wait between print lines
+      description: Time to wait in between each line sent to the printer. Use seconds or fractions.
+      required: false
+      default: 0.05
+    print_line_batch_size:
+      name: Print line batch size
+      description: Size of the batch of lines sent to the printer between confirmations. By default, the integration confirms each line sent to the printer.
+      required: false
+      default: 1

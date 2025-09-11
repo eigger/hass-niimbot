@@ -142,6 +142,75 @@ description: >-
   the width, and the height will fit a maximum of five lines.
 ```
 
+## Increasing print speed
+
+The printer receives data from Home Assistant line by line.  When this data is
+sent via a Bluetooth proxy, the latency involved in communicating each packet
+and awaiting for a response can cause significant delays that add up.  This
+is particularly notorious for complex labels with little to no empty horizontal
+space.  This is so because that way of sending data is the maximally conservative
+way that ensures maximum reliability.  That reliability comes at a cost of speed.
+
+Despair not, as there are workarounds to accelerate printouts substantially.
+In the developer console, you can try the following workarounds documented
+below:
+
+```yaml
+action: niimbot.print
+# We will assume a high-density printer like the B21 Pro.
+data:
+  payload:
+    # Complex figure you can test with.
+    - type: rectangle
+      x_start: 0
+      x_end: 10
+      y_start: 0
+      y_end: 600
+      fill: black
+  width: 584
+  height: 350
+  density: 5
+  # The following value reduces the time HA waits between
+  # lines sent to the printer, from its default 0.05 (50 ms).
+  # Sufficiently small values may cause your printer to fail
+  # to print at all, or print corrupted labels.
+  wait_between_print_lines: 0.01
+  # The following value changes the way that lines are sent
+  # to the printer, from a write-with-response to a plain
+  # fire-and-forget write, for the number of lines you set
+  # minus one (in this example, the value says 16, so HA
+  # would send 15 lines without confirmation, and send each
+  # 16th line waiting for a response).  The default is 1,
+  # which means every line gets sent using write-with-response,
+  # which itself costs about 0.1 seconds per line.
+  # Sufficiently large values will flood your ESPHome Bluetooth
+  # proxies, causing no or partial printout of labels.
+  print_line_batch_size: 16
+target:
+  device: <your device ID>
+```
+
+Once you have experimented with these configuration values, you can
+set them permanently for every print.  First, delete the existing
+configuration entry for your Niimbot printer.  Then, manually add
+your printer again.  In the configuration dialog that appears while
+adding it, you'll find two configuration settings you have to change:
+
+* Wait time between print lines: set it to the value that worked
+  for you, multiplied by 1000 (as the configuration value is in
+  milliseconds).
+* How often to confirm reception of print lines: set it to the
+  value of `print_line_batch_size`.
+
+Thus, the values that worked for you will now be permanent and used
+in every print.
+
+You are encouraged to open reports with the values that worked for you,
+in order to help us come up with better, less conservative defaults.
+Anecdotally, in a congested network, the B21 Pro printer is reliable
+down to 10 milliseconds (0.01 seconds) of waiting between print lines,
+and up to 16 lines in a batch prior to confirmation, which speeds up
+complex labels more than *fourfold*.
 
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations

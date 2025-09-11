@@ -1,4 +1,9 @@
 """Constants for Niimbot BLE."""
+
 DOMAIN = "niimbot"
 CONF_USE_SOUND = "use_sound"
+CONF_WAIT_BETWEEN_EACH_PRINT_LINE = "wait_between_each_print_line"
+CONF_CONFIRM_EVERY_NTH_PRINT_LINE = "confirm_every_nth_print_line"
 DEFAULT_SCAN_INTERVAL = 600
+DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE = 50
+DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE = 1

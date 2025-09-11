@@ -1,4 +1,5 @@
 """Config flow for Niimbot BlE integration."""
+
 import dataclasses
 import logging
 from typing import Any
@@ -12,9 +13,22 @@ from homeassistant.core import callback
 from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
-from .const import DOMAIN, CONF_USE_SOUND, DEFAULT_SCAN_INTERVAL
+from .const import (
+    CONF_USE_SOUND,
+    CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
+    CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+    DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+    DOMAIN,
+)
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,8 +36,10 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass
 class Discovery:
     """A discovered bluetooth device."""
+
     name: str
     discovery_info: BluetoothServiceInfo
+
 
 class NiimbotDeviceUpdateError(Exception):
     """Custom error class for device updates."""
@@ -136,13 +152,46 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_ADDRESS): vol.In(titles),
                     vol.Required(CONF_USE_SOUND, default=True): bool,
-                    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): NumberSelector(
-                        NumberSelectorConfig(min=60, max=9999, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="seconds")
+                    vol.Required(
+                        CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=60,
+                            max=9999,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="seconds",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
+                        default=DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0,
+                            max=1000,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="milliseconds",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
+                        default=DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=1,
+                            max=512,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="lines",
+                        )
                     ),
                 },
             ),
         )
-    
+
+
 #     @staticmethod
 #     @callback
 #     def async_get_options_flow(config_entry):

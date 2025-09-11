@@ -1,15 +1,18 @@
 import abc
 import enum
+import itertools
 import logging
 import math
 import struct
 import time
-import os
 
 from PIL import Image, ImageOps
 from bleak import BleakClient, BleakError
-from typing import Any, Callable, Tuple, TypeVar, cast
+from typing import Any, Callable, TypeVar
 from asyncio import Event, wait_for, sleep
+from .packet import NiimbotPacket
+from .model import PrinterModel
+
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
@@ -23,9 +26,6 @@ class BleakCharacteristicMissing(BleakError):
 class BleakServiceMissing(BleakError):
     """Raised when a service is missing."""
 
-
-from .packet import NiimbotPacket
-from .model import PrinterModel
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
 CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
@@ -95,7 +95,6 @@ class BaseTransport(metaclass=abc.ABCMeta):
 
 
 class BLETransport(BaseTransport):
-    _event: Event | None
     _command_data: bytearray | None
 
     def __init__(self, client: BleakClient):
@@ -103,19 +102,19 @@ class BLETransport(BaseTransport):
         self._command_data = None
         self._event = Event()
 
-    def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
-        """Decorator to handle disconnection on missing services/characteristics."""
+    # def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
+    #     """Decorator to handle disconnection on missing services/characteristics."""
 
-        async def wrapper(self, *args: Any, **kwargs: Any):
-            try:
-                return await func(self, *args, **kwargs)
-            except (BleakServiceMissing, BleakCharacteristicMissing) as ex:
-                if self._client.is_connected:
-                    await self._client.clear_cache()
-                    await self._client.disconnect()
-                raise
+    #     async def wrapper(self, *args: Any, **kwargs: Any):
+    #         try:
+    #             return await func(self, *args, **kwargs)
+    #         except (BleakServiceMissing, BleakCharacteristicMissing) as ex:
+    #             if self._client.is_connected:
+    #                 await self._client.clear_cache()
+    #                 await self._client.disconnect()
+    #             raise
 
-        return cast(WrapFuncType, wrapper)
+    #     return cast(WrapFuncType, wrapper)
 
     async def read(self, length: int) -> bytes:
         return await self.read_notify(30)
@@ -153,11 +152,11 @@ class BLETransport(BaseTransport):
 
 
 class PrinterClient:
-    send_await = 0.05
-
     def __init__(self, client: BleakClient):
         self._transport = BLETransport(client)
         self._packetbuf = bytearray()
+        self._timings: list[float] = []
+        # Conservative defaults.
 
     async def start_notify(self):
         await self._transport.start_notify(CHARACTERISTIC_UUID)
@@ -165,25 +164,65 @@ class PrinterClient:
     async def stop_notify(self):
         await self._transport.stop_notify(CHARACTERISTIC_UUID)
 
-    async def print_image(self, model: str, image: Image, density: int = 3):
-        self.send_await = PrinterClient.send_await
+    async def print_image(
+        self,
+        model: PrinterModel,
+        image: Image.Image,
+        density: int,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
+        self._timings = []
         _LOGGER.debug("Printing on printer model %s", model)
-        if model == PrinterModel.B1:
-            return await self.print_image_b1(image, density)
-        elif model == PrinterModel.D110:
-            return await self.print_image_d110(image, density)
-        elif model == PrinterModel.B21_PRO or model == "B21_PRO":
-            self.send_await = 0.001
-            return await self.print_image_d110m_v4(image, density)
-        return await self.print_image_b1(image, density)
+        start = time.time()
+        try:
+            if model == PrinterModel.D110:
+                return await self.print_image_d110(
+                    image,
+                    density,
+                    wait_between_print_lines,
+                    print_line_batch_size,
+                )
+            elif model == PrinterModel.B21_PRO:
+                return await self.print_image_d110m_v4(
+                    image,
+                    density,
+                    wait_between_print_lines,
+                    print_line_batch_size,
+                )
+            else:
+                return await self.print_image_b1(
+                    image,
+                    density,
+                    wait_between_print_lines,
+                    print_line_batch_size,
+                )
+        finally:
+            avg = (sum(self._timings) / len(self._timings)) if self._timings else 0.0
+            _LOGGER.debug(
+                "Print of page took %.2f seconds, average per line sent %.4f",
+                time.time() - start,
+                avg,
+            )
 
-    async def print_image_b1(self, image: Image, density: int = 3):
+    async def print_image_b1(
+        self,
+        image: Image.Image,
+        density,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
+        _LOGGER.debug("print_image_b1: %s", locals())
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print_v4()
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width)
-        await self.set_image(image)
+        await self.set_image(
+            image,
+            wait_between_print_lines,
+            print_line_batch_size,
+        )
         await self.end_page_print()
         start_time = time.time()
         while not await self.get_print_end():
@@ -192,14 +231,25 @@ class PrinterClient:
             await sleep(0.5)
         await self.end_print()
 
-    async def print_image_d110(self, image: Image, density: int = 3):
+    async def print_image_d110(
+        self,
+        image: Image.Image,
+        density,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
+        _LOGGER.debug("print_image_b1: %s", locals())
         await self.set_label_density(density)
         await self.set_label_type(1)
         await self.start_print()
         await self.start_page_print()
         await self.set_page_size_v2(image.height, image.width)
         await self.set_quantity(1)
-        await self.set_image(image)
+        await self.set_image(
+            image,
+            wait_between_print_lines,
+            print_line_batch_size,
+        )
         await self.end_page_print()
         start_time = time.time()
         while not await self.get_print_end():
@@ -208,11 +258,14 @@ class PrinterClient:
             await sleep(0.5)
         await self.end_print()
 
-    async def print_image_d110m_v4(self, image: Image, density: int = 3):
-        _LOGGER.debug(
-            "print_image_d110m_v4; will wait only %s after packet sends",
-            self.send_await,
-        )
+    async def print_image_d110m_v4(
+        self,
+        image: Image.Image,
+        density,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
+        _LOGGER.debug("print_image_d110m_v4: %s", locals())
         if not await self.set_label_density(density):
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(1):
@@ -222,7 +275,11 @@ class PrinterClient:
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
         await self.heartbeat(await_for_response=False)
         await self.set_page_size_9b(image.height, image.width)
-        await self.set_image(image)
+        await self.set_image(
+            image,
+            wait_between_print_lines,
+            print_line_batch_size,
+        )
         if not await self.end_page_print():
             raise RuntimeError("Page did not finish successfully")
         await sleep(1)
@@ -245,20 +302,30 @@ class PrinterClient:
         n = (n & 0x0000FFFF) + ((n & 0xFFFF0000) >> 16)
         return n
 
-    async def set_image(self, image: Image):
+    async def set_image(
+        self,
+        image: Image.Image,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
         _LOGGER.debug("Set image")
+        # Block every 4th send to prevent BT congestion.
+        blocking_send = itertools.cycle([False] * (print_line_batch_size - 1) + [True])
         img = ImageOps.invert(image.convert("L")).convert("1")
         empty_row = 0
         empty_row_count = 0
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
-            line_data = "".join("0" if pix == 0 else "1" for pix in line_data)
-            line_data = int(line_data, 2).to_bytes(math.ceil(img.width / 8), "big")
+            line_data_bytes = "".join("0" if pix == 0 else "1" for pix in line_data)
+            line_data_ints = int(line_data_bytes, 2).to_bytes(
+                math.ceil(img.width / 8), "big"
+            )
             counts = (
-                self._countbitsofbytes(line_data[i * 4 : (i + 1) * 4]) for i in range(3)
+                self._countbitsofbytes(line_data_ints[i * 4 : (i + 1) * 4])
+                for i in range(3)
             )
             header = struct.pack(">H3BB", y, *counts, 1)
-            if all(byte == 0 for byte in line_data):
+            if all(byte == 0 for byte in line_data_ints):
                 if empty_row_count == 0:
                     empty_row = y
                 empty_row_count += 1
@@ -267,28 +334,61 @@ class PrinterClient:
                 # Do them a max of 255 at a time.
                 while empty_row_count > 0:
                     empty_rows_to_print = min([255, empty_row_count])
-                    await self.set_empty_row(empty_row, empty_rows_to_print)
+                    await self.set_empty_row(
+                        empty_row,
+                        empty_rows_to_print,
+                        response=next(blocking_send),
+                        wait_between_print_lines=wait_between_print_lines,
+                    )
                     empty_row = empty_row + empty_rows_to_print
                     empty_row_count = empty_row_count - empty_rows_to_print
-                await self.set_bitmap_row(header, line_data)
+                await self.set_bitmap_row(
+                    header,
+                    line_data_ints,
+                    response=next(blocking_send),
+                    wait_between_print_lines=wait_between_print_lines,
+                )
         # Finish by printing any empty rows too.
         while empty_row_count > 0:
             empty_rows_to_print = min([255, empty_row_count])
-            await self.set_empty_row(empty_row, empty_rows_to_print)
+            await self.set_empty_row(
+                empty_row,
+                empty_rows_to_print,
+                response=next(blocking_send),
+                wait_between_print_lines=wait_between_print_lines,
+            )
             empty_row = empty_row + empty_rows_to_print
             empty_row_count = empty_row_count - empty_rows_to_print
 
-    async def set_empty_row(self, row, count):
+    async def set_empty_row(
+        self,
+        row,
+        count,
+        response: bool,
+        wait_between_print_lines: float,
+    ):
         packet = NiimbotPacket(
             RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", row, count)
         )
         self._log_buffer("send", packet.to_bytes())
-        await self._send(packet, response=False)
+        start = time.time()
+        await self._send(packet, response)
+        await sleep(wait_between_print_lines)
+        self._timings.append(time.time() - start)
 
-    async def set_bitmap_row(self, header, data):
+    async def set_bitmap_row(
+        self,
+        header,
+        data,
+        response: bool,
+        wait_between_print_lines: float,
+    ):
         packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + data)
         self._log_buffer("send", packet.to_bytes())
-        await self._send(packet, response=False)
+        start = time.time()
+        await self._send(packet, response)
+        await sleep(wait_between_print_lines)
+        self._timings.append(time.time() - start)
 
     async def _recv(self):
         packets = []
@@ -304,7 +404,6 @@ class PrinterClient:
 
     async def _send(self, packet, response=True):
         await self._transport.write(packet.to_bytes(), response=response)
-        await sleep(self.send_await)
 
     def _log_buffer(self, prefix: str, buff: bytes):
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
