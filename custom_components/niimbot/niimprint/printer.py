@@ -120,8 +120,8 @@ class BLETransport(BaseTransport):
     async def read(self, length: int) -> bytes:
         return await self.read_notify(30)
 
-    async def write(self, data: bytes):
-        return await self.write_ble(CHARACTERISTIC_UUID, data)
+    async def write(self, data: bytes, response=True):
+        return await self.write_ble(CHARACTERISTIC_UUID, data, response)
 
     async def read_notify(self, timeout: int) -> bytes:
         """Wait for notification data to be received within the timeout."""
@@ -132,9 +132,9 @@ class BLETransport(BaseTransport):
         return data
 
     # @disconnect_on_missing_services
-    async def write_ble(self, uuid: str, data: bytes):
+    async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write data to the BLE characteristic."""
-        await self._client.write_gatt_char(uuid, data)
+        await self._client.write_gatt_char(uuid, data, response)
 
     def _notification_handler(self, _: Any, data: bytearray):
         """Handle incoming notifications and store the received data."""
@@ -173,7 +173,7 @@ class PrinterClient:
         elif model == PrinterModel.D110:
             return await self.print_image_d110(image, density)
         elif model == PrinterModel.B21_PRO or model == "B21_PRO":
-            self.send_await = 0.01
+            self.send_await = 0.001
             return await self.print_image_d110m_v4(image, density)
         return await self.print_image_b1(image, density)
 
@@ -213,21 +213,26 @@ class PrinterClient:
             "print_image_d110m_v4; will wait only %s after packet sends",
             self.send_await,
         )
-        await self.set_label_density(density)
-        await self.set_label_type(1)
-        await self.start_print_9b()
+        if not await self.set_label_density(density):
+            raise RuntimeError(f"Could not set label density to {density}")
+        if not await self.set_label_type(1):
+            raise RuntimeError(f"Could not set label type to {1}")
+        if not await self.start_print_9b():
+            raise RuntimeError("Could not start print")
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
-        await self.get_print_status(await_for_response=False)
-        await self.set_page_size_13b(image.height, image.width)
+        await self.heartbeat(await_for_response=False)
+        await self.set_page_size_9b(image.height, image.width)
         await self.set_image(image)
-        await self.end_page_print()
+        if not await self.end_page_print():
+            raise RuntimeError("Page did not finish successfully")
+        await sleep(1)
         start_time = time.time()
         while not await self.get_print_end():
             if time.time() - start_time > 5:
                 break
-            await sleep(0.5)
-        await self.get_print_status()
-        await self.end_print()
+            await sleep(0.1)
+        if not await self.end_print():
+            raise RuntimeError("Print did not finish successfully")
         await self.heartbeat(await_for_response=False)
 
     def _countbitsofbytes(self, data):
@@ -278,12 +283,12 @@ class PrinterClient:
             RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", row, count)
         )
         self._log_buffer("send", packet.to_bytes())
-        await self._send(packet)
+        await self._send(packet, response=False)
 
     async def set_bitmap_row(self, header, data):
         packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + data)
         self._log_buffer("send", packet.to_bytes())
-        await self._send(packet)
+        await self._send(packet, response=False)
 
     async def _recv(self):
         packets = []
@@ -297,8 +302,8 @@ class PrinterClient:
                 del self._packetbuf[:pkt_len]
         return packets
 
-    async def _send(self, packet):
-        await self._transport.write(packet.to_bytes())
+    async def _send(self, packet, response=True):
+        await self._transport.write(packet.to_bytes(), response=response)
         await sleep(self.send_await)
 
     def _log_buffer(self, prefix: str, buff: bytes):
@@ -488,29 +493,24 @@ class PrinterClient:
         )
         return bool(packet.data[0])
 
-    async def set_page_size_13b(
+    async def set_page_size_9b(
         self,
         rows,
         cols,
         copies_count=1,
-        cut_height=0,
-        cut_type=0,
-        send_all=0,
-        part_height=0,
+        some_size=0,
+        is_divide=0,
     ):
-        _LOGGER.debug("Set page size 13 bytes: %s", locals())
+        _LOGGER.debug("Set page size 9 bytes: %s", locals())
         packet = await self._transceive(
             RequestCodeEnum.SET_DIMENSION,
             struct.pack(
-                ">HHHHBBBH",
+                ">HHHHB",
                 rows,
                 cols,
                 copies_count,
-                cut_height,
-                cut_type,
-                0,
-                send_all,
-                part_height,
+                some_size,
+                is_divide,
             ),
         )
         return bool(packet.data[0])
@@ -540,6 +540,12 @@ class PrinterClient:
         if not await_for_response:
             return
         page, progress1, progress2 = struct.unpack(">HBB", packet.data[:4])
+        _LOGGER.debug(
+            "Print status: page=%s progress1=%s progress2=%s",
+            page,
+            progress1,
+            progress2,
+        )
         return {"page": page, "progress": min(progress1, progress2)}
 
     async def get_print_end(self):
