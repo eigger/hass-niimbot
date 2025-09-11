@@ -1,17 +1,15 @@
 import io
 import logging
 import os
-import pprint
 import math
 import json
-from math import radians
+import urllib.parse
 
 import requests
 import qrcode
 import shutil
 from io import BytesIO
 import base64
-from .const import DOMAIN
 from .util import get_image_folder, get_image_path
 from PIL import Image, ImageDraw, ImageFont
 import barcode
@@ -27,9 +25,6 @@ white = (255, 255, 255, 255)
 black = (0, 0, 0, 255)
 red = (255, 0, 0, 255)
 yellow = (255, 255, 0, 255)
-queue = []
-notsetup = True
-running = False
 
 
 # is_decimal
@@ -99,7 +94,7 @@ def get_font_file(font_name, hass):
 
 
 # custom image generator
-def customimage(entity_id, service, hass):
+def customimage(entity_id, service, hass) -> Image.Image:
     payload = service.data.get("payload", "")
     rotate = service.data.get("rotate", 0)
     background = getIndexColor(service.data.get("background", "white"))
@@ -478,7 +473,6 @@ def customimage(entity_id, service, hass):
             ysize = element["ysize"]
             rotate2 = element["rotate"] if "rotate" in element else 0
             res = [xsize, ysize]
-            imgdl = ""
             if "http://" in url or "https://" in url:
                 response = requests.get(url)
                 imgdl = Image.open(io.BytesIO(response.content))
