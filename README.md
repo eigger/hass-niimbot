@@ -212,6 +212,107 @@ down to 10 milliseconds (0.01 seconds) of waiting between print lines,
 and up to 16 lines in a batch prior to confirmation, which speeds up
 complex labels more than *fourfold*.
 
+## Previewing labels without consuming labels
+
+The `niimbot.print` service supports *not printing*, if the data parameter
+`preview` is present when you call it.
+
+### Last label made image entity
+
+You might think "but what is the point of just running a preview that
+prints nothing?"
+
+Think again.  An entity with ID `image.<your device>_last_label_made`
+is updated every time you print or preview a label.  Stick it to
+a dashboard of yours, and now you can always recall what label
+you last made.
+
+(Note that the label is not preserved between Home Assistant restarts.)
+
+You can use this image entity to save consumables -- iterate on a label
+design to perfect it (perhaps using the developer tools Actions tab),
+without actually printing the label.
+
+You could also have an automation that uses the image snapshot services
+to take a snapshot of your label every time it changes.
+
+If you don't want this entity, simply disable it from the entity settings.
+
+Never waste a single sticker or label ever again!
+
+### Scripting with the image data
+
+If you call the `niimbot.print` service with the `response_variable`
+set to some variable name, a `data:` string containing the generated
+image (encoded as a URL) is returned to the calling script.
+
+Here is a trivial example of how you could use this data:
+
+* Ensure your Home Assistant instance has a `www` folder under its
+  `/config` directory.
+* Add the following code to your `configuration.yaml` (adjust the
+  path to `www` to your setup).
+
+```yaml
+shell_command:
+  update_label: >-
+    bash -c 'set -o pipefail; echo "$0" | cut -d, -f2 | base64 -d >/config/www/label.png' {{ image_data }}
+```
+
+Now, every time you call the service `shell_command.update_label`,
+with data parameter `image_data` set to the `data:` URL returned by
+`niimbot.print`, the file `label.png` will be updated on disk inside
+`www`.
+
+* Add a *Local file* camera (via *Devices and Services -> Add Integration*)
+  and when it asks you for the path, point it to `/config/www/label.png`.
+  This "camera" entity will update automatically every time `label.png`
+  is updated by anything.  Very neat!
+
+* Create a script that will call `niimbot.print` and then `shell_command.update_label`
+  in sequence.  Here is a sample that will prompt you for a payload (list of
+  elements) and will then promptly preview such a payload into `label.png`:
+
+```yaml
+alias: Iterate on a label
+description: ""
+fields:
+  payload:
+    selector:
+      object: {}
+    default: []
+    name: Payload
+sequence:
+  - action: niimbot.print
+    target:
+      device_id: 088a38fae16cef438c4c2592b0ac3c91
+    data:
+      payload: "{{ payload }}"
+      width: 584
+      height: 350
+      density: 5
+      preview: true
+    response_variable: previewed
+    alias: "\"Print\" a label to a data: image"
+  - action: shell_command.update_label
+    metadata: {}
+    data:
+      image_data: "{{ previewed.image }}"
+    alias: Update label.png on disk
+```
+
+The grand finale?  Add a camera card to your dashboard:
+
+```yaml
+show_state: true
+show_name: true
+camera_view: auto
+fit_mode: cover
+type: picture-entity
+# The following line contains the entity ID of my local file "camera".
+entity: camera.local_file
+```
+
 ## Custom Fonts
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations
 * https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d
