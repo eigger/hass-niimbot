@@ -372,31 +372,71 @@ def customimage(entity_id, service, hass) -> Image.Image:
             font_file = get_font_file(font_name, hass)
             color = element.get("color", "black")
             anchor = element.get("anchor", "la")
-            if element.get("fit_width"):
-                try:
-                    spacing = element["spacing"]
-                    width = element["width"]
-                except KeyError as e:
-                    raise HomeAssistantError(
-                        f"Missing required argument {e} in 'new_multiline'; it is mandatory when size is 'fit'"
-                    )
-                font_size = element.get("size", 100)
-                size = None
-                while (size is None or size > width) and font_size > 0:
-                    _LOGGER.debug("Reducing font size from %s", font_size)
-                    font = ImageFont.truetype(font_file, font_size)
-                    size = max(
-                        [font.getlength(x) for x in element["value"].splitlines()]
-                    )
-                    font_size -= 1
-            else:
-                size = element.get("size", 20)
-                spacing = element.get("spacing", size)
-                font = ImageFont.truetype(font_file, size)
+            size = element.get("size", 20)
+            spacing = element.get("spacing", size)
             align = element.get("align", "left")
             stroke_width = element.get("stroke_width", 0)
             stroke_fill = element.get("stroke_fill", None)
-            _LOGGER.debug("Got New Multiline string: %r", element["value"])
+
+            def bbox(font, spacing) -> tuple[float, float]:
+                (rendered_x1, rendered_y1, rendered_x2, rendered_y2) = d.textbbox(
+                    (element["x"], element["y"]),
+                    element["value"],
+                    font=font,
+                    anchor=anchor,
+                    spacing=spacing,
+                    align=align,
+                    stroke_width=stroke_width,
+                )
+                rendered_width = rendered_x2 - rendered_x1
+                rendered_height = rendered_y2 - rendered_y1
+                return rendered_width, rendered_height
+
+            font = ImageFont.truetype(font_file, size)
+            if element.get("fit_width") or element.get("fit") in ["width", True]:
+                try:
+                    width = float(element["width"])
+                except KeyError as e:
+                    raise HomeAssistantError(
+                        f"Missing required argument {e} in 'new_multiline';"
+                        " it is mandatory when text is fit to width"
+                    )
+                except ValueError as e:
+                    raise HomeAssistantError(f"Invalid width value {e}")
+                rendered_width, _ = bbox(font, spacing)
+                if rendered_width > width:
+                    _LOGGER.debug(
+                        "rendered %.1f bigger than width %.1f reducing size to %.3f",
+                        rendered_width,
+                        width,
+                        width / rendered_width,
+                    )
+                    size = size * (width / rendered_width)
+                    spacing = spacing * (width / rendered_width)
+                    font = ImageFont.truetype(font_file, size)
+            if element.get("fit_height") or element.get("fit") in ["height", True]:
+                try:
+                    height = float(element["height"])
+                except KeyError as e:
+                    raise HomeAssistantError(
+                        f"Missing required argument {e} in 'new_multiline';"
+                        " it is mandatory when text is fit to height"
+                    )
+                except ValueError as e:
+                    raise HomeAssistantError(f"Invalid height value {e}")
+                _, rendered_height = bbox(font, spacing)
+                if rendered_height > height:
+                    _LOGGER.debug(
+                        "rendered %.1f bigger than height %.1f reducing size to %.3f",
+                        rendered_height,
+                        height,
+                        height / rendered_height,
+                    )
+                    size = size * (height / rendered_height)
+                    spacing = spacing * (height / rendered_height)
+                    font = ImageFont.truetype(font_file, size)
+
+            _LOGGER.debug("Got new_multiline string: %r", element["value"])
             d.multiline_text(
                 (element["x"], element["y"]),
                 element["value"],
@@ -546,7 +586,7 @@ def customimage(entity_id, service, hass) -> Image.Image:
                 element["module_height"] if "module_height" in element else 7
             )
             quiet_zone = element["quiet_zone"] if "quiet_zone" in element else 6.5
-            font_size = element["font_size"] if "font_size" in element else 5
+            size = element["font_size"] if "font_size" in element else 5
             text_distance = (
                 element["text_distance"] if "text_distance" in element else 5.0
             )
@@ -556,7 +596,7 @@ def customimage(entity_id, service, hass) -> Image.Image:
                 "module_width": float(module_width),  # ���ڵ� ���� �ϳ��� �� (�⺻�� 0.2)
                 "module_height": float(module_height),  # ���ڵ� ���� (�⺻�� 15.0)
                 "quiet_zone": float(quiet_zone),  # ���ڵ� �ֺ��� ���� (�⺻�� 6.5)
-                "font_size": int(font_size),  # �ؽ�Ʈ�� ��Ʈ ũ�� (�⺻�� 10)
+                "font_size": int(size),  # �ؽ�Ʈ�� ��Ʈ ũ�� (�⺻�� 10)
                 "text_distance": float(
                     text_distance
                 ),  # �ؽ�Ʈ�� ���ڵ� �� �Ÿ� (�⺻�� 5.0)
@@ -948,11 +988,11 @@ def customimage(entity_id, service, hass) -> Image.Image:
 
             # display percentage text if enabled
             if show_percentage:
-                font_size = min(
+                size = min(
                     y_end - y_start - 4, x_end - x_start - 4, 20
                 )  # Adjust max font size as needed
                 font = ImageFont.truetype(
-                    os.path.join(os.path.dirname(__file__), "ppb.ttf"), font_size
+                    os.path.join(os.path.dirname(__file__), "ppb.ttf"), size
                 )
                 percentage_text = f"{progress}%"
 
@@ -1009,3 +1049,20 @@ def rounded_corners(corner_string):
             result[corner_map[corner]] = True
 
     return tuple(result)
+
+
+if __name__ == "__main__":
+    import sys
+    import yaml
+
+    logging.basicConfig(level=logging.DEBUG)
+    fake_hass = object()
+
+    class FakeService:
+        def __init__(self, data):
+            self.data = data
+
+    data, dest = sys.argv[1], sys.argv[2]
+    service = FakeService(yaml.safe_load(data))
+    image = customimage(None, service, fake_hass)
+    image.save(dest, format="PNG")
