@@ -102,28 +102,15 @@ target:
   area_id: kitchen
 ```
 
-## Script example for multiline text with width auto-fit
+## Script example for multiline text with auto-fit
 
 ```yaml
-sequence:
-  - action: niimbot.print
-    data:
-      payload:
-        - type: new_multiline
-          x: 0
-          "y": 20
-          size: 100
-          width: 560
-          height: None
-          fit_width: true
-          spacing: 35
-          font: rbm.ttf
-          value: "{{ contents }}"
-      width: 584
-      height: 350
-      density: 5
-    target:
-      area_id: kitchen
+alias: Print label with multiple lines of text
+description: >-
+  Use this tool to quick-print any label, for example a recipient label for
+  mailing a letter.  Give the contents of the label, in multiple lines, in the
+  `content` field, for the print to be successful.  The text will resize to fit
+  the width, and the height will fit a maximum of five lines.
 fields:
   contents:
     selector:
@@ -134,13 +121,55 @@ fields:
     description: >-
       Contents of the label (e.g. the full address of a letter's recipient) each
       part in a separate line.
-alias: Print label with multiple lines of text
-description: >-
-  Use this tool to quick-print any label, for example a recipient label for
-  mailing a letter.  Give the contents of the label, in multiple lines, in the
-  `content` field, for the print to be successful.  The text will resize to fit
-  the width, and the height will fit a maximum of five lines.
+sequence:
+  - action: niimbot.print
+    data:
+      payload:
+        - type: new_multiline
+          x: 0
+          "y": 20
+          size: 100 # start with a large font size
+          width: 520
+          height: 300
+          fit: true
+          font: rbm.ttf
+          value: "{{ contents }}"
+          # e.g.
+          # value: |-
+          #   Max Mustermann
+          #   Strassenstraße 33
+          #   49418 Mallorca
+          #   Spain
+      width: 584
+      height: 350
+      density: 5
+    target:
+      area_id: kitchen
 ```
+
+In `type: new_multiline`, the font `size` starts by default at 20, and
+the `spacing` between lines defaults to the font size.  You can, of
+course, set your own custom font size and spacing.
+
+If you specify `fit_width: True` or `fit: width` and add the required
+specific `width` in pixels, the font `size` and `spacing` will be
+iteratively reduced until the longest line in the text `value` you
+specified fits the required width.
+
+If you specify `fit_height: True` or `fit: height` and add the required
+specific `height` in pixels, the font `size` and `spacing` will be
+iteratively reduced until the whole text fits vertically in the supplied
+height.
+
+To combine both modes, you can specify `fit: True`.
+
+Of course, if font `size` is left to its default, which is quite small
+for 300x500mm labels, chances are, only very large amounts of text will
+cause shrinkage of the font size to fit. In that case, pass a large font
+`size` and it will be shrunk to a fitting size.
+
+Note that the top part of letters in italicized text tends to spill outside
+the specified width -- try to make your width slightly narrower in that case.
 
 ## Increasing print speed
 
