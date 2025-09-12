@@ -390,7 +390,6 @@ def customimage(entity_id, service, hass) -> Image.Image:
                 )
                 rendered_width = rendered_x2 - rendered_x1
                 rendered_height = rendered_y2 - rendered_y1
-                print(rendered_width, rendered_height)
                 return rendered_width, rendered_height
 
             font = ImageFont.truetype(font_file, size)
