@@ -220,10 +220,10 @@ target:
 ```
 
 Once you have experimented with these configuration values, you can
-set them permanently for every print.  First, delete the existing
-configuration entry for your Niimbot printer.  Then, manually add
-your printer again.  In the configuration dialog that appears while
-adding it, you'll find two configuration settings you have to change:
+set them permanently for every print.  Go to the *Devices & Services*
+settings, then find *Niimbot* under the list of integrations, and
+open it.  Use the gear icon for your printer's config entry to change
+the settings to the values that worked for you:
 
 * Wait time between print lines: set it to the value that worked
   for you, multiplied by 1000 (as the configuration value is in

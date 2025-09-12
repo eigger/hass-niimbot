@@ -10,9 +10,14 @@ from homeassistant.components.bluetooth import (
     async_discovered_service_info,
 )
 from homeassistant.core import callback
-from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
+from homeassistant.config_entries import (
+    ConfigFlow,
+    OptionsFlowWithReload,
+    ConfigEntry,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, FlowContext
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -31,6 +36,44 @@ from .const import (
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+OPTIONS_SCHEMA = {
+    vol.Required(CONF_USE_SOUND, default=True): bool,
+    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): NumberSelector(
+        NumberSelectorConfig(
+            min=60,
+            max=9999,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="seconds",
+        )
+    ),
+    vol.Required(
+        CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
+        default=DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+    ): NumberSelector(
+        NumberSelectorConfig(
+            min=0,
+            max=1000,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="milliseconds",
+        )
+    ),
+    vol.Required(
+        CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
+        default=DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+    ): NumberSelector(
+        NumberSelectorConfig(
+            min=1,
+            max=512,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="lines",
+        )
+    ),
+}
 
 
 @dataclasses.dataclass
@@ -57,7 +100,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfo
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the bluetooth discovery step."""
         _LOGGER.debug("Discovered BT device: %s", discovery_info)
         await self.async_set_unique_id(discovery_info.address)
@@ -71,7 +114,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Confirm discovery."""
         if user_input is not None:
             return self.async_create_entry(
@@ -86,7 +129,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the user step to pick discovered device."""
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
@@ -151,72 +194,28 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(titles),
-                    vol.Required(CONF_USE_SOUND, default=True): bool,
-                    vol.Required(
-                        CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-                    ): NumberSelector(
-                        NumberSelectorConfig(
-                            min=60,
-                            max=9999,
-                            step=1,
-                            mode=NumberSelectorMode.BOX,
-                            unit_of_measurement="seconds",
-                        )
-                    ),
-                    vol.Required(
-                        CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-                        default=DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
-                    ): NumberSelector(
-                        NumberSelectorConfig(
-                            min=0,
-                            max=1000,
-                            step=1,
-                            mode=NumberSelectorMode.BOX,
-                            unit_of_measurement="milliseconds",
-                        )
-                    ),
-                    vol.Required(
-                        CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
-                        default=DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
-                    ): NumberSelector(
-                        NumberSelectorConfig(
-                            min=1,
-                            max=512,
-                            step=1,
-                            mode=NumberSelectorMode.BOX,
-                            unit_of_measurement="lines",
-                        )
-                    ),
-                },
+                }
+                | OPTIONS_SCHEMA
             ),
         )
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return OptionsFlowHandler()
 
-#     @staticmethod
-#     @callback
-#     def async_get_options_flow(config_entry):
-#         return OptionsFlowHandler(config_entry)
 
-# class OptionsFlowHandler(OptionsFlow):
-#     def __init__(self, config_entry: ConfigEntry) -> None:
-#         """Initialize options flow."""
-#         self.config_entry = config_entry
+class OptionsFlowHandler(OptionsFlowWithReload):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
 
-#     async def async_step_init(
-#         self, user_input: dict[str, Any] | None = None
-#     ) -> FlowResult:
-#         """Manage the options."""
-#         if user_input is not None:
-#             return self.async_create_entry(title="", data=user_input)
-
-#         return self.async_show_form(
-#             step_id="init",
-#             data_schema=vol.Schema(
-#                 {
-#                     vol.Required(
-#                         "continuous_connection",
-#                         default=self.config_entry.options.get("continuous_connection"),
-#                     ): bool
-#                 }
-#             ),
-#         )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(OPTIONS_SCHEMA), self.config_entry.options
+            ),
+        )
