@@ -128,14 +128,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise RuntimeError(
                 "could not find printer with address {address} through your Bluetooth network"
             )
+
+        d = io.BytesIO()
+        image.save(d, format="PNG")
+        d.seek(0)
+        read = d.read()
+        image_coordinator.async_set_updated_data(
+            (Image(content_type="image/png", content=read), coordinator.data)
+        )
         if service.data.get("preview"):
-            d = io.BytesIO()
-            image.save(d, format="PNG")
-            d.seek(0)
-            read = d.read()
-            image_coordinator.async_set_updated_data(
-                (Image(content_type="image/png", content=read), coordinator.data)
-            )
             encoded = base64.b64encode(read).decode("ascii")
             image_data = f"data:image/png;base64,{encoded}"
             return {"image": image_data}
