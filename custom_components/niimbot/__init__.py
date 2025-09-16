@@ -5,7 +5,7 @@ import io
 import logging
 
 from datetime import timedelta
-from .niimprint import NiimbotDevice, BLEData
+from .niimprint import NiimbotDevice, BLEData, PrinterError
 from .imagegen import customimage
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
@@ -17,7 +17,11 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import (
+    ConfigEntryNotReady,
+    HomeAssistantError,
+    ServiceValidationError,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.const import CONF_SCAN_INTERVAL
@@ -120,12 +124,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     @callback
     # callback for the draw custom service
     async def printservice(service: ServiceCall) -> ServiceResponse:
-        image = await hass.async_add_executor_job(
-            customimage, entry.entry_id, service, hass
-        )
+        try:
+            image = await hass.async_add_executor_job(
+                customimage, entry.entry_id, service, hass
+            )
+        except Exception as e:
+            raise ServiceValidationError("Failed to create image: %s" % e) from e
+
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
-            raise RuntimeError(
+            raise HomeAssistantError(
                 "could not find printer with address {address} through your Bluetooth network"
             )
 
@@ -141,17 +149,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             image_data = f"data:image/png;base64,{encoded}"
             return {"image": image_data}
 
-        return await niimbot.print_image(
-            ble_device,
-            image,
-            density=int(service.data["density"]) if "density" in service.data else 3,
-            wait_between_print_lines=float(service.data["wait_between_print_lines"])
-            if "wait_between_print_lines" in service.data
-            else wait_between_each_print_line / 1000,
-            print_line_batch_size=int(service.data["print_line_batch_size"])
-            if "print_line_batch_size" in service.data
-            else confirm_every_nth_print_line,
-        )
+        try:
+            return await niimbot.print_image(
+                ble_device,
+                image,
+                density=int(service.data["density"])
+                if "density" in service.data
+                else 3,
+                wait_between_print_lines=float(service.data["wait_between_print_lines"])
+                if "wait_between_print_lines" in service.data
+                else wait_between_each_print_line / 1000,
+                print_line_batch_size=int(service.data["print_line_batch_size"])
+                if "print_line_batch_size" in service.data
+                else confirm_every_nth_print_line,
+            )
+        except (PrinterError, RuntimeError) as e:
+            raise HomeAssistantError("Failed to print: %s" % e) from e
 
     # register the services
     hass.services.async_register(

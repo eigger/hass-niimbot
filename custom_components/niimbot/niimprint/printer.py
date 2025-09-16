@@ -70,6 +70,56 @@ class SoundEnum(enum.IntEnum):
     PowerSound = 2
 
 
+class PrinterErrorCodeEnum(enum.IntEnum):
+    CoverOpen = 0x01
+    LackPaper = 0x02
+    LowBattery = 0x03
+    BatteryException = 0x04
+    UserCancel = 0x05
+    DataError = 0x06
+    Overheat = 0x07
+    PaperOutException = 0x08
+    PrinterBusy = 0x09
+    NoPrinterHead = 0x0A
+    TemperatureLow = 0x0B
+    PrinterHeadLoose = 0x0C
+    NoRibbon = 0x0D
+    WrongRibbon = 0x0E
+    UsedRibbon = 0x0F
+    WrongPaper = 0x10
+    SetPaperFail = 0x11
+    SetPrintModeFail = 0x12
+    SetPrintDensityFail = 0x13
+    WriteRfidFail = 0x14
+    SetMarginFail = 0x15
+    CommunicationException = 0x16
+    Disconnect = 0x17
+    CanvasParameterError = 0x18
+    RotationParameterException = 0x19
+    JsonParameterException = 0x1A
+    B3sAbnormalPaperOutput = 0x1B
+    ECheckPaper = 0x1C
+    RfidTagNotWritten = 0x1D
+    SetPrintDensityNoSupport = 0x1E
+    SetPrintModeNoSupport = 0x1F
+    SetPrintLabelMaterialError = 0x20
+    SetPrintLabelMaterialNoSupport = 0x21
+    NotSupportWrittenRfid = 0x22
+    IllegalPage = 0x32
+    IllegalRibbonPage = 0x33
+    ReceiveDataTimeout = 0x34
+    NonDedicatedRibbon = 0x35
+    Unknown = 0xFF
+
+
+class PrinterError(Exception):
+    def __str__(self) -> str:
+        return "Printer error: %s" % self.args[0].name
+
+    def code(self) -> PrinterErrorCodeEnum:
+        return self.args[0]
+
+
 def _packet_to_int(x):
     return int.from_bytes(x.data, "big")
 
@@ -420,7 +470,8 @@ class PrinterClient:
         for _ in range(6):
             for packet in await self._recv():
                 if packet.type == 219:
-                    raise ValueError
+                    # We will assume a single byte error.
+                    raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
                 elif packet.type == 0:
                     raise NotImplementedError
                 elif packet.type == respcode:
