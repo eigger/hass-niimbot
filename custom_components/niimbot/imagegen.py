@@ -325,6 +325,7 @@ def customimage(entity_id, service, hass) -> Image.Image:
             check_for_missing_required_arguments(
                 element, ["x", "value", "offset_y"], "multiline"
             )
+            element["value"] = str(element["value"])
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
             size = element.get("size", 20)
@@ -366,6 +367,7 @@ def customimage(entity_id, service, hass) -> Image.Image:
             check_for_missing_required_arguments(
                 element, ["x", "y", "value"], "multiline"
             )
+            element["value"] = str(element["value"])
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
             font_name = element.get("font", "ppb.ttf")
