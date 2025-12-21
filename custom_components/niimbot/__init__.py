@@ -131,12 +131,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as e:
             raise ServiceValidationError("Failed to create image: %s" % e) from e
 
-        ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        if ble_device is None:
-            raise HomeAssistantError(
-                "could not find printer with address {address} through your Bluetooth network"
-            )
-
         d = io.BytesIO()
         image.save(d, format="PNG")
         d.seek(0)
@@ -148,6 +142,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             encoded = base64.b64encode(read).decode("ascii")
             image_data = f"data:image/png;base64,{encoded}"
             return {"image": image_data}
+
+        ble_device = bluetooth.async_ble_device_from_address(hass, address)
+        if ble_device is None:
+            raise HomeAssistantError(
+                "could not find printer with address {address} through your Bluetooth network"
+            )
 
         try:
             return await niimbot.print_image(

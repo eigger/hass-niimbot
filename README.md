@@ -1,6 +1,16 @@
 # hass-niimbot
 Niimbot Label Printer Home Assistant Integration
 
+>[!IMPORTANT]
+>
+> For all NIIMBOT users using Bluetooth proxies:  
+> Please update your proxy devices to **ESPHome 2025.11.2 or later**.
+>
+> **Benefits of updating:**
+> - Much faster printing (almost instant)
+> - Greatly improved reliability
+> - Reduced delays thanks to improved internal GATT handling
+
 ## 💬 Feedback & Support
 
 🐞 Found a bug? Let us know via an [Issue](https://github.com/eigger/hass-niimbot/issues).  
@@ -9,7 +19,7 @@ Niimbot Label Printer Home Assistant Integration
 
 ## Supported Models
 - B1 (confirmed)
-- B1 Pro (confirmed)
+- B21 Pro (confirmed)
 - D110 (confirmed)
 - other models with Bluetooth may work
 
