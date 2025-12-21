@@ -148,7 +148,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError(
                 "could not find printer with address {address} through your Bluetooth network"
             )
-        
+
         try:
             return await niimbot.print_image(
                 ble_device,
