@@ -46,6 +46,7 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
     "closingstate": SensorEntityDescription(
         key="closingstate",
         name="closingstate",
+        icon="mdi:printer-alert",
     ),
     # "powerlevel": SensorEntityDescription(
     #     key="powerlevel",
@@ -54,10 +55,12 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
     "paperstate": SensorEntityDescription(
         key="paperstate",
         name="paperstate",
+        icon="mdi:paper-roll",
     ),
     "rfidreadstate": SensorEntityDescription(
         key="rfidreadstate",
         name="rfidreadstate",
+        icon="mdi:nfc-variant",
     ),
     # "density": SensorEntityDescription(
     #     key="density",
