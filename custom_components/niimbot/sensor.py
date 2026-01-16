@@ -41,11 +41,11 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         key="battery",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
-        name="battery",
+        name="Battery",
     ),
     "closingstate": SensorEntityDescription(
         key="closingstate",
-        name="closingstate",
+        name="Closing State",
         icon="mdi:printer-alert",
     ),
     # "powerlevel": SensorEntityDescription(
@@ -54,12 +54,12 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
     # ),
     "paperstate": SensorEntityDescription(
         key="paperstate",
-        name="paperstate",
-        icon="mdi:paper-roll",
+        name="Paper State",
+        icon="mdi:label-outline",
     ),
     "rfidreadstate": SensorEntityDescription(
         key="rfidreadstate",
-        name="rfidreadstate",
+        name="RFID Read State",
         icon="mdi:nfc-variant",
     ),
     # "density": SensorEntityDescription(
