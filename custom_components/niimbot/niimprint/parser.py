@@ -3,6 +3,7 @@
 import dataclasses
 import logging
 import asyncio
+import time
 
 # from logging import Logger
 from PIL import Image, ImageOps
@@ -53,6 +54,10 @@ class NiimbotDevice:
         self.device = BLEData()
         self.client = None
         self.callback_connection = None
+        self.callback_printing = None
+        self._is_printing = False
+        self._print_start_time: float | None = None
+        self._print_end_time: float | None = None
         super().__init__()
 
     def _notify_connection(self):
@@ -60,10 +65,33 @@ class NiimbotDevice:
         if self.callback_connection:
             self.callback_connection()
 
+    def _notify_printing(self):
+        """Notify printing state change."""
+        if self.callback_printing:
+            self.callback_printing()
+
     @property
     def is_connected(self) -> bool:
         """Return true if connected."""
         return self.client is not None and self.client.is_connected
+
+    @property
+    def is_printing(self) -> bool:
+        """Return true if printing."""
+        return self._is_printing
+
+    @property
+    def print_duration(self) -> float:
+        """Return print duration in seconds."""
+        if self._print_start_time is None:
+            return 0.0
+        if self._is_printing:
+            # 프린트 중: 현재까지 경과 시간
+            return time.time() - self._print_start_time
+        elif self._print_end_time is not None:
+            # 프린트 완료: 총 소요 시간
+            return self._print_end_time - self._print_start_time
+        return 0.0
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
@@ -155,7 +183,7 @@ class NiimbotDevice:
             printer_model = PrinterModel(self.model)
         except ValueError:
             raise RuntimeError(
-                "printer model {self.model} is not known to the niimprint library"
+                f"printer model {self.model} is not known to the niimprint library"
             )
         async with self.lock:
             self.client = await establish_connection(
@@ -165,6 +193,12 @@ class NiimbotDevice:
                 raise RuntimeError("could not connect to thermal printer")
 
             self._notify_connection()
+
+            # 프린트 시작
+            self._is_printing = True
+            self._print_start_time = time.time()
+            self._print_end_time = None
+            self._notify_printing()
 
             try:
                 printer = PrinterClient(self.client)
@@ -178,6 +212,11 @@ class NiimbotDevice:
                 )
                 await printer.stop_notify()
             finally:
+                # 프린트 종료
+                self._print_end_time = time.time()
+                self._is_printing = False
+                self._notify_printing()
+
                 await self.client.disconnect()
                 self._notify_connection()
 

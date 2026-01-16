@@ -1,27 +1,20 @@
 """Support for niimbot ble sensors."""
 
 import logging
-import dataclasses
 
-from .niimprint import BLEData
+from .niimprint import NiimbotDevice, BLEData
 
 from homeassistant import config_entries
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
-    SensorStateClass,
 )
 from homeassistant.const import (
-    CONCENTRATION_PARTS_PER_BILLION,
-    CONCENTRATION_PARTS_PER_MILLION,
-    LIGHT_LUX,
     PERCENTAGE,
-    UnitOfPressure,
-    UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -30,7 +23,8 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from homeassistant.util.unit_system import METRIC_SYSTEM
+from homeassistant.helpers.event import async_track_time_interval
+from datetime import timedelta
 
 from .const import DOMAIN
 
@@ -98,6 +92,7 @@ async def async_setup_entry(
     coordinator: DataUpdateCoordinator[BLEData] = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
+    device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
 
     # we need to change some units
     sensors_mapping = SENSORS_MAPPING_TEMPLATE.copy()
@@ -115,6 +110,9 @@ async def async_setup_entry(
         entities.append(
             NiimbotSensor(coordinator, coordinator.data, sensors_mapping[sensor_type])
         )
+
+    # 프린트 경과 시간 센서 추가
+    entities.append(NiimbotPrintDurationSensor(coordinator, coordinator.data, device))
 
     async_add_entities(entities)
 
@@ -162,3 +160,103 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
             return self.coordinator.data.sensors[self.entity_description.key]
         except KeyError:
             return None
+
+
+class NiimbotPrintDurationSensor(
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+):
+    """Niimbot print duration sensor."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Print Duration"
+    _attr_icon = "mdi:timer-outline"
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_device_class = SensorDeviceClass.DURATION
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        device: NiimbotDevice,
+    ) -> None:
+        """Initialize the print duration sensor."""
+        super().__init__(coordinator)
+
+        self._device = device
+        self._unsub_timer = None
+
+        name = f"{ble_data.name} {ble_data.identifier}"
+
+        self._attr_unique_id = f"{name}_print_duration"
+
+        self._id = ble_data.address
+        self._attr_device_info = DeviceInfo(
+            connections={
+                (
+                    CONNECTION_BLUETOOTH,
+                    ble_data.address,
+                )
+            },
+            name=name,
+            manufacturer="Niimbot",
+            model=ble_data.model,
+            hw_version=ble_data.hw_version,
+            sw_version=ble_data.sw_version,
+            serial_number=ble_data.serial_number,
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register callback when entity is added."""
+        await super().async_added_to_hass()
+        self._device.callback_printing = self._handle_printing_update
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callback when entity is removed."""
+        await super().async_will_remove_from_hass()
+        self._device.callback_printing = None
+        self._stop_timer()
+
+    def _start_timer(self) -> None:
+        """Start the timer for real-time updates."""
+        if self._unsub_timer is None:
+            self._unsub_timer = async_track_time_interval(
+                self.hass,
+                self._update_elapsed_time,
+                timedelta(seconds=1),
+            )
+
+    def _stop_timer(self) -> None:
+        """Stop the timer."""
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    @callback
+    def _update_elapsed_time(self, now=None) -> None:
+        """Update elapsed time every second."""
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_printing_update(self) -> None:
+        """Handle printing state update."""
+        if self._device.is_printing:
+            self._start_timer()
+        else:
+            self._stop_timer()
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> float:
+        """Return the print duration in seconds."""
+        return round(self._device.print_duration, 1)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return extra state attributes."""
+        duration = self._device.print_duration
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        return {
+            "formatted": f"{minutes:02d}:{seconds:01d}",
+            "is_printing": self._device.is_printing,
+        }
