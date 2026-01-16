@@ -115,16 +115,16 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm discovery."""
+        """Confirm discovery and configure options."""
         if user_input is not None:
             return self.async_create_entry(
                 title=self.context["title_placeholders"]["name"], data=user_input
             )
 
-        self._set_confirm_only()
         return self.async_show_form(
             step_id="bluetooth_confirm",
             description_placeholders=self.context["title_placeholders"],
+            data_schema=vol.Schema(OPTIONS_SCHEMA),
         )
 
     async def async_step_user(

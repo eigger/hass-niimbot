@@ -155,7 +155,7 @@ class NiimbotDevice:
             printer_model = PrinterModel(self.model)
         except ValueError:
             raise RuntimeError(
-                "printer model {self.model} is not known to the niimprint library"
+                f"printer model {self.model} is not known to the niimprint library"
             )
         async with self.lock:
             self.client = await establish_connection(
