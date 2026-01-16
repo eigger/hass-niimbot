@@ -7,6 +7,7 @@ from .niimprint import NiimbotDevice, BLEData
 from homeassistant import config_entries
 from homeassistant.components.sensor import (
     SensorDeviceClass,
+    SensorStateClass,
     SensorEntity,
     SensorEntityDescription,
 )
@@ -169,9 +170,9 @@ class NiimbotPrintDurationSensor(
 
     _attr_has_entity_name = True
     _attr_name = "Print Duration"
-    _attr_icon = "mdi:timer-outline"
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
         self,

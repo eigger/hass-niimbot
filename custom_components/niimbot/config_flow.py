@@ -42,7 +42,7 @@ OPTIONS_SCHEMA = {
     vol.Required(CONF_USE_SOUND, default=True): bool,
     vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): NumberSelector(
         NumberSelectorConfig(
-            min=60,
+            min=10,
             max=9999,
             step=1,
             mode=NumberSelectorMode.BOX,
