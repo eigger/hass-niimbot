@@ -39,7 +39,7 @@ from .const import (
     ImageAndBLEData,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.IMAGE]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.IMAGE, Platform.BINARY_SENSOR]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,6 +117,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "image_coordinator": image_coordinator,
+        "device": niimbot,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -50,43 +50,59 @@ class NiimbotDevice:
         self.lock = asyncio.Lock()
         self.set_sound = None
         self.model = None
+        self.device = BLEData()
+        self.client = None
+        self.callback_connection = None
         super().__init__()
+
+    def _notify_connection(self):
+        """Notify connection state change."""
+        if self.callback_connection:
+            self.callback_connection()
+
+    @property
+    def is_connected(self) -> bool:
+        """Return true if connected."""
+        return self.client is not None and self.client.is_connected
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
         async with self.lock:
-            device = BLEData()
-            device.name = ble_device.name or "(no such device)"
-            device.address = ble_device.address
+            if not self.device.name:
+                self.device.name = ble_device.name or "(no such device)"
+            if not self.device.address:
+                self.device.address = ble_device.address
 
-            client = await establish_connection(
+            self.client = await establish_connection(
                 BleakClient, ble_device, ble_device.address
             )
-            if not client.is_connected:
+            if not self.client.is_connected:
                 raise RuntimeError("could not connect to thermal printer")
 
+            self._notify_connection()
+
             try:
-                printer = PrinterClient(client)
+                printer = PrinterClient(self.client)
                 await printer.start_notify()
-                if not device.serial_number:
-                    device.serial_number = str(
+                if not self.device.serial_number:
+                    self.device.serial_number = str(
                         await printer.get_info(InfoEnum.DEVICESERIAL)
                     )
-                if not device.hw_version:
-                    device.hw_version = str(
+                if not self.device.hw_version:
+                    self.device.hw_version = str(
                         await printer.get_info(InfoEnum.HARDVERSION)
                     )
-                if not device.sw_version:
-                    device.sw_version = str(
+                if not self.device.sw_version:
+                    self.device.sw_version = str(
                         await printer.get_info(InfoEnum.SOFTVERSION)
                     )
-                if not device.devicetype:
-                    device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
-                    meta = get_printer_meta_by_id(int(device.devicetype))
-                    device.model = (
-                        meta["model"].name if meta else str(device.devicetype)
+                if not self.device.devicetype:
+                    self.device.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
+                    meta = get_printer_meta_by_id(int(self.device.devicetype))
+                    self.device.model = (
+                        meta["model"].name if meta else str(self.device.devicetype)
                     )
-                    self.model = device.model
+                    self.model = self.device.model
                 if not self.set_sound:
                     self.set_sound = await printer.set_sound(
                         SoundEnum.BluetoothConnectionSound, self.use_sound
@@ -103,28 +119,29 @@ class NiimbotDevice:
                 # if not device.autoshutdowntime:
                 #     device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
 
-                if device.density is not None:
-                    device.sensors["density"] = device.density
-                if device.printspeed is not None:
-                    device.sensors["printspeed"] = device.printspeed
-                if device.labeltype is not None:
-                    device.sensors["labeltype"] = device.labeltype
-                if device.languagetype is not None:
-                    device.sensors["languagetype"] = device.languagetype
-                if device.autoshutdowntime is not None:
-                    device.sensors["autoshutdowntime"] = device.autoshutdowntime
+                if self.device.density is not None:
+                    self.device.sensors["density"] = self.device.density
+                if self.device.printspeed is not None:
+                    self.device.sensors["printspeed"] = self.device.printspeed
+                if self.device.labeltype is not None:
+                    self.device.sensors["labeltype"] = self.device.labeltype
+                if self.device.languagetype is not None:
+                    self.device.sensors["languagetype"] = self.device.languagetype
+                if self.device.autoshutdowntime is not None:
+                    self.device.sensors["autoshutdowntime"] = self.device.autoshutdowntime
 
                 heartbeat = await printer.heartbeat()
-                device.sensors["closingstate"] = heartbeat["closingstate"]
-                device.sensors["paperstate"] = heartbeat["paperstate"]
-                device.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
-                device.sensors["battery"] = float(heartbeat["powerlevel"]) * 25.0
+                self.device.sensors["closingstate"] = heartbeat["closingstate"]
+                self.device.sensors["paperstate"] = heartbeat["paperstate"]
+                self.device.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
+                self.device.sensors["battery"] = float(heartbeat["powerlevel"]) * 25.0
                 await printer.stop_notify()
             finally:
-                await client.disconnect()
+                await self.client.disconnect()
+                self._notify_connection()
 
-            _LOGGER.debug("Obtained BLEData: %s", device)
-            return device
+            _LOGGER.debug("Obtained BLEData: %s", self.device)
+            return self.device
 
     async def print_image(
         self,
@@ -141,13 +158,16 @@ class NiimbotDevice:
                 "printer model {self.model} is not known to the niimprint library"
             )
         async with self.lock:
-            client = await establish_connection(
+            self.client = await establish_connection(
                 BleakClient, ble_device, ble_device.address
             )
-            if not client.is_connected:
+            if not self.client.is_connected:
                 raise RuntimeError("could not connect to thermal printer")
+
+            self._notify_connection()
+
             try:
-                printer = PrinterClient(client)
+                printer = PrinterClient(self.client)
                 await printer.start_notify()
                 await printer.print_image(
                     printer_model,
@@ -158,4 +178,6 @@ class NiimbotDevice:
                 )
                 await printer.stop_notify()
             finally:
-                await client.disconnect()
+                await self.client.disconnect()
+                self._notify_connection()
+
