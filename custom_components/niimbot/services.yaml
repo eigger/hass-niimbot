@@ -3,7 +3,7 @@ print:
   description: Print Niimbot Label image
   target:
     device:
-      manufacturer: Niimbot
+      integration: niimbot
   fields:
     payload:
       name: Payload
