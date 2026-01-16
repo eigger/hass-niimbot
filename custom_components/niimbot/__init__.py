@@ -22,7 +22,7 @@ from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceValidationError,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.components.image import Image
@@ -85,14 +85,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
-            raise UpdateFailed(
-                f"BLE device could not be obtained from address {address}"
+            _LOGGER.warning(
+                "BLE device could not be obtained from address %s", address
             )
+            return niimbot.ble_data
 
         try:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
-            raise UpdateFailed(f"Unable to fetch data: {err}") from err
+            _LOGGER.warning("Unable to fetch data from %s: %s", address, err)
+            return niimbot.ble_data
 
         return data
 
@@ -139,9 +141,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         image_coordinator.async_set_updated_data(
             (Image(content_type="image/png", content=read), coordinator.data)
         )
+        encoded = base64.b64encode(read).decode("ascii")
+        image_data = f"data:image/png;base64,{encoded}"
+
         if service.data.get("preview"):
-            encoded = base64.b64encode(read).decode("ascii")
-            image_data = f"data:image/png;base64,{encoded}"
             return {"image": image_data}
 
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
@@ -151,7 +154,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
 
         try:
-            return await niimbot.print_image(
+            result = await niimbot.print_image(
                 ble_device,
                 image,
                 density=int(service.data["density"])
@@ -164,6 +167,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if "print_line_batch_size" in service.data
                 else confirm_every_nth_print_line,
             )
+            result["image"] = image_data
+            return result
         except (PrinterError, RuntimeError) as e:
             raise HomeAssistantError("Failed to print: %s" % e) from e
 
