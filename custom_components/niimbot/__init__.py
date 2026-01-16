@@ -147,7 +147,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
             raise HomeAssistantError(
-                "could not find printer with address {address} through your Bluetooth network"
+                f"could not find printer with address {address} through your Bluetooth network"
             )
 
         try:
