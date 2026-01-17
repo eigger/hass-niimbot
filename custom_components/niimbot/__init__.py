@@ -48,15 +48,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
-    use_sound = entry.data.get(CONF_USE_SOUND)
-    scan_interval = float(entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+    use_sound = entry.options.get(CONF_USE_SOUND, entry.data.get(CONF_USE_SOUND))
+    scan_interval = float(
+        entry.options.get(
+            CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
+    )
     # Number of seconds (usually sub-second amount) to wait between
     # data packet sends.  Too little and you risk your BLE proxy
     # getting congested or failing to write data to your printer.
     wait_between_each_print_line = int(
-        entry.data.get(
+        entry.options.get(
             CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-            DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+            entry.data.get(
+                CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
+                DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+            ),
         )
     )
     # The default for most printers is 1 which means every line
@@ -65,9 +72,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # to fire-and-forget up to N-1 lines sent to the printer
     # confirmation, and confirm on the Nth line.
     confirm_every_nth_print_line = int(
-        entry.data.get(
+        entry.options.get(
             CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
-            DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+            entry.data.get(
+                CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
+                DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+            ),
         )
     )
     assert address is not None
