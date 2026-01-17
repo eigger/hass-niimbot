@@ -213,9 +213,12 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # options가 비어있으면 data에서 가져옴
+        suggested_values = {**self.config_entry.data, **self.config_entry.options}
+
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                vol.Schema(OPTIONS_SCHEMA), self.config_entry.options
+                vol.Schema(OPTIONS_SCHEMA), suggested_values
             ),
         )
