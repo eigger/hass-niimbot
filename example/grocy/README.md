@@ -52,4 +52,4 @@ mode: single
 
 ## Example Output
 
-![Grocy Label Example](qrcode.jpg)
+<img src="qrcode.jpg" width="300" alt="Grocy Label Example">
