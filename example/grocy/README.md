@@ -53,6 +53,6 @@ mode: single
 ## Example Output
 
 
-| Printed Label | Grocy Interface |
+| Grocy Interface | Printed Label |
 | :---: | :---: |
-| <img src="qrcode.jpg" width="300" alt="Grocy Label Example"> | <img src="grocy.png" width="300" alt="Grocy Example"> |
+| <img src="grocy.png" width="630" alt="Grocy Example"> | <img src="qrcode.jpg" width="270" alt="Grocy Label Example"> |
