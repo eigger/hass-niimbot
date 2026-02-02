@@ -1,6 +1,12 @@
 # hass-niimbot
 Niimbot Label Printer Home Assistant Integration
 
+
+| Niimbot Label Printer | B1 |
+| :---: | :---: |
+| <img src="docs/images/niimbot.jpg" width="60%" alt="Niimbot Label Printer"> | <img src="docs/images/b1.jpg" width="40%" alt="B1"> |
+
+
 >[!IMPORTANT]
 >
 > For all NIIMBOT users using Bluetooth proxies:  
