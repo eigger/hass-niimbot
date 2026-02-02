@@ -2,9 +2,9 @@
 Niimbot Label Printer Home Assistant Integration
 
 
-| Niimbot Label Printer | B1 |
-| :---: | :---: |
-| <img src="docs/images/niimbot.jpg" width="400" alt="Niimbot Label Printer"> | <img src="docs/images/b1.jpg" width="300" alt="B1"> |
+| B1 | B21 Pro | D110 |
+| :---: | :---: | :---: |
+| <img src="docs/images/b1.jpg" width="200" alt="B1"> | <img src="docs/images/b21pro.jpg" width="200" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="200" alt="D110"> |
 
 
 >[!IMPORTANT]
