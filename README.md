@@ -67,6 +67,7 @@ data:
       rotate: 0
     - type: qrcode
       data: "qr data"
+      eclevel: h # l, m, q, h - more info in docs https://pypi.org/project/qrcode/
       x: 140
       y: 50
       boxsize: 2

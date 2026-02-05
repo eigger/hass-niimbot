@@ -557,13 +557,22 @@ def customimage(entity_id, service, hass) -> Image.Image:
             data = element["data"]
             pos_x = element["x"]
             pos_y = element["y"]
+            eclevel = element["eclevel"]  if "eclevel" in element else "h"
             color = element["color"] if "color" in element else "black"
             bgcolor = element["bgcolor"] if "bgcolor" in element else "white"
             border = element["border"] if "border" in element else 1
             boxsize = element["boxsize"] if "boxsize" in element else 2
+
+            ERROR_CORRECTION_MAP = {
+                "l": qrcode.constants.ERROR_CORRECT_L,
+                "m": qrcode.constants.ERROR_CORRECT_M,
+                "q": qrcode.constants.ERROR_CORRECT_Q,
+                "h": qrcode.constants.ERROR_CORRECT_H,
+            }
+
             qr = qrcode.QRCode(
                 version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                error_correction=ERROR_CORRECTION_MAP.get(eclevel.lower()),
                 box_size=boxsize,
                 border=border,
             )
