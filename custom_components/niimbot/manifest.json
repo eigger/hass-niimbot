@@ -41,5 +41,5 @@
     "qrcode[pil]==7.4.2",
     "python-barcode==0.15.1"
   ],
-  "version": "1.3.2"
+  "version": "1.3.3"
 }
