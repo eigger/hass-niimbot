@@ -182,9 +182,7 @@ class NiimbotDevice:
         try:
             printer_model = PrinterModel(self.model)
         except ValueError:
-            raise RuntimeError(
-                f"printer model {self.model} is not known to the niimprint library"
-            )
+            printer_model = PrinterModel.UNKNOWN
         async with self.lock:
             self.client = await establish_connection(
                 BleakClient, ble_device, ble_device.address

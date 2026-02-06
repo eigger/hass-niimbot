@@ -30,6 +30,9 @@ class BleakServiceMissing(BleakError):
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
 CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
+# niimblue: models where lidClosed state is inverted
+INVERTED_LID_MODELS = [512, 514, 513, 2304, 1792, 3584, 5120, 2560, 3840, 4352, 272, 273, 274]
+
 
 class InfoEnum(enum.IntEnum):
     DENSITY = 1
@@ -226,14 +229,21 @@ class PrinterClient:
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
-            if model == PrinterModel.D110:
+            if model in (PrinterModel.UNKNOWN, PrinterModel.D11, PrinterModel.D11S):
+                return await self.print_image_d11_v1(
+                    image,
+                    density,
+                    wait_between_print_lines,
+                    print_line_batch_size,
+                )
+            elif model in (PrinterModel.B21S, PrinterModel.B21S_C2B, PrinterModel.D110):
                 return await self.print_image_d110(
                     image,
                     density,
                     wait_between_print_lines,
                     print_line_batch_size,
                 )
-            elif model in (PrinterModel.B21_PRO, PrinterModel.D110_M, PrinterModel.D11_H):
+            elif model in (PrinterModel.D11_H, PrinterModel.D11_PRO, PrinterModel.B21_PRO, PrinterModel.D110_M):
                 return await self.print_image_d110m_v4(
                     image,
                     density,
@@ -254,6 +264,35 @@ class PrinterClient:
                 time.time() - start,
                 avg,
             )
+
+    async def print_image_d11_v1(
+        self,
+        image: Image.Image,
+        density,
+        wait_between_print_lines: float,
+        print_line_batch_size: int,
+    ):
+        """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
+        _LOGGER.debug("print_image_d11_v1: %s", locals())
+        await self.set_label_density(density)
+        await self.set_label_type(1)
+        await self.start_print()
+        await self.allow_print_clear()
+        await self.start_page_print()
+        await self.set_page_size_v2(image.height, 0)  # D11_V1 only sends height
+        await self.set_quantity(1)
+        await self.set_image(
+            image,
+            wait_between_print_lines,
+            print_line_batch_size,
+        )
+        await self.end_page_print()
+        start_time = time.time()
+        while not await self.get_print_end():
+            if time.time() - start_time > 5:
+                break
+            await sleep(0.5)
+        await self.end_print()
 
     async def print_image_b1(
         self,
@@ -486,11 +525,23 @@ class PrinterClient:
         ):
             match key:
                 case InfoEnum.DEVICESERIAL:
-                    return bytes.fromhex(packet.data.hex()).decode("ascii")
+                    # niimblue: varies by length
+                    if len(packet.data) < 4:
+                        return "-1"
+                    elif len(packet.data) >= 8:
+                        return bytes.fromhex(packet.data.hex()).decode("ascii", errors="replace")
+                    else:
+                        return packet.data[:4].hex().upper()
                 case InfoEnum.SOFTVERSION:
                     return packet.data[0] + (packet.data[1] / 100)
                 case InfoEnum.HARDVERSION:
                     return packet.data[0] + (packet.data[1] / 100)
+                case InfoEnum.DEVICETYPE:
+                    # niimblue: 1-byte => data[0] << 8, 2-byte => bytesToI16
+                    if len(packet.data) == 1:
+                        return packet.data[0] << 8
+                    else:
+                        return int.from_bytes(packet.data[:2], "big")
                 case _:
                     return _packet_to_int(packet)
         else:
@@ -525,7 +576,7 @@ class PrinterClient:
             "type": type_,
         }
 
-    async def heartbeat(self, await_for_response=True):
+    async def heartbeat(self, await_for_response=True, model_id=None):
         _LOGGER.debug("Heartbeat")
         packet = await self._transceive(
             RequestCodeEnum.HEARTBEAT, b"\x01", await_for_response=await_for_response
@@ -551,11 +602,16 @@ class PrinterClient:
                 paperstate = packet.data[17]
                 rfidreadstate = packet.data[18]
             case 10:
+                # D110 format from niimblue
                 closingstate = packet.data[8]
                 powerlevel = packet.data[9]
-                rfidreadstate = packet.data[8]
             case 9:
                 closingstate = packet.data[8]
+
+        # niimblue: invert lid state for certain models
+        if closingstate is not None and model_id is not None:
+            if model_id in INVERTED_LID_MODELS:
+                closingstate = 0 if closingstate != 0 else 1
 
         return {
             "closingstate": closingstate,

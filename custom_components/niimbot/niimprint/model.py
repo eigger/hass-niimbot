@@ -63,6 +63,7 @@ class PrinterModel(Enum):
     S1 = "S1"
     D61 = "D61"
     D110 = "D110"
+    D11_PRO = "D11_PRO"
     B21 = "B21"
     D101 = "D101"
     HI_NB_D11 = "HI_NB_D11"
@@ -535,6 +536,14 @@ modelsLibrary: List[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 96,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT],
+    },
+    {
+        "model": PrinterModel.D11_PRO,
+        "id": [531],
+        "dpi": 300,
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 142,
         "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT],
     },
     {
