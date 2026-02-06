@@ -158,7 +158,7 @@ class NiimbotDevice:
                 if self.ble_data.autoshutdowntime is not None:
                     self.ble_data.sensors["autoshutdowntime"] = self.ble_data.autoshutdowntime
 
-                heartbeat = await printer.heartbeat()
+                heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
                 self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
                 self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
                 self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
@@ -182,9 +182,7 @@ class NiimbotDevice:
         try:
             printer_model = PrinterModel(self.model)
         except ValueError:
-            raise RuntimeError(
-                f"printer model {self.model} is not known to the niimprint library"
-            )
+            printer_model = PrinterModel.UNKNOWN
         async with self.lock:
             self.client = await establish_connection(
                 BleakClient, ble_device, ble_device.address
