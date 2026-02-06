@@ -158,7 +158,7 @@ class NiimbotDevice:
                 if self.ble_data.autoshutdowntime is not None:
                     self.ble_data.sensors["autoshutdowntime"] = self.ble_data.autoshutdowntime
 
-                heartbeat = await printer.heartbeat()
+                heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
                 self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
                 self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
                 self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
