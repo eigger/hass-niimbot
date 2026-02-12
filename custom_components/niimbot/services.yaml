@@ -7,7 +7,7 @@ print:
   fields:
     payload:
       name: Payload
-      description: Paylod to draw
+      description: Payload to draw
       required: true
       example: |
         - type: text
