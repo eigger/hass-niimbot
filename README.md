@@ -21,6 +21,8 @@ Niimbot Label Printer Home Assistant Integration
 ## 💬 Feedback & Support
 
 🐞 Found a bug? Let us know via an [Issue](https://github.com/eigger/hass-niimbot/issues).
+
+
 💡 Have a question or suggestion? Join the [Discussion](https://github.com/eigger/hass-niimbot/discussions)!
 
 ---
