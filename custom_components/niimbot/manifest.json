@@ -39,7 +39,8 @@
   "name": "Niimbot",
   "requirements": [
     "qrcode[pil]==7.4.2",
-    "python-barcode==0.15.1"
+    "python-barcode==0.15.1",
+    "pyStrich==0.10"
   ],
   "version": "1.3.4"
 }
