@@ -12,6 +12,7 @@ import base64
 from PIL import Image, ImageDraw, ImageFont
 import barcode
 from barcode.writer import ImageWriter
+from pystrich.datamatrix import DataMatrixEncoder
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt
@@ -554,7 +555,7 @@ def customimage(entity_id, service, hass) -> Image.Image:
         # qrcode
         if element["type"] == "qrcode":
             check_for_missing_required_arguments(element, ["x", "y", "data"], "qrcode")
-            data = element["data"]
+            data = str(element["data"])
             pos_x = element["x"]
             pos_y = element["y"]
             eclevel = element["eclevel"]  if "eclevel" in element else "h"
@@ -583,10 +584,51 @@ def customimage(entity_id, service, hass) -> Image.Image:
             imgqr = imgqr.convert("RGBA")
             img.paste(imgqr, position, imgqr)
             img.convert("RGBA")
+        # datamatrix
+        if element["type"] == "datamatrix":
+            check_for_missing_required_arguments(
+                element, ["x", "y", "data"], "datamatrix"
+            )
+            data = str(element["data"])
+            pos_x = element["x"]
+            pos_y = element["y"]
+            color = element["color"] if "color" in element else "black"
+            bgcolor = element["bgcolor"] if "bgcolor" in element else "white"
+            boxsize = element["boxsize"] if "boxsize" in element else 2
+
+            encoder = DataMatrixEncoder(data)
+            dm_image = Image.open(BytesIO(encoder.get_imagedata(cellsize=boxsize)))
+
+            # Create a background image if needed, or just convert dm_image
+            # pyStrich generates a BW image. We want to apply custom colors if specified.
+            # However, for simplicity and color support, we can use the same logic as qrcode's make_image if possible,
+            # but pystrich's gets converted to a PIL Image via BytesIO.
+            # Let's apply color by creating a new image if colors are not default.
+            if color != "black" or bgcolor != "white":
+                # Convert to RGBA and replace black/white with custom colors
+                dm_image = dm_image.convert("RGBA")
+                data = list(dm_image.getdata())
+                new_data = []
+                target_color = getIndexColor(color)
+                target_bg = getIndexColor(bgcolor)
+                for item in data:
+                    # pyStrich uses 0 for black and 255 for white in 'L' mode,
+                    # but get_image() usually returns '1' or 'L'.
+                    if item[0] < 128:  # Black / Foreground
+                        new_data.append(target_color)
+                    else:  # White / Background
+                        new_data.append(target_bg)
+                dm_image.putdata(new_data)
+            else:
+                dm_image = dm_image.convert("RGBA")
+
+            position = (pos_x, pos_y)
+            img.paste(dm_image, position, dm_image)
+            img.convert("RGBA")
         # barcode
         if element["type"] == "barcode":
             check_for_missing_required_arguments(element, ["x", "y", "data"], "barcode")
-            data = element["data"]
+            data = str(element["data"])
             pos_x = element["x"]
             pos_y = element["y"]
             color = element["color"] if "color" in element else "black"

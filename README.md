@@ -410,6 +410,18 @@ Supports **HTTP/HTTPS URLs** and **Base64 data URIs** (`data:image/...;base64,..
 
 `eclevel`: `l`, `m`, `q`, `h` (see [qrcode](https://pypi.org/project/qrcode/)).
 
+#### datamatrix
+
+```yaml
+- type: datamatrix
+  data: "datamatrix data"
+  x: 10
+  y: 10
+  boxsize: 2
+  color: "black"
+  bgcolor: "white"
+```
+
 #### barcode
 
 ```yaml
@@ -516,6 +528,7 @@ Reads entity history from **Home Assistant Recorder**.
 | **icon**              | `x`, `y`, `value`, `size` | `color`/`fill`(black), `anchor`(la), `stroke_width`, `stroke_fill` | [Material Design Icons](https://pictogrammers.com/library/mdi/). |
 | **dlimg**             | `x`, `y`, `url`, `xsize`, `ysize` | `rotate`(0) | Image from URL or Base64 data URI. |
 | **qrcode**            | `x`, `y`, `data`    | `color`(black), `bgcolor`(white), `border`(1), `boxsize`(2), `eclevel`(h) | QR code. |
+| **datamatrix**        | `x`, `y`, `data`    | `color`(black), `bgcolor`(white), `boxsize`(2) | DataMatrix code. |
 | **barcode**           | `x`, `y`, `data`    | `code`(code128), `color`, `bgcolor`, `module_width`, `module_height`, `quiet_zone`, `font_size`, `text_distance`, `write_text` | Barcode. |
 | **diagram**           | `x`, `y`, `height`  | `width`, `margin`(20), `font`, `bars` | Bar chart. |
 | **plot**              | `data`([{`entity`}]) | `duration`(86400), `x_start`, `y_start`, `x_end`, `y_end`, `size`, `font`, `low`, `high`, `ylegend`, `yaxis`, `debug` | Time-series from Recorder. |
