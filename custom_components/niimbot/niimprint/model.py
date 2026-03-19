@@ -49,6 +49,7 @@ class PrinterModel(Enum):
     B21S_C2B = "B21S_C2B"
     P1S = "P1S"
     B1 = "B1"
+    B1_PRO = "B1_PRO"
     A8 = "A8"
     B21_C2B = "B21_C2B"
     Z401 = "Z401"
@@ -336,6 +337,14 @@ modelsLibrary: List[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+    },
+    {
+        "model": PrinterModel.B1_PRO,
+        "id": [4097],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 567,
         "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
     },
     {
