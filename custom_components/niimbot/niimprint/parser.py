@@ -45,14 +45,16 @@ class BLEData:
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
 
-    def __init__(self, address, use_sound):
+    def __init__(self, address, use_sound, keep_connection=False):
         self.address = address
         self.use_sound = use_sound
+        self.keep_connection = keep_connection
         self.lock = asyncio.Lock()
         self.set_sound = None
         self.model = None
         self.ble_data = BLEData()
         self.client = None
+        self._printer: PrinterClient | None = None
         self.callback_connection = None
         self.callback_printing = None
         self._is_printing = False
@@ -93,6 +95,22 @@ class NiimbotDevice:
             return self._print_end_time - self._print_start_time
         return 0.0
 
+    async def disconnect(self):
+        """Disconnect from the BLE device if connected."""
+        if self.client and self.client.is_connected:
+            try:
+                if self._printer:
+                    await self._printer.stop_notify()
+            except Exception:
+                pass
+            finally:
+                self._printer = None
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+            self._notify_connection()
+
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
         async with self.lock:
@@ -101,13 +119,14 @@ class NiimbotDevice:
             if not self.ble_data.address:
                 self.ble_data.address = ble_device.address
 
-            self.client = await establish_connection(
-                BleakClient, ble_device, ble_device.address
-            )
-            if not self.client.is_connected:
-                raise RuntimeError("could not connect to thermal printer")
-
-            self._notify_connection()
+            # Reuse existing connection when keep_connection is enabled
+            if not self.is_connected:
+                self.client = await establish_connection(
+                    BleakClient, ble_device, ble_device.address
+                )
+                if not self.client.is_connected:
+                    raise RuntimeError("could not connect to thermal printer")
+                self._notify_connection()
 
             try:
                 printer = PrinterClient(self.client)
@@ -165,8 +184,9 @@ class NiimbotDevice:
                 self.ble_data.sensors["battery"] = float(heartbeat["powerlevel"]) * 25.0
                 await printer.stop_notify()
             finally:
-                await self.client.disconnect()
-                self._notify_connection()
+                if not self.keep_connection:
+                    await self.client.disconnect()
+                    self._notify_connection()
 
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
@@ -184,13 +204,14 @@ class NiimbotDevice:
         except ValueError:
             printer_model = PrinterModel.UNKNOWN
         async with self.lock:
-            self.client = await establish_connection(
-                BleakClient, ble_device, ble_device.address
-            )
-            if not self.client.is_connected:
-                raise RuntimeError("could not connect to thermal printer")
-
-            self._notify_connection()
+            # Reuse existing connection when keep_connection is enabled
+            if not self.is_connected:
+                self.client = await establish_connection(
+                    BleakClient, ble_device, ble_device.address
+                )
+                if not self.client.is_connected:
+                    raise RuntimeError("could not connect to thermal printer")
+                self._notify_connection()
 
             # 프린트 시작
             self._is_printing = True
@@ -215,8 +236,9 @@ class NiimbotDevice:
                 self._is_printing = False
                 self._notify_printing()
 
-                await self.client.disconnect()
-                self._notify_connection()
+                if not self.keep_connection:
+                    await self.client.disconnect()
+                    self._notify_connection()
 
         return {
             "status": "ok",
