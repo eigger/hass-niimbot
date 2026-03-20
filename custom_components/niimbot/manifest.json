@@ -42,5 +42,5 @@
     "python-barcode==0.15.1",
     "pyStrich==0.10"
   ],
-  "version": "1.5.0"
+  "version": "1.6.0"
 }
