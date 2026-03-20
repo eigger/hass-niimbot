@@ -9,7 +9,8 @@
           "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line"
+          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
+          "keep_connection": "Keep BLE Connection"
         }
       },
       "bluetooth_confirm": {
@@ -18,7 +19,8 @@
           "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line"
+          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
+          "keep_connection": "Keep BLE Connection"
         }
       }
     },
@@ -37,7 +39,8 @@
           "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line"
+          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
+          "keep_connection": "Keep BLE Connection"
         }
       }
     }

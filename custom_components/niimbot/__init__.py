@@ -31,9 +31,11 @@ from .const import (
     CONF_USE_SOUND,
     CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
     CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
+    CONF_KEEP_CONNECTION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
+    DEFAULT_KEEP_CONNECTION,
     DOMAIN,
     EMPTY_PNG,
     ImageAndBLEData,
@@ -80,6 +82,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         )
     )
+    keep_connection = bool(
+        entry.options.get(
+            CONF_KEEP_CONNECTION,
+            entry.data.get(CONF_KEEP_CONNECTION, DEFAULT_KEEP_CONNECTION),
+        )
+    )
     assert address is not None
     await close_stale_connections_by_address(address)
 
@@ -89,7 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             f"Could not find Niimbot device with address {address}"
         )
 
-    niimbot = NiimbotDevice(address, use_sound)
+    niimbot = NiimbotDevice(address, use_sound, keep_connection)
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
@@ -192,6 +200,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    niimbot: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
+    await niimbot.disconnect()
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
 
