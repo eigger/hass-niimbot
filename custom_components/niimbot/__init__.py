@@ -22,7 +22,7 @@ from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceValidationError,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.components.image import Image
@@ -93,8 +93,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     ble_device = bluetooth.async_ble_device_from_address(hass, address)
     if not ble_device:
-        raise ConfigEntryNotReady(
-            f"Could not find Niimbot device with address {address}"
+        _LOGGER.warning(
+            "Could not find Niimbot device with address %s during setup; continuing without initial data",
+            address,
         )
 
     niimbot = NiimbotDevice(address, use_sound, keep_connection)
@@ -103,16 +104,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
-            _LOGGER.warning(
-                "BLE device could not be obtained from address %s", address
-            )
-            return niimbot.ble_data
+            raise UpdateFailed(f"BLE device not available for address {address}")
 
         try:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
-            _LOGGER.warning("Unable to fetch data from %s: %s", address, err)
-            return niimbot.ble_data
+            raise UpdateFailed(f"Unable to fetch data from {address}: {err}") from err
 
         return data
 
@@ -123,7 +120,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_method=_async_update_method,
         update_interval=timedelta(seconds=scan_interval),
     )
-    await coordinator.async_config_entry_first_refresh()
+    coordinator.data = niimbot.ble_data
+    await coordinator.async_refresh()
+    if not coordinator.last_update_success:
+        _LOGGER.warning(
+            "Initial update failed for %s; entities will start as unavailable: %s",
+            address,
+            coordinator.last_exception,
+        )
 
     image_coordinator: DataUpdateCoordinator[ImageAndBLEData] = DataUpdateCoordinator(
         hass,
