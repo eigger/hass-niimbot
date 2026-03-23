@@ -10,7 +10,7 @@ Niimbot Label Printer Home Assistant Integration
 
 | B1 | B21 Pro | D110 |
 | :---: | :---: | :---: |
-| <img src="docs/images/b1.jpg" width="300" alt="B1"> | <img src="docs/images/b21pro.jpg" width="370" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="300" alt="D110"> |
+| <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="300" alt="B1"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="370" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="300" alt="D110"> |
 
 >[!IMPORTANT]
 >
