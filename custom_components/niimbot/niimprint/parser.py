@@ -52,7 +52,17 @@ class NiimbotDevice:
         self.lock = asyncio.Lock()
         self.set_sound = None
         self.model = None
-        self.ble_data = BLEData()
+        self.ble_data = BLEData(
+            address=address,
+            name="Niimbot",
+            identifier=address.replace(":", "")[-6:],
+            sensors={
+                "battery": None,
+                "closingstate": None,
+                "paperstate": None,
+                "rfidreadstate": None,
+            }
+        )
         self.client = None
         self._printer: PrinterClient | None = None
         self.callback_connection = None
