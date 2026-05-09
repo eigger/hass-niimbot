@@ -104,12 +104,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
-            raise UpdateFailed(f"BLE device not available for address {address}")
+            _LOGGER.warning("BLE device not available for address %s; returning last known data", address)
+            return niimbot.ble_data
 
         try:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
-            raise UpdateFailed(f"Unable to fetch data from {address}: {err}") from err
+            _LOGGER.warning("Unable to fetch data from %s: %s; returning last known data", address, err)
+            return niimbot.ble_data
 
         return data
 
