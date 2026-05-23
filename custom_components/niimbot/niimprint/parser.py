@@ -15,6 +15,12 @@ from .printer import PrinterClient, InfoEnum, SoundEnum
 from .model import PrinterModel, get_printer_meta_by_id
 import typing
 
+
+def _battery_percentage(powerlevel: int, model: str) -> float:
+    if model == PrinterModel.B1_PRO.name:
+        return powerlevel / 60.0 * 100.0
+    return float(powerlevel) * 25.0
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -191,7 +197,7 @@ class NiimbotDevice:
                 self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
                 self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
                 self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
-                self.ble_data.sensors["battery"] = float(heartbeat["powerlevel"]) * 25.0
+                self.ble_data.sensors["battery"] = _battery_percentage(heartbeat["powerlevel"], self.ble_data.model)
                 await printer.stop_notify()
             finally:
                 if not self.keep_connection:
