@@ -209,10 +209,6 @@ class NiimbotDevice:
         wait_between_print_lines: float,
         print_line_batch_size: int,
     ) -> dict:
-        try:
-            printer_model = PrinterModel(self.model)
-        except ValueError:
-            printer_model = PrinterModel.UNKNOWN
         async with self.lock:
             # Reuse existing connection when keep_connection is enabled
             if not self.is_connected:
@@ -232,6 +228,24 @@ class NiimbotDevice:
             try:
                 printer = PrinterClient(self.client)
                 await printer.start_notify()
+
+                # Resolve model inside the lock so we never print with UNKNOWN
+                # if update_device hasn't run yet (e.g. first print after HA start).
+                if not self.model:
+                    device_type = await printer.get_info(InfoEnum.DEVICETYPE)
+                    if device_type is not None:
+                        meta = get_printer_meta_by_id(int(device_type))
+                        self.model = meta["model"].name if meta else str(device_type)
+                        self.ble_data.model = self.model
+                        self.ble_data.devicetype = device_type
+                        _LOGGER.debug("Resolved model during print: %s", self.model)
+
+                try:
+                    printer_model = PrinterModel(self.model)
+                except (ValueError, TypeError):
+                    printer_model = PrinterModel.UNKNOWN
+                    _LOGGER.warning("Unknown printer model %r, falling back to UNKNOWN", self.model)
+
                 await printer.print_image(
                     printer_model,
                     image,
