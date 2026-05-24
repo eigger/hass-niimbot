@@ -16,10 +16,10 @@ from .model import PrinterModel, get_printer_meta_by_id
 import typing
 
 
-def _battery_percentage(powerlevel: int, model: str) -> float:
+def _battery_percentage(powerlevel: int, model: str) -> int:
     if model == PrinterModel.B1_PRO.name:
-        return powerlevel / 60.0 * 100.0
-    return float(powerlevel) * 25.0
+        return round(powerlevel / 60.0 * 100.0)
+    return round(float(powerlevel) * 25.0)
 
 _LOGGER = logging.getLogger(__name__)
 
