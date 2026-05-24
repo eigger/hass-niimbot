@@ -483,12 +483,24 @@ class PrinterClient:
         packets = []
         self._packetbuf.extend(await self._transport.read(1024))
         while len(self._packetbuf) > 4:
+            # Resync to the next 0x55 0x55 header, discarding any stale bytes
+            # left over from unsolicited mid-stream packets.
+            if self._packetbuf[0] != 0x55 or self._packetbuf[1] != 0x55:
+                skip = self._packetbuf.find(b"\x55\x55")
+                if skip == -1:
+                    self._packetbuf.clear()
+                    break
+                _LOGGER.debug("Resyncing packet buffer, skipping %d bytes", skip)
+                del self._packetbuf[:skip]
+                continue
             pkt_len = self._packetbuf[3] + 7
             if len(self._packetbuf) >= pkt_len:
                 packet = NiimbotPacket.from_bytes(self._packetbuf[:pkt_len])
                 self._log_buffer("recv", packet.to_bytes())
                 packets.append(packet)
                 del self._packetbuf[:pkt_len]
+            else:
+                break
         return packets
 
     async def _send(self, packet, response=True):
@@ -752,7 +764,11 @@ class PrinterClient:
             progress1,
             progress2,
         )
-        return {"page": page, "progress": min(progress1, progress2)}
+        # Some models (e.g. B1 Pro) report progress2=0 even when done;
+        # use the maximum of both non-zero values, falling back to whichever is non-zero.
+        active = [p for p in (progress1, progress2) if p > 0]
+        progress = max(active) if active else 0
+        return {"page": page, "progress": progress}
 
     async def get_print_end(self):
         status = await self.get_print_status()
