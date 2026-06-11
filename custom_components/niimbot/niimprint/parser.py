@@ -18,7 +18,10 @@ import typing
 
 def _battery_percentage(powerlevel: int, model: str) -> int:
     if model == PrinterModel.B1_PRO.name:
-        return round(powerlevel / 60.0 * 100.0)
+        # The B1 Pro reports a direct 0-100 percentage in powerlevel
+        # (observed: 60 -> 60%, 100 -> 100%). Clamp to guard against
+        # out-of-range values rather than rescaling.
+        return max(0, min(100, round(powerlevel)))
     return round(float(powerlevel) * 25.0)
 
 _LOGGER = logging.getLogger(__name__)
