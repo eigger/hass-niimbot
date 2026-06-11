@@ -148,11 +148,11 @@ class BaseTransport(metaclass=abc.ABCMeta):
 
 
 class BLETransport(BaseTransport):
-    _command_data: bytearray | None
+    _command_data: bytearray
 
     def __init__(self, client: BleakClient):
         self._client = client
-        self._command_data = None
+        self._command_data = bytearray()
         self._event = Event()
 
     # def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
@@ -178,8 +178,8 @@ class BLETransport(BaseTransport):
     async def read_notify(self, timeout: int) -> bytes:
         """Wait for notification data to be received within the timeout."""
         await wait_for(self._event.wait(), timeout=timeout)
-        data = self._command_data
-        self._command_data = None
+        data = bytes(self._command_data)
+        self._command_data.clear()
         self._event.clear()  # Reset the event for the next notification
         return data
 
@@ -189,8 +189,14 @@ class BLETransport(BaseTransport):
         await self._client.write_gatt_char(uuid, data, response)
 
     def _notification_handler(self, _: Any, data: bytearray):
-        """Handle incoming notifications and store the received data."""
-        self._command_data = data
+        """Handle incoming notifications and accumulate the received data.
+
+        The printer can emit several notifications in a burst (e.g. unsolicited
+        d3 status packets alongside the real reply). Accumulating instead of
+        overwriting prevents losing a packet that arrives before the previous
+        one is consumed, which would otherwise desync the packet buffer.
+        """
+        self._command_data.extend(data)
         self._event.set()  # Notify the waiting coroutine that data has arrived
 
     # @disconnect_on_missing_services
@@ -313,9 +319,27 @@ class PrinterClient:
             print_line_batch_size,
         )
         await self.end_page_print()
+        # The B1/B1 Pro retains the *previous* job's progress=100 and reports it
+        # immediately after end_page_print, before it has reset the counter and
+        # started the new page. Trusting that stale 100% makes us call end_print()
+        # too early, which aborts the page: the printer feeds the label in and
+        # back out without printing (and the paper counter does not increment).
+        # So we wait until the printer has actually started the new page (we see
+        # progress drop below 100, or the page counter advance) before accepting
+        # a 100% as genuine completion. A timeout still guards against a hang.
         start_time = time.time()
-        while not await self.get_print_end():
-            if time.time() - start_time > 5:
+        started = False
+        while True:
+            status = await self.get_print_status()
+            if status["progress"] < 100:
+                started = True
+            if status["page"] >= 1 or (started and status["progress"] >= 100):
+                break
+            if time.time() - start_time > 30:
+                _LOGGER.warning(
+                    "Print completion not confirmed within timeout (last status: %s)",
+                    status,
+                )
                 break
             await sleep(0.5)
         await self.end_print()
