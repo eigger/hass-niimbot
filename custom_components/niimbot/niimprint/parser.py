@@ -7,7 +7,7 @@ import time
 
 # from logging import Logger
 from PIL import Image, ImageOps
-from bleak import BleakClient, BleakError
+from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
@@ -141,7 +141,8 @@ class NiimbotDevice:
             # Reuse existing connection when keep_connection is enabled
             if not self.is_connected:
                 self.client = await establish_connection(
-                    BleakClient, ble_device, ble_device.address
+                    BleakClient, ble_device, ble_device.address,
+                    use_services_cache=False,
                 )
                 if not self.client.is_connected:
                     raise RuntimeError("could not connect to thermal printer")
@@ -222,7 +223,8 @@ class NiimbotDevice:
             # Reuse existing connection when keep_connection is enabled
             if not self.is_connected:
                 self.client = await establish_connection(
-                    BleakClient, ble_device, ble_device.address
+                    BleakClient, ble_device, ble_device.address,
+                    use_services_cache=False,
                 )
                 if not self.client.is_connected:
                     raise RuntimeError("could not connect to thermal printer")
