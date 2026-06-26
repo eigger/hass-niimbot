@@ -37,6 +37,7 @@ Niimbot Label Printer Home Assistant Integration
 |-------|--------|
 | B1 | confirmed |
 | B1 Pro | confirmed |
+| B2 Pro | confirmed |
 | B21 Pro | confirmed |
 | D110 | confirmed |
 | Other models with Bluetooth | may work |
