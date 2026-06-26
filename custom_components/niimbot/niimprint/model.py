@@ -23,6 +23,8 @@ class PrinterModel(Enum):
     TP2M_H = "TP2M_H"
     B31 = "B31"
     B21_PRO = "B21_PRO"
+    B2_PRO = "B2_PRO"
+    B2 = "B2"
     B18S = "B18S"
     D11_H = "D11_H"
     B21_H = "B21_H"
@@ -137,6 +139,22 @@ modelsLibrary: List[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 591,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+    },
+    {
+        "model": PrinterModel.B2_PRO,
+        "id": [6912],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 567,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+    },
+    {
+        "model": PrinterModel.B2,
+        "id": [6913],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 384,
         "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
     },
     {
