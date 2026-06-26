@@ -249,7 +249,7 @@ class PrinterClient:
                     wait_between_print_lines,
                     print_line_batch_size,
                 )
-            elif model in (PrinterModel.D11_H, PrinterModel.D11_PRO, PrinterModel.B21_PRO, PrinterModel.D110_M):
+            elif model in (PrinterModel.D11_H, PrinterModel.D11_PRO, PrinterModel.B21_PRO, PrinterModel.D110_M, PrinterModel.B2_PRO):
                 return await self.print_image_d110m_v4(
                     image,
                     density,
