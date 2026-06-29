@@ -1,0 +1,84 @@
+name: Update manifest.json requirements
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight
+  workflow_dispatch: # Enable manual run
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check and update imagespec version
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          import re
+          import os
+          import sys
+          
+          manifest_path = "custom_components/niimbot/manifest.json"
+          with open(manifest_path, "r", encoding="utf-8") as f:
+              manifest = json.load(f)
+          
+          # Find current imagespec version
+          current_req = None
+          current_version = None
+          for req in manifest.get("requirements", []):
+              if req.startswith("imagespec"):
+                  current_req = req
+                  match = re.search(r"==([0-9.]+)", req)
+                  if match:
+                      current_version = match.group(1)
+                  break
+          
+          if not current_version:
+              print("No imagespec requirement found in manifest.json")
+              sys.exit(0)
+              
+          # Fetch latest version from PyPI
+          try:
+              with urllib.request.urlopen("https://pypi.org/pypi/imagespec/json") as response:
+                  data = json.loads(response.read().decode())
+                  latest_version = data["info"]["version"]
+          except Exception as e:
+              print(f"Failed to fetch from PyPI: {e}")
+              sys.exit(1)
+              
+          print(f"Current version: {current_version}, Latest version: {latest_version}")
+          
+          if current_version != latest_version:
+              # Read raw text to preserve formatting and update the version
+              with open(manifest_path, "r", encoding="utf-8") as f:
+                  text = f.read()
+              new_text = text.replace(f"=={current_version}", f"=={latest_version}")
+              with open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
+                  f.write(new_text)
+              
+              # Set output environment variable for next steps
+              if 'GITHUB_ENV' in os.environ:
+                  with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+                      env_file.write("VERSION_UPDATED=true\n")
+                      env_file.write(f"LATEST_VERSION={latest_version}\n")
+          else:
+              print("Already up to date!")
+          PY
+
+      - name: Create Pull Request
+        if: env.VERSION_UPDATED == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump imagespec to ${{ env.LATEST_VERSION }}"
+          title: "chore: bump imagespec to ${{ env.LATEST_VERSION }}"
+          body: "Automated dependency update: bumps imagespec to version ${{ env.LATEST_VERSION }}."
+          branch: "dep-bump-imagespec"
+          delete-branch: true

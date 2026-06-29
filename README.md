@@ -87,6 +87,14 @@ After adding a device, you can configure the following options via **Settings** 
 
 ---
 
+## Rendering Engine: `imagespec`
+
+Starting from version 2.0.0, this integration uses **[imagespec](https://github.com/eigger/imagespec)** as its unified, declarative rendering engine. It parses a YAML payload of drawing instructions into a PIL image which is then sent to the label printer.
+
+For the details of each element's specs and supported attributes (such as custom shapes, gauges, plots, tables, and barcodes), refer to the [imagespec elements documentation](https://github.com/eigger/imagespec#elements).
+
+---
+
 ## Service: `niimbot.print`
 
 ### Service Parameters
@@ -809,7 +817,7 @@ Design label layouts in your browser with drag-and-drop, then copy the generated
 * [OpenEPaperLink – supported types (font locations)](https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations)
 * [OpenEPaperLink – font commit reference](https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d)
 
-Place `.ttf` files in the integration folder or in `www/fonts` and reference by name (e.g. `ppb.ttf`, `rbm.ttf`).
+Place `.ttf` files in the integration `fonts` folder (`custom_components/niimbot/fonts/`) or in `www/fonts` and reference by name (e.g. `ppb.ttf`, `rbm.ttf`).
 
 ---
 
