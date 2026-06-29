@@ -47,9 +47,7 @@
   "issue_tracker": "https://www.github.com/eigger/hass-niimbot/issues",
   "name": "Niimbot",
   "requirements": [
-    "qrcode[pil]==7.4.2",
-    "python-barcode==0.15.1",
-    "pyStrich==0.10"
+    "imagespec[datamatrix]==0.1.0"
   ],
-  "version": "1.9.0"
+  "version": "2.0.0"
 }

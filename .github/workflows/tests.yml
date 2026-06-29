@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest
+          pip install "imagespec[datamatrix] @ git+https://github.com/eigger/imagespec.git@v0.1.0"
+          
+      - name: Run tests
+        run: |
+          python -m pytest tests/
