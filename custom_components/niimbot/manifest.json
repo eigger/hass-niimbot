@@ -38,6 +38,9 @@
     "@eigger"
   ],
   "config_flow": true,
+  "after_dependencies": [
+    "recorder"
+  ],
   "dependencies": [
     "bluetooth_adapters"
   ],
