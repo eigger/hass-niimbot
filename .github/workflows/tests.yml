@@ -17,10 +17,10 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           
@@ -28,7 +28,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pytest
-          pip install "imagespec[datamatrix] @ git+https://github.com/eigger/imagespec.git@v0.1.0"
+          python -c "import json; print('\\n'.join(json.load(open('custom_components/niimbot/manifest.json'))['requirements']))" > requirements.txt
+          pip install -r requirements.txt
           
       - name: Run tests
         run: |
