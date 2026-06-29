@@ -25,6 +25,8 @@ ha_exceptions.ServiceValidationError = MockServiceValidationError
 sys.modules["homeassistant.exceptions"] = ha_exceptions
 
 # Mock other homeassistant submodules
+sys.modules["homeassistant"] = MagicMock()
+sys.modules["homeassistant.components"] = MagicMock()
 sys.modules["homeassistant.components.recorder.history"] = MagicMock()
 sys.modules["homeassistant.components.bluetooth"] = MagicMock()
 sys.modules["homeassistant.components.image"] = MagicMock()
