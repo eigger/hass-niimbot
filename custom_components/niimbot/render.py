@@ -42,7 +42,7 @@ def _make_context(hass, *, default_font, palette):
     )
 
 
-def customimage(entity_id, service, hass):
+def render_image(entity_id, service, hass):
     try:
         return render(
             payload=service.data.get("payload", ""),
