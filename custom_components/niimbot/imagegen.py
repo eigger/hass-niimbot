@@ -51,6 +51,7 @@ def customimage(entity_id, service, hass):
             rotate=service.data.get("rotate", 0),
             rotate_mode="image",    # label printer: variable size, drawing rotates
             background=service.data.get("background", "white"),
+            dither=bool(service.data.get("dither", False)),
             context=_make_context(hass, default_font="ppb.ttf", palette=["black", "white"]),
         )
     except RenderError as err:

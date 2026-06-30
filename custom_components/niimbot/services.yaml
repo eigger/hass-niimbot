@@ -92,3 +92,10 @@ print:
       example: 'false'
       selector:
         boolean:
+    dither:
+      name: Dither
+      description: Apply Floyd-Steinberg dithering to the image. Default: false
+      required: false
+      example: false
+      selector:
+        boolean:
