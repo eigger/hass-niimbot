@@ -1,0 +1,87 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "이미 설정된 기기입니다.",
+            "already_in_progress": "이미 설정이 진행 중입니다.",
+            "cannot_connect": "연결에 실패했습니다.",
+            "no_devices_found": "기기를 찾을 수 없습니다.",
+            "unknown": "알 수 없는 오류가 발생했습니다."
+        },
+        "flow_title": "{name}",
+        "step": {
+            "bluetooth_confirm": {
+                "description": "{name} 기기를 설정하시겠습니까?"
+            },
+            "user": {
+                "data": {
+                    "address": "기기",
+                    "use_sound": "소리 사용",
+                    "scan_interval": "스캔 간격",
+                    "wait_between_each_print_line": "인쇄 라인 간 대기 시간",
+                    "confirm_every_nth_print_line": "인쇄 라인 수신 확인 간격",
+                    "keep_connection": "BLE 연결 유지"
+                },
+                "description": "설정할 기기를 선택하세요."
+            }
+        }
+    },
+    "options": {
+        "flow_title": "{name}",
+        "step": {
+            "init": {
+                "data": {
+                    "use_sound": "소리 사용",
+                    "scan_interval": "스캔 간격",
+                    "wait_between_each_print_line": "인쇄 라인 간 대기 시간",
+                    "confirm_every_nth_print_line": "인쇄 라인 수신 확인 간격",
+                    "keep_connection": "BLE 연결 유지"
+                },
+                "description": "기기 옵션을 변경합니다."
+            }
+        }
+    },
+    "services": {
+        "print": {
+            "name": "라벨 인쇄",
+            "description": "Niimbot 라벨을 인쇄합니다.",
+            "fields": {
+                "payload": {
+                    "name": "페이로드",
+                    "description": "그릴 내용을 정의하는 페이로드입니다."
+                },
+                "rotate": {
+                    "name": "회전",
+                    "description": "라벨 회전 각도(0, 90, 180, 270). 기본값: 0."
+                },
+                "width": {
+                    "name": "너비",
+                    "description": "라벨 너비입니다."
+                },
+                "height": {
+                    "name": "높이",
+                    "description": "라벨 높이입니다."
+                },
+                "density": {
+                    "name": "농도",
+                    "description": "인쇄 농도(1 ~ 5). 기본값: 3."
+                },
+                "wait_between_print_lines": {
+                    "name": "라인 간 대기 시간",
+                    "description": "프린터로 전송되는 각 라인 사이의 대기 시간입니다."
+                },
+                "print_line_batch_size": {
+                    "name": "인쇄 라인 배치 크기",
+                    "description": "확인 메시지 사이에 프린터로 전송할 라인 배치 크기입니다."
+                },
+                "preview": {
+                    "name": "이미지 미리보기",
+                    "description": "인쇄하는 대신 이미지를 base64 인코딩 URL로 반환합니다."
+                },
+                "dither": {
+                    "name": "디더링",
+                    "description": "이미지에 플로이드-스타인버그 디더링을 적용합니다. 기본값: false."
+                }
+            }
+        }
+    }
+}

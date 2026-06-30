@@ -44,5 +44,49 @@
         }
       }
     }
+  },
+  "services": {
+    "print": {
+      "name": "Print Label",
+      "description": "Print Niimbot Label.",
+      "fields": {
+        "payload": {
+          "name": "Payload",
+          "description": "Payload describing what to draw."
+        },
+        "rotate": {
+          "name": "Rotate",
+          "description": "Label rotation (0, 90, 180, 270). Default: 0."
+        },
+        "width": {
+          "name": "Width",
+          "description": "Width of the label."
+        },
+        "height": {
+          "name": "Height",
+          "description": "Height of the label."
+        },
+        "density": {
+          "name": "Density",
+          "description": "Print density (1 to 5). Default: 3."
+        },
+        "wait_between_print_lines": {
+          "name": "Wait between print lines",
+          "description": "Time to wait between each line sent to the printer."
+        },
+        "print_line_batch_size": {
+          "name": "Print line batch size",
+          "description": "Size of the batch of lines sent to the printer between confirmations."
+        },
+        "preview": {
+          "name": "Preview the image data",
+          "description": "Instead of printing, return the image as a base64-encoded URL."
+        },
+        "dither": {
+          "name": "Dither",
+          "description": "Apply Floyd-Steinberg dithering to the image. Default: false."
+        }
+      }
+    }
   }
 }

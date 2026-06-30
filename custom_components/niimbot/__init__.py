@@ -6,7 +6,7 @@ import logging
 
 from datetime import timedelta
 from .niimprint import NiimbotDevice, BLEData, PrinterError
-from .imagegen import customimage
+from .render import render_image
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -153,7 +153,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def printservice(service: ServiceCall) -> ServiceResponse:
         try:
             image = await hass.async_add_executor_job(
-                customimage, entry.entry_id, service, hass
+                render_image, entry.entry_id, service, hass
             )
         except Exception as e:
             raise ServiceValidationError("Failed to create image: %s" % e) from e

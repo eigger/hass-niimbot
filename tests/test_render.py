@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock
 import pytest
 from homeassistant.exceptions import HomeAssistantError
-from custom_components.niimbot.imagegen import customimage
+from custom_components.niimbot.render import render_image
 
 
-def test_customimage_simple():
+def test_render_image_simple():
     # Arrange
     service = MagicMock()
     service.data = {
@@ -22,14 +22,14 @@ def test_customimage_simple():
     hass.config.path = MagicMock(return_value="/tmp/mock_fonts")
 
     # Act
-    image = customimage("dummy_entity", service, hass)
+    image = render_image("dummy_entity", service, hass)
 
     # Assert
     assert image is not None
     assert image.size == (400, 240)
 
 
-def test_customimage_render_error():
+def test_render_image_render_error():
     # Arrange
     service = MagicMock()
     # Payload with an invalid element option or structure to trigger RenderError
@@ -48,10 +48,10 @@ def test_customimage_render_error():
 
     # Act / Assert
     with pytest.raises(HomeAssistantError):
-        customimage("dummy_entity", service, hass)
+        render_image("dummy_entity", service, hass)
 
 
-def test_customimage_dither():
+def test_render_image_dither():
     # Arrange
     hass = MagicMock()
     hass.config.path = MagicMock(return_value="/tmp/mock_fonts")
@@ -60,7 +60,7 @@ def test_customimage_dither():
     service_no_dither = MagicMock()
     service_no_dither.data = {
         "payload": [
-            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#b0b0b0", "outline": "#b0b0b0"}
+            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#808080", "outline": "#808080"}
         ],
         "width": 10,
         "height": 10,
@@ -68,13 +68,13 @@ def test_customimage_dither():
         "background": "white",
         "dither": False
     }
-    img_no_dither = customimage("dummy_entity", service_no_dither, hass)
+    img_no_dither = render_image("dummy_entity", service_no_dither, hass)
 
     # 2. Render with dither
     service_dither = MagicMock()
     service_dither.data = {
         "payload": [
-            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#b0b0b0", "outline": "#b0b0b0"}
+            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#808080", "outline": "#808080"}
         ],
         "width": 10,
         "height": 10,
@@ -82,7 +82,7 @@ def test_customimage_dither():
         "background": "white",
         "dither": True
     }
-    img_dither = customimage("dummy_entity", service_dither, hass)
+    img_dither = render_image("dummy_entity", service_dither, hass)
 
     # Assert
     w, h = img_no_dither.size
@@ -94,4 +94,3 @@ def test_customimage_dither():
     unique_dither = set(pixels_dither)
     assert (0, 0, 0) in unique_dither
     assert (255, 255, 255) in unique_dither
-

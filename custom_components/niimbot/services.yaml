@@ -1,13 +1,9 @@
 print:
-  name: Print Label
-  description: Print Niimbot Label
   target:
     device:
       integration: niimbot
   fields:
     payload:
-      name: Payload
-      description: Payload to draw
       required: true
       example: |
         - type: text
@@ -24,8 +20,6 @@ print:
       selector:
         object:
     rotate:
-      name: Rotate
-      description: "Label Rotation (0, 90, 180, 270), default: 0"
       required: false
       example: '0'
       selector:
@@ -34,8 +28,6 @@ print:
           max: 270
           step: 90
     width:
-      name: Width
-      description: Width of label
       required: false
       example: 400
       default: 400
@@ -45,8 +37,6 @@ print:
           max: 1600
           step: 1
     height:
-      name: Height
-      description: Height of label
       required: false
       example: 240
       default: 240
@@ -56,8 +46,6 @@ print:
           max: 1600
           step: 1
     density:
-      name: Density
-      description: Print density (1 to 5). Some printers support only up to 3 (208 DPI or so). Others support up to 5 (300 DPI).
       required: false
       default: 3
       selector:
@@ -66,8 +54,6 @@ print:
           max: 5
           step: 1
     wait_between_print_lines:
-      name: Wait between print lines
-      description: Time to wait in between each line sent to the printer. Use seconds or fractions.
       required: false
       default: 0.05
       selector:
@@ -76,8 +62,6 @@ print:
           max: 1
           step: 0.01
     print_line_batch_size:
-      name: Print line batch size
-      description: Size of the batch of lines sent to the printer between confirmations. By default, the integration confirms each line sent to the printer.
       required: false
       default: 1
       selector:
@@ -86,15 +70,11 @@ print:
           max: 512
           step: 1
     preview:
-      name: Preview the image data
-      description: Instead of printing, return the image as a base64-encoded `data:<...>` URL.  Tremendously useful for designing labels without wasting them.  Combine with a script to write into an HTML file within your public HA folder for quick iteration.
       required: false
       example: 'false'
       selector:
         boolean:
     dither:
-      name: Dither
-      description: Apply Floyd-Steinberg dithering to the image. Default: false
       required: false
       example: false
       selector:
