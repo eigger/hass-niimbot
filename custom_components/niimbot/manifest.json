@@ -47,7 +47,7 @@
   "issue_tracker": "https://www.github.com/eigger/hass-niimbot/issues",
   "name": "Niimbot",
   "requirements": [
-    "imagespec[datamatrix]==0.2.1"
+    "imagespec[datamatrix]==0.3.1"
   ],
   "version": "2.1.0"
 }
