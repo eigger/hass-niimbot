@@ -84,27 +84,26 @@ jobs:
         run: |
           set -euo pipefail
 
+          branch="dep-bump-imagespec-${LATEST_VERSION}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
 
-          git checkout -B dep-bump-imagespec
+          git checkout -B "${branch}"
           git add custom_components/niimbot/manifest.json
           git commit -m "chore: bump imagespec to ${LATEST_VERSION}"
-          git fetch origin dep-bump-imagespec || true
-          git push --force origin dep-bump-imagespec
+          git push --force origin "${branch}"
 
-          existing_pr="$(gh pr list --head dep-bump-imagespec --base master --json number --jq '.[0].number' || true)"
+          existing_pr="$(gh pr list --head "${branch}" --base master --json number --jq '.[0].number' || true)"
           if [ -n "$existing_pr" ] && [ "$existing_pr" != "null" ]; then
-            gh pr edit "$existing_pr" \
-              --title "chore: bump imagespec to ${LATEST_VERSION}" \
-              --body "Automated dependency update: bumps imagespec to version ${LATEST_VERSION}."
+            echo "Pull request already exists: #${existing_pr}"
           elif ! gh pr create \
             --base master \
-            --head dep-bump-imagespec \
+            --head "${branch}" \
             --title "chore: bump imagespec to ${LATEST_VERSION}" \
             --body "Automated dependency update: bumps imagespec to version ${LATEST_VERSION}."; then
             echo "::error::Failed to create pull request. In repository Settings > Actions > General, enable 'Allow GitHub Actions to create and approve pull requests'."
-            echo "Branch was pushed. Open a PR manually: https://github.com/${GITHUB_REPOSITORY}/compare/master...dep-bump-imagespec?expand=1"
+            echo "Branch was pushed. Open a PR manually: https://github.com/${GITHUB_REPOSITORY}/compare/master...${branch}?expand=1"
             exit 1
           fi
