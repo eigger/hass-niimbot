@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -80,13 +78,32 @@ jobs:
 
       - name: Create Pull Request
         if: env.VERSION_UPDATED == 'true'
-        uses: peter-evans/create-pull-request@v8.1.1
-        with:
-          base: master
-          commit-message: "chore: bump imagespec to ${{ env.LATEST_VERSION }}"
-          title: "chore: bump imagespec to ${{ env.LATEST_VERSION }}"
-          body: "Automated dependency update: bumps imagespec to version ${{ env.LATEST_VERSION }}."
-          branch: "dep-bump-imagespec"
-          add-paths: |
-            custom_components/niimbot/manifest.json
-          delete-branch: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST_VERSION: ${{ env.LATEST_VERSION }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+
+          git checkout -B dep-bump-imagespec
+          git add custom_components/niimbot/manifest.json
+          git commit -m "chore: bump imagespec to ${LATEST_VERSION}"
+          git push --force-with-lease origin dep-bump-imagespec
+
+          existing_pr="$(gh pr list --head dep-bump-imagespec --base master --json number --jq '.[0].number' || true)"
+          if [ -n "$existing_pr" ] && [ "$existing_pr" != "null" ]; then
+            gh pr edit "$existing_pr" \
+              --title "chore: bump imagespec to ${LATEST_VERSION}" \
+              --body "Automated dependency update: bumps imagespec to version ${LATEST_VERSION}."
+          elif ! gh pr create \
+            --base master \
+            --head dep-bump-imagespec \
+            --title "chore: bump imagespec to ${LATEST_VERSION}" \
+            --body "Automated dependency update: bumps imagespec to version ${LATEST_VERSION}."; then
+            echo "::error::Failed to create pull request. In repository Settings > Actions > General, enable 'Allow GitHub Actions to create and approve pull requests'."
+            echo "Branch was pushed. Open a PR manually: https://github.com/${GITHUB_REPOSITORY}/compare/master...dep-bump-imagespec?expand=1"
+            exit 1
+          fi
