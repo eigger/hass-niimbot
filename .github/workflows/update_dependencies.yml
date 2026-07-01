@@ -91,7 +91,8 @@ jobs:
           git checkout -B dep-bump-imagespec
           git add custom_components/niimbot/manifest.json
           git commit -m "chore: bump imagespec to ${LATEST_VERSION}"
-          git push --force-with-lease origin dep-bump-imagespec
+          git fetch origin dep-bump-imagespec || true
+          git push --force origin dep-bump-imagespec
 
           existing_pr="$(gh pr list --head dep-bump-imagespec --base master --json number --jq '.[0].number' || true)"
           if [ -n "$existing_pr" ] && [ "$existing_pr" != "null" ]; then
