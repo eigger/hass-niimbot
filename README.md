@@ -12,7 +12,7 @@ Niimbot Label Printer Home Assistant Integration
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="300" alt="B1 / B1 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="370" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="300" alt="D110"> |
 
->[!IMPORTANT]
+> [!IMPORTANT]
 >
 > For all NIIMBOT users using Bluetooth proxies:
 > Please update your proxy devices to **ESPHome 2025.11.2 or later**.
@@ -22,12 +22,10 @@ Niimbot Label Printer Home Assistant Integration
 > - Greatly improved reliability
 > - Reduced delays thanks to improved internal GATT handling
 
-## 💬 Feedback & Support
+## Feedback & Support
 
-🐞 Found a bug? Let us know via an [Issue](https://github.com/eigger/hass-niimbot/issues).
-
-
-💡 Have a question or suggestion? Join the [Discussion](https://github.com/eigger/hass-niimbot/discussions)!
+- Found a bug? [Open an issue](https://github.com/eigger/hass-niimbot/issues)
+- Questions or ideas? [Join the discussion](https://github.com/eigger/hass-niimbot/discussions)
 
 ---
 
@@ -44,140 +42,118 @@ Niimbot Label Printer Home Assistant Integration
 
 ## Installation
 
-1. Install this integration with HACS (adding repository required), or copy the contents of this
-   repository into the `custom_components/niimbot` directory.
+1. Install with HACS (custom repository required), or copy this repo into `custom_components/niimbot`.
 2. Restart Home Assistant.
-3. Go to **Settings** → **Integrations** and add integration **Niimbot**.
-4. Select a discovered Niimbot device from the list.
+3. Go to **Settings** → **Integrations** and add **Niimbot**.
+4. Select a discovered printer from the list.
 
-## ⚠️ Important Notice
+## Important Notice
 
-- It is **strongly recommended to use a Bluetooth proxy** instead of a built-in Bluetooth adapter.
-  Bluetooth proxies generally offer more stable connections and better range.
+It is **strongly recommended to use a Bluetooth proxy** instead of a built-in Bluetooth adapter for more stable connections and better range.
 
 > [!TIP]
-> For hardware recommendations, refer to [Great ESP32 Board for an ESPHome Bluetooth Proxy](https://community.home-assistant.io/t/great-esp32-board-for-an-esphome-bluetooth-proxy/916767/31).
-- When using a Bluetooth proxy, keep the scan interval at a reasonable value.
-  Changing these values may affect Bluetooth data transmission.
+> Hardware recommendations: [Great ESP32 Board for an ESPHome Bluetooth Proxy](https://community.home-assistant.io/t/great-esp32-board-for-an-esphome-bluetooth-proxy/916767/31)
 
-  Example (ESPHome with Bluetooth proxy):
+When using a proxy, keep the scan interval reasonable. Example ESPHome config:
 
-  ```yaml
-  esp32_ble_tracker:
-    scan_parameters:
-      active: true
-
-  bluetooth_proxy:
+```yaml
+esp32_ble_tracker:
+  scan_parameters:
     active: true
-  ```
+
+bluetooth_proxy:
+  active: true
+```
 
 ## Options
 
-After adding a device, you can configure the following options via **Settings** → **Devices & Services** → **Niimbot** → **Configure** (gear icon on your printer):
+Configure via **Settings** → **Devices & Services** → **Niimbot** → **Configure**:
 
 | Option | Default | Range | Description |
 |--------|---------|-------|-------------|
-| **Use Sound** | On | On/Off | Play sound when printer connects via Bluetooth |
+| **Use Sound** | On | On/Off | Play sound when the printer connects |
 | **Scan Interval** | 600 | 10–9999 s | How often to scan for the device |
-| **Wait Between Each Print Line** | 50 | 0–1000 ms | Delay in milliseconds between each line sent to the printer |
-| **Confirm Every Nth Print Line** | 1 | 1–512 lines | Send confirmation every N lines (higher = faster, but may be less reliable) |
+| **Wait Between Each Print Line** | 50 | 0–1000 ms | Delay between each line sent to the printer |
+| **Confirm Every Nth Print Line** | 1 | 1–512 | Confirm every N lines (higher = faster, less reliable) |
 
 > [!TIP]
-> If printing is slow, try increasing **Confirm Every Nth Print Line** (e.g. 16) and/or reducing **Wait Between Each Print Line** (e.g. 10 ms). If you see failed or corrupted prints, use more conservative values.
+> If printing is slow, try **Confirm Every Nth Print Line** = 16 and **Wait Between Each Print Line** = 10 ms. If prints fail or look corrupted, use more conservative values. See [Increasing print speed](#increasing-print-speed).
 
 ---
 
-## Rendering Engine: `imagespec`
+## Payload & rendering (`imagespec`)
 
-Starting from version 2.0.0, this integration uses **[imagespec](https://github.com/eigger/imagespec)** as its unified, declarative rendering engine. It parses a YAML payload of drawing instructions into a PIL image which is then sent to the label printer.
+From version 2.0.0, labels are rendered with **[imagespec](https://github.com/eigger/imagespec)** — a declarative YAML/JSON list of drawing elements that becomes a bitmap sent to the printer.
 
-For the details of each element's specs and supported attributes (such as custom shapes, gauges, plots, tables, and barcodes), refer to the [imagespec elements documentation](https://github.com/eigger/imagespec#elements).
+**Documentation (maintained in imagespec, not duplicated here):**
+
+| Topic | Link |
+|-------|------|
+| Element examples with preview images | [imagespec/docs/elements.md](https://github.com/eigger/imagespec/blob/main/docs/elements.md) |
+| All element fields & defaults | [imagespec README — Element Reference](https://github.com/eigger/imagespec#elements-reference) |
+| Layout, palette, LLM authoring guide | [imagespec/docs/authoring.md](https://github.com/eigger/imagespec/blob/main/docs/authoring.md) |
+
+**Niimbot-specific behaviour:**
+
+- **Palette:** black & white only. Off-palette colors (e.g. `red`, `orange`) are quantized to the nearest supported color.
+- **Rotation:** `rotate: 90/180/270` rotates the drawing and **swaps output width/height** (label-printer mode).
+- **Default font:** `ppb.ttf` in `custom_components/niimbot/fonts/`. Custom fonts also work from `www/fonts/`.
+- **`plot` element:** reads history from Home Assistant **Recorder**.
+- **`dither`:** set on the service call (or per element in the payload) to halftone photos/charts on a 2-color printer. Keep text and barcodes undithered for sharp edges — see [imagespec dithering docs](https://github.com/eigger/imagespec#dithering).
+- **Layout:** prefer `row` / `column` / `stack` for stacked content instead of hand-calculated coordinates.
 
 ---
 
 ## Service: `niimbot.print`
 
-### Service Parameters
+### Parameters
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `payload` | ✅ | — | List of drawing elements (see [Payload Element Types](#payload-element-types)) |
-| `rotate` | ❌ | `0` | Label rotation: `0`, `90`, `180`, `270` |
-| `width` | ❌ | `400` | Label width in pixels (10–1600) |
-| `height` | ❌ | `240` | Label height in pixels (10–1600) |
-| `density` | ❌ | `3` | Print density 1–5 (higher = better resolution; some printers support only up to 3) |
-| `wait_between_print_lines` | ❌ | `0.05` | Seconds to wait between each line sent (override device option for this call) |
-| `print_line_batch_size` | ❌ | `1` | Batch size of lines between confirmations (override device option for this call) |
-| `preview` | ❌ | `false` | Generate image without printing; use with `response_variable` to get image data |
+| `payload` | yes | — | List of [imagespec elements](https://github.com/eigger/imagespec/blob/main/docs/elements.md) |
+| `rotate` | no | `0` | `0`, `90`, `180`, or `270` |
+| `width` | no | `400` | Label width in pixels (10–1600) |
+| `height` | no | `240` | Label height in pixels (10–1600) |
+| `density` | no | `3` | Print density 1–5 (some models max out at 3) |
+| `dither` | no | `false` | Floyd–Steinberg halftone for the whole label |
+| `wait_between_print_lines` | no | `0.05` | Seconds between lines (overrides device option) |
+| `print_line_batch_size` | no | `1` | Lines per batch before confirmation (overrides device option) |
+| `preview` | no | `false` | Render only; do not send to the printer |
 
-### Basic Usage
+Use `response_variable` in scripts to receive the generated image as a `data:` URL when `preview: true`.
+
+### Basic example
 
 ```yaml
 action: niimbot.print
-data:
-  payload:
-    - type: text
-      value: Hello World!
-      font: ppb.ttf
-      x: 100
-      y: 100
-      size: 40
-  width: 400
-  height: 240
-  rotate: 0
 target:
   device_id: <your device>
-```
-
-### Example for B1
-
-```yaml
-action: niimbot.print
 data:
   payload:
     - type: text
       value: Hello World!
       font: ppb.ttf
-      x: 100
-      y: 100
-      size: 40
-    - type: barcode
-      data: "12345"
-      code: "code128"
-      x: 100
-      y: 100
-    - type: icon
-      value: account-cowboy-hat
-      x: 60
-      y: 120
-      size: 120
-    - type: dlimg
-      url: "https://example.com/image.png"
       x: 10
       y: 10
-      xsize: 120
-      ysize: 120
-      rotate: 0
+      size: 40
     - type: qrcode
-      data: "qr data"
-      eclevel: h  # l, m, q, h - more info in docs https://pypi.org/project/qrcode/
-      x: 140
-      y: 50
-      boxsize: 2
-      border: 2
-      color: "black"
-      bgcolor: "white"
+      data: "https://www.home-assistant.io"
+      x: 280
+      y: 10
+      width: 80
+      height: 80
   width: 400
   height: 240
-  rotate: 0
-target:
-  device_id: <your device>
 ```
 
-### Example for D110
+### Model-specific sizes
+
+**D110** (small label, often rotated):
 
 ```yaml
 action: niimbot.print
+target:
+  device_id: <your device>
 data:
   payload:
     - type: text
@@ -189,38 +165,35 @@ data:
   rotate: 90
   width: 240
   height: 96
-target:
-  device_id: <your device>
 ```
 
-### Example for B21 Pro
+**B21 Pro** (large label, high density):
 
 ```yaml
 action: niimbot.print
+target:
+  area_id: kitchen
 data:
   payload:
     - type: rectangle
       x_start: 0
-      x_end: 600
+      x_end: 584
       y_start: 0
-      y_end: 600
+      y_end: 354
       fill: black
-  width: 584   # maximum label width
-  height: 354 # maximum label height
-  density: 5  # use this density to get full use of the printer's resolution
-target:
-  area_id: kitchen
+  width: 584
+  height: 354
+  density: 5
 ```
 
-### Preview (No Print)
+### Preview without printing
 
-> Generate the label image without sending to the printer. Use with `response_variable` in a script to get the image data (e.g. for a dashboard camera).
-
-> [!TIP]
-> When testing, use **`preview: true`** so the label is not actually printed. You can use the **[Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)** to design a layout via drag-and-drop in your browser and automatically generate YAML. Use the generated YAML with `preview: true` to preview it without sending data to the physical printer.
+Use **`preview: true`** while designing labels so nothing is sent to the printer. The **[Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)** can generate YAML via drag-and-drop — paste the result here and preview first.
 
 ```yaml
 action: niimbot.print
+target:
+  device_id: <your device>
 data:
   preview: true
   payload:
@@ -231,334 +204,18 @@ data:
       size: 30
   width: 400
   height: 240
-target:
-  device_id: <your device>
 ```
+
+Every print or preview updates `image.<device>_last_label_made` (disable in entity settings if unwanted).
 
 ---
 
-### Payload Element Examples
+## Script: multiline address label
 
-> [!TIP]
-> All elements support the `visible` field (`true`/`false`) to conditionally show or hide them.
-
-#### text
-
-```yaml
-- type: text
-  value: "Hello World!"
-  x: 10
-  y: 10
-  size: 40
-  font: ppb.ttf
-  color: black
-  anchor: lt
-  align: left
-  spacing: 5
-  stroke_width: 1
-  stroke_fill: white
-  max_width: 200
-```
-
-If `y` is omitted, the element stacks below the previous element (`y_padding` controls the gap, default `10`).
-
-#### multiline
-
-```yaml
-- type: multiline
-  value: "Line1;Line2;Line3"
-  delimiter: ";"
-  x: 10
-  start_y: 10
-  offset_y: 25
-  size: 20
-  font: ppb.ttf
-  color: black
-  anchor: lm
-  stroke_width: 0
-  stroke_fill: white
-```
-
-#### new_multiline
-
-Multiline text with optional auto-fit to width/height (see [Script example for multiline text with auto-fit](#script-example-for-multiline-text-with-auto-fit)).
-
-```yaml
-- type: new_multiline
-  x: 0
-  y: 20
-  size: 100
-  width: 520
-  height: 300
-  fit: true
-  font: rbm.ttf
-  value: |
-    Line 1
-    Line 2
-    Line 3
-```
-
-#### line
-
-```yaml
-- type: line
-  x_start: 0
-  x_end: 250
-  y_start: 64
-  y_end: 64
-  fill: black
-  width: 2
-```
-
-#### rectangle
-
-```yaml
-- type: rectangle
-  x_start: 5
-  y_start: 5
-  x_end: 100
-  y_end: 60
-  fill: black
-  outline: black
-  width: 2
-  radius: 10
-  corners: "top_left,top_right"
-```
-
-#### rectangle_pattern
-
-```yaml
-- type: rectangle_pattern
-  x_start: 10
-  y_start: 10
-  x_size: 20
-  y_size: 20
-  x_repeat: 5
-  y_repeat: 3
-  x_offset: 5
-  y_offset: 5
-  fill: black
-  outline: black
-  width: 1
-  radius: 5
-  corners: "all"
-```
-
-#### circle
-
-```yaml
-- type: circle
-  x: 125
-  y: 64
-  radius: 30
-  fill: red
-  outline: black
-  width: 2
-```
-
-#### ellipse
-
-```yaml
-- type: ellipse
-  x_start: 50
-  y_start: 20
-  x_end: 200
-  y_end: 100
-  fill: red
-  outline: black
-  width: 1
-```
-
-#### icon
-
-Uses [Material Design Icons](https://pictogrammers.com/library/mdi/). Icon name with or without `mdi:` prefix.
-
-```yaml
-- type: icon
-  value: "account-cowboy-hat"
-  x: 60
-  y: 120
-  size: 120
-  color: black
-  anchor: la
-  stroke_width: 0
-  stroke_fill: white
-```
-
-#### dlimg
-
-Supports **HTTP/HTTPS URLs** and **Base64 data URIs** (`data:image/...;base64,...`). Local file paths are not supported.
-
-```yaml
-- type: dlimg
-  url: "https://example.com/image.png"
-  x: 10
-  y: 10
-  xsize: 100
-  ysize: 100
-  rotate: 0
-```
-
-```yaml
-- type: dlimg
-  url: "data:image/png;base64,iVBORw0KGgo..."
-  x: 10
-  y: 10
-  xsize: 50
-  ysize: 50
-```
-
-#### qrcode
-
-```yaml
-- type: qrcode
-  data: "https://www.home-assistant.io"
-  x: 140
-  y: 10
-  boxsize: 2
-  border: 1
-  color: black
-  bgcolor: white
-  eclevel: h
-```
-
-`eclevel`: `l`, `m`, `q`, `h` (see [qrcode](https://pypi.org/project/qrcode/)).
-
-#### datamatrix
-
-```yaml
-- type: datamatrix
-  data: "datamatrix data"
-  x: 10
-  y: 10
-  boxsize: 2
-  color: "black"
-  bgcolor: "white"
-```
-
-#### barcode
-
-```yaml
-- type: barcode
-  data: "123456789012"
-  x: 10
-  y: 80
-  code: code128
-  color: black
-  bgcolor: white
-  module_width: 0.2
-  module_height: 7
-  quiet_zone: 6.5
-  font_size: 5
-  text_distance: 5.0
-  write_text: true
-```
-
-#### diagram
-
-```yaml
-- type: diagram
-  x: 0
-  y: 0
-  width: 250
-  height: 128
-  margin: 20
-  font: ppb.ttf
-  bars:
-    values: "Mon,10;Tue,25;Wed,15;Thu,30;Fri,20"
-    color: black
-    margin: 10
-    legend_size: 10
-    legend_color: black
-```
-
-#### plot
-
-Reads entity history from **Home Assistant Recorder**.
-
-```yaml
-- type: plot
-  data:
-    - entity: sensor.temperature
-      color: black
-      width: 2
-  duration: 86400
-  x_start: 30
-  y_start: 10
-  x_end: 290
-  y_end: 120
-  size: 10
-  font: ppb.ttf
-  low: 15
-  high: 35
-  ylegend:
-    width: -1
-    color: black
-    position: left
-  yaxis:
-    width: 1
-    color: black
-    tick_width: 2
-    tick_every: 5
-    grid: 5
-    grid_color: black
-  debug: false
-```
-
-#### progress_bar
-
-```yaml
-- type: progress_bar
-  x_start: 10
-  y_start: 100
-  x_end: 240
-  y_end: 120
-  progress: 75
-  direction: right
-  background: white
-  fill: red
-  outline: black
-  width: 1
-  show_percentage: true
-```
-
----
-
-### Payload Element Types
-
-> [!TIP]
-> All elements support the `visible` field (`true`/`false`, default: `true`) to conditionally show or hide them.
-
-| **Type**              | **Required Fields** | **Optional Fields** | **Description** |
-| --------------------- | ------------------- | ------------------- | ---------------- |
-| **text**              | `x`, `value`        | `y`, `size`(20), `font`(ppb.ttf), `color`(black), `anchor`(lt), `align`(left), `spacing`(5), `stroke_width`(0), `stroke_fill`(white), `max_width`, `y_padding`(10) | Text. Auto-stacks if `y` omitted. |
-| **multiline**         | `x`, `value`, `offset_y` | `start_y`, `delimiter`, `size`(20), `font`, `color`(black), `anchor`(lm), `stroke_width`, `stroke_fill`, `y_padding`(10) | Lines split by delimiter. |
-| **new_multiline**     | `x`, `y`, `value`   | `size`(20), `spacing`, `width`, `height`, `fit` / `fit_width` / `fit_height`, `font`, `color`, `anchor`(la), `align`, `stroke_width`, `stroke_fill` | Multiline with optional auto-fit. |
-| **line**              | `x_start`, `x_end`  | `y_start`, `y_end`, `fill`(black), `width`(1), `y_padding`(0) | Straight line. |
-| **rectangle**         | `x_start`, `x_end`, `y_start`, `y_end` | `fill`, `outline`(black), `width`(1), `radius`(0), `corners`(all) | Rectangle, optional rounded corners. |
-| **rectangle_pattern** | `x_start`, `y_start`, `x_size`, `y_size`, `x_repeat`, `y_repeat`, `x_offset`, `y_offset` | `fill`, `outline`, `width`, `radius`, `corners` | Grid of rectangles. |
-| **circle**            | `x`, `y`, `radius`  | `fill`, `outline`(black), `width`(1) | Circle. |
-| **ellipse**           | `x_start`, `x_end`, `y_start`, `y_end` | `fill`, `outline`, `width`(1) | Ellipse. |
-| **icon**              | `x`, `y`, `value`, `size` | `color`/`fill`(black), `anchor`(la), `stroke_width`, `stroke_fill` | [Material Design Icons](https://pictogrammers.com/library/mdi/). |
-| **dlimg**             | `x`, `y`, `url`, `xsize`, `ysize` | `rotate`(0) | Image from URL or Base64 data URI. |
-| **qrcode**            | `x`, `y`, `data`    | `color`(black), `bgcolor`(white), `border`(1), `boxsize`(2), `eclevel`(h) | QR code. |
-| **datamatrix**        | `x`, `y`, `data`    | `color`(black), `bgcolor`(white), `boxsize`(2) | DataMatrix code. |
-| **barcode**           | `x`, `y`, `data`    | `code`(code128), `color`, `bgcolor`, `module_width`, `module_height`, `quiet_zone`, `font_size`, `text_distance`, `write_text` | Barcode. |
-| **diagram**           | `x`, `y`, `height`  | `width`, `margin`(20), `font`, `bars` | Bar chart. |
-| **plot**              | `data`([{`entity`}]) | `duration`(86400), `x_start`, `y_start`, `x_end`, `y_end`, `size`, `font`, `low`, `high`, `ylegend`, `yaxis`, `debug` | Time-series from Recorder. |
-| **progress_bar**      | `x_start`, `x_end`, `y_start`, `y_end`, `progress` | `direction`(right), `background`, `fill`, `outline`, `width`, `show_percentage` | Progress bar. |
-
----
-
-## Script example for multiline text with auto-fit
+`new_multiline` with `fit: true` shrinks text to fit the label box — useful for shipping addresses:
 
 ```yaml
 alias: Print label with multiple lines of text
-description: >-
-  Use this tool to quick-print any label, for example a recipient label for
-  mailing a letter.  Give the contents of the label, in multiple lines, in the
-  `content` field, for the print to be successful.  The text will resize to fit
-  the width, and the height will fit a maximum of five lines.
 fields:
   contents:
     selector:
@@ -566,80 +223,42 @@ fields:
         multiline: true
     name: Contents
     required: true
-    description: >-
-      Contents of the label (e.g. the full address of a letter's recipient) each
-      part in a separate line.
 sequence:
   - action: niimbot.print
+    target:
+      area_id: kitchen
     data:
       payload:
         - type: new_multiline
           x: 0
           y: 20
-          size: 100  # start with a large font size
+          size: 100
           width: 520
           height: 300
           fit: true
           font: rbm.ttf
           value: "{{ contents }}"
-          # e.g.
-          # value: |-
-          #   Max Mustermann
-          #   Strassenstraße 33
-          #   49418 Mallorca
-          #   Spain
       width: 584
       height: 350
       density: 5
-    target:
-      area_id: kitchen
 ```
 
-In `type: new_multiline`, the font `size` starts by default at 20, and
-the `spacing` between lines defaults to the font size.  You can, of
-course, set your own custom font size and spacing.
-
-If you specify `fit_width: True` or `fit: width` and add the required
-specific `width` in pixels, the font `size` and `spacing` will be
-iteratively reduced until the longest line in the text `value` you
-specified fits the required width.
-
-If you specify `fit_height: True` or `fit: height` and add the required
-specific `height` in pixels, the font `size` and `spacing` will be
-iteratively reduced until the whole text fits vertically in the supplied
-height.
-
-To combine both modes, you can specify `fit: True`.
-
-Of course, if font `size` is left to its default, which is quite small
-for 300x500mm labels, chances are, only very large amounts of text will
-cause shrinkage of the font size to fit. In that case, pass a large font
-`size` and it will be shrunk to a fitting size.
-
-Note that the top part of letters in italicized text tends to spill outside
-the specified width -- try to make your width slightly narrower in that case.
+See [`new_multiline` in imagespec](https://github.com/eigger/imagespec/blob/main/docs/elements.md#new_multiline) for `fit_width`, `fit_height`, and spacing options.
 
 ---
 
 ## Increasing print speed
 
-The printer receives data from Home Assistant line by line.  When this data is
-sent via a Bluetooth proxy, the latency involved in communicating each packet
-and awaiting for a response can cause significant delays that add up.  This is
-particularly notorious for complex labels with little to no empty horizontal
-space.  This is so because that way of sending data is the maximally
-conservative way that ensures maximum reliability.  That reliability comes at a
-cost of speed.
+The printer receives data line by line. Over Bluetooth proxies, waiting for a response on every line adds up — especially on dense labels.
 
-Despair not, as there are workarounds to accelerate printouts substantially.
-In the developer console, you can try the following workarounds documented
-below:
+Tune per call first:
 
 ```yaml
 action: niimbot.print
+target:
+  device_id: <your device>
 data:
   payload:
-    # Complex figure you can test with.
     - type: rectangle
       x_start: 0
       x_end: 10
@@ -649,89 +268,21 @@ data:
   width: 584
   height: 350
   density: 5
-  # The following value reduces the time HA waits between
-  # lines sent to the printer, from its default 0.05 (50 ms).
-  # Sufficiently small values may cause your printer to fail
-  # to print at all, or print corrupted labels.
   wait_between_print_lines: 0.01
-  # The following value changes the way that lines are sent
-  # to the printer, from a write-with-response to a plain
-  # fire-and-forget write, for the number of lines you set
-  # minus one (in this example, the value says 16, so HA
-  # would send 15 lines without confirmation, and send each
-  # 16th line waiting for a response).  The default is 1,
-  # which means every line gets sent using write-with-response,
-  # which itself costs about 0.1 seconds per line.
-  # Sufficiently large values will flood your ESPHome Bluetooth
-  # proxies, causing no or partial printout of labels.
   print_line_batch_size: 16
-target:
-  device_id: <your device>
 ```
 
-Once you have experimented with these configuration values, you can
-set them permanently for every print.  Go to the *Devices & Services*
-settings, then find *Niimbot* under the list of integrations, and
-open it.  Use the gear icon for your printer's config entry to change
-the settings to the values that worked for you:
+Then persist working values in the integration **Configure** dialog (`wait_between_print_lines × 1000` → ms for **Wait Between Each Print Line**).
 
-* **Wait time between print lines:** set it to the value that worked
-  for you, multiplied by 1000 (as the configuration value is in
-  milliseconds).
-* **How often to confirm reception of print lines:** set it to the value
-  of `print_line_batch_size`.
-
-Thus, the values that worked for you will now be permanent and used
-in every print.
-
-You are encouraged to open reports with the values that worked for you,
-in order to help us come up with better, less conservative defaults.
-Anecdotally, in a congested network, the B21 Pro printer is reliable
-down to 10 milliseconds (0.01 seconds) of waiting between print lines,
-and up to 16 lines in a batch prior to confirmation, which speeds up
-complex labels more than *fourfold*.
+Anecdotally, B21 Pro on a busy network is reliable at 10 ms wait and batch size 16 (~4× faster on complex labels). Report what works for your setup in [issues](https://github.com/eigger/hass-niimbot/issues).
 
 ---
 
-## Previewing labels without consuming labels
+## Preview on a dashboard
 
-The `niimbot.print` service supports *not printing*, if the data parameter
-`preview` is present when you call it.
+With `preview: true` and `response_variable`, a script can save the rendered image to disk and show it on a dashboard camera card.
 
-### Last label made image entity
-
-You might think "but what is the point of just running a preview that
-prints nothing?"
-
-Think again.  An entity with ID `image.<your device>_last_label_made`
-is updated every time you print or preview a label.  Stick it to a
-dashboard of yours, and now you can always recall what label you last made.
-
-(Note that the label is not preserved between Home Assistant restarts.)
-
-You can use this image entity to save consumables -- iterate on a label
-design to perfect it (perhaps using the developer tools Actions tab),
-without actually printing the label.
-
-You could also have an automation that uses the image snapshot services
-to take a snapshot of your label every time it changes.
-
-If you don't want this entity, simply disable it from the entity settings.
-
-Never waste a single sticker or label ever again!
-
-### Scripting with the image data
-
-If you call the `niimbot.print` service with the `response_variable`
-set to some variable name, a `data:` string containing the generated
-image (encoded as a URL) is returned to the calling script.
-
-Here is a trivial example of how you could use this data:
-
-* Ensure your Home Assistant instance has a `www` folder under its
-  `/config` directory.
-* Add the following code to your `configuration.yaml` (adjust the
-  path to `www` to your setup).
+1. Add to `configuration.yaml`:
 
 ```yaml
 shell_command:
@@ -739,29 +290,16 @@ shell_command:
     bash -c 'set -o pipefail; echo "$0" | cut -d, -f2 | base64 -d >/config/www/label.png' {{ image_data }}
 ```
 
-Now, every time you call the service `shell_command.update_label`,
-with data parameter `image_data` set to the `data:` URL returned by
-`niimbot.print`, the file `label.png` will be updated on disk inside
-`www`.
+2. Add a **Local file** camera pointing at `/config/www/label.png`.
 
-* Add a *Local file* camera (via *Devices and Services* → *Add Integration*)
-  and when it asks you for the path, point it to `/config/www/label.png`.
-  This "camera" entity will update automatically every time `label.png`
-  is updated by anything.  Very neat!
-
-* Create a script that will call `niimbot.print` and then
-  `shell_command.update_label` in sequence.  Here is a sample that will
-  prompt you for a payload (list of elements) and will then promptly
-  preview such a payload into `label.png`:
+3. Script to preview and update the file:
 
 ```yaml
 alias: Iterate on a label
-description: ""
 fields:
   payload:
     selector:
       object: {}
-    default: []
     name: Payload
 sequence:
   - action: niimbot.print
@@ -774,54 +312,35 @@ sequence:
       density: 5
       preview: true
     response_variable: previewed
-    alias: "\"Print\" a label to a data: image"
   - action: shell_command.update_label
-    metadata: {}
     data:
       image_data: "{{ previewed.image }}"
-    alias: Update label.png on disk
-```
-
-The grand finale?  Add a camera card to your dashboard:
-
-```yaml
-show_state: true
-show_name: true
-camera_view: auto
-fit_mode: cover
-type: picture-entity
-# The following line contains the entity ID of my local file "camera".
-entity: camera.local_file
 ```
 
 ---
 
 ## Tools
 
-### [Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)
-
-Design label layouts in your browser with drag-and-drop, then copy the generated YAML. Use with `preview: true` to test without printing.
+**[Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)** — drag-and-drop layout designer; exports YAML for `niimbot.print`.
 
 ---
 
 ## Examples
 
-| Example | Description | YAML |
-|---------|-------------|------|
-| Grocy label | Print Grocy product label via webhook | [examples/grocy/README.md](examples/grocy/README.md) |
+| Example | Description |
+|---------|-------------|
+| [examples/grocy/README.md](examples/grocy/README.md) | Print a Grocy product label via webhook |
 
 ---
 
-## Custom Fonts
+## Custom fonts
 
-* [OpenEPaperLink – supported types (font locations)](https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md#font-locations)
-* [OpenEPaperLink – font commit reference](https://github.com/OpenEPaperLink/Home_Assistant_Integration/commit/4817d7d7b2138c31e3744a5f998751a17106037d)
-
-Place `.ttf` files in the integration `fonts` folder (`custom_components/niimbot/fonts/`) or in `www/fonts` and reference by name (e.g. `ppb.ttf`, `rbm.ttf`).
+Place `.ttf` files in `custom_components/niimbot/fonts/` or `config/www/fonts/` and reference by filename (e.g. `ppb.ttf`, `rbm.ttf`).
 
 ---
 
 ## References
 
-- [MultiMote/nimblue](https://github.com/MultiMote/niimblue.git)
-- [OpenEPaperLink](https://github.com/OpenEPaperLink/Home_Assistant_Integration.git)
+- [imagespec](https://github.com/eigger/imagespec) — rendering engine
+- [MultiMote/niimblue](https://github.com/MultiMote/niimblue)
+- [OpenEPaperLink](https://github.com/OpenEPaperLink/Home_Assistant_Integration)
