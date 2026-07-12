@@ -6,8 +6,6 @@
 
 Niimbot Label Printer Home Assistant Integration
 
-You can also use Niimbot as a label printer in [Stash](https://github.com/eigger/stash).
-
 ## Gallery
 
 | B1 / B1 Pro | B21 Pro | D110 |
@@ -30,6 +28,8 @@ You can also use Niimbot as a label printer in [Stash](https://github.com/eigger
 - Questions or ideas? [Join the discussion](https://github.com/eigger/hass-niimbot/discussions)
 
 ---
+
+[Stash](https://github.com/eigger/stash) can print labels via this Home Assistant integration.
 
 ## Supported Models
 
