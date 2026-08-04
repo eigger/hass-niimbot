@@ -94,3 +94,23 @@ def test_render_image_dither():
     unique_dither = set(pixels_dither)
     assert (0, 0, 0) in unique_dither
     assert (255, 255, 255) in unique_dither
+
+
+def test_render_image_dither_method_string():
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="/tmp/mock_fonts")
+    service = MagicMock()
+    service.data = {
+        "payload": [
+            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#808080", "outline": "#808080"}
+        ],
+        "width": 10,
+        "height": 10,
+        "rotate": 0,
+        "background": "white",
+        "dither": "atkinson",
+    }
+    img = render_image("dummy_entity", service, hass)
+    colors = {img.getpixel((x, y)) for y in range(img.height) for x in range(img.width)}
+    assert colors <= {(0, 0, 0), (255, 255, 255)}
+    assert len(colors) == 2

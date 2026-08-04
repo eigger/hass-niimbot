@@ -101,7 +101,7 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 - **Rotation:** `rotate: 90/180/270` rotates the drawing and **swaps output width/height** (label-printer mode).
 - **Default font:** `ppb.ttf` in `custom_components/niimbot/fonts/`. Custom fonts also work from `www/fonts/`.
 - **`plot` element:** reads history from Home Assistant **Recorder**.
-- **`dither`:** set on the service call (or per element in the payload) to halftone photos/charts on a 2-color printer. Keep text and barcodes undithered for sharp edges — see [imagespec dithering docs](https://github.com/eigger/imagespec#dithering).
+- **`dither`:** service field or per-element payload key. Use `true`/`floyd` (or another method name) to halftone photos/charts on a 2-color printer; `false`/`none` for flat nearest. Keep text and barcodes undithered for sharp edges — see [imagespec dithering docs](https://github.com/eigger/imagespec/blob/main/docs/dithering.md).
 - **Layout:** prefer `row` / `column` / `stack` for stacked content instead of hand-calculated coordinates.
 
 ---
@@ -117,7 +117,7 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 | `width` | no | `400` | Label width in pixels (10–1600) |
 | `height` | no | `240` | Label height in pixels (10–1600) |
 | `density` | no | `3` | Print density 1–5 (some models max out at 3) |
-| `dither` | no | `false` | Floyd–Steinberg halftone for the whole label |
+| `dither` | no | `none` / `false` | Palette dither method (`none`, `floyd`, `atkinson`, `bayer8`, …). `true` ≡ `floyd`. |
 | `wait_between_print_lines` | no | `0.05` | Seconds between lines (overrides device option) |
 | `print_line_batch_size` | no | `1` | Lines per batch before confirmation (overrides device option) |
 | `preview` | no | `false` | Render only; do not send to the printer |

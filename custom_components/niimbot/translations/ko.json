@@ -79,7 +79,7 @@
                 },
                 "dither": {
                     "name": "디더링",
-                    "description": "이미지에 플로이드-스타인버그 디더링을 적용합니다. 기본값: false."
+                    "description": "라벨 전체에 적용할 팔레트 디더 방법(none, floyd, atkinson, bayer8 등). true/false도 그대로 동작합니다(floyd/none). 기본값: none."
                 }
             }
         }

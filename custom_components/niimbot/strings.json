@@ -84,7 +84,7 @@
         },
         "dither": {
           "name": "Dither",
-          "description": "Apply Floyd-Steinberg dithering to the image. Default: false."
+          "description": "Palette dither method for the whole label (none, floyd, atkinson, bayer8, …). Boolean true/false still work (floyd/none). Default: none."
         }
       }
     }
