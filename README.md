@@ -102,7 +102,7 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 - **Rotation:** `rotate: 90/180/270` rotates the drawing and **swaps output width/height** (label-printer mode).
 - **Default font:** `ppb.ttf` in `custom_components/niimbot/fonts/`. Custom fonts also work from `www/fonts/`.
 - **`plot` element:** reads history from Home Assistant **Recorder**.
-- **Dithering:** not a service option. Put `dither` on individual payload elements that need it (photos, charts). Leave text/QR/barcodes without `dither`. See [dithering.md](https://github.com/eigger/imagespec/blob/main/docs/dithering.md).
+- **Dithering:** not a service option. Put `dither` on **photos and charts** in the payload — `dlimg`, `pie`, `diagram`, `plot`, `sparkline`, `progress_bar`, `gauge` — when they use off-palette colors. Leave text/QR/barcodes without `dither`. See [dithering.md](https://github.com/eigger/imagespec/blob/main/docs/dithering.md).
 - **Layout:** prefer `row` / `column` / `stack` for stacked content instead of hand-calculated coordinates.
 
 ---
@@ -150,7 +150,9 @@ data:
 
 ### Per-element dither (photos / charts)
 
-Do **not** dither the whole label. Add `dither` only on elements that benefit (e.g. `dlimg`, `pie`):
+Do **not** dither the whole label. Add `dither` on chart/media elements that use
+off-palette colors (`dlimg`, `pie`, `diagram`, `plot`, `sparkline`,
+`progress_bar`, `gauge`):
 
 ```yaml
 action: niimbot.print
@@ -161,21 +163,30 @@ data:
     - type: text
       value: Product
       x: 10
-      y: 10
+      y: 8
       size: 28
     - type: dlimg
       url: "https://example.com/photo.jpg"
       x: 10
-      y: 50
-      xsize: 180
-      ysize: 120
-      dither: floyd   # or atkinson, bayer8, …
+      y: 40
+      xsize: 120
+      ysize: 90
+      dither: floyd
     - type: pie
-      x: 210
-      y: 50
-      radius: 50
+      x: 150
+      y: 40
+      radius: 40
       values: "A,40,orange;B,60,blue"
       dither: atkinson
+    - type: diagram
+      x: 250
+      y: 40
+      width: 130
+      height: 90
+      bars:
+        values: "Mon,10;Tue,25;Wed,15;Thu,30"
+        color: orange
+      dither: bayer8
 ```
 
 ### Model-specific sizes
