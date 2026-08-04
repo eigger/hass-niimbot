@@ -74,26 +74,3 @@ print:
       example: 'false'
       selector:
         boolean:
-    dither:
-      required: false
-      example: none
-      selector:
-        select:
-          mode: dropdown
-          options:
-            - "none"
-            - "floyd"
-            - "atkinson"
-            - "jarvis"
-            - "stucki"
-            - "burkes"
-            - "sierra"
-            - "sierra2"
-            - "sierra-lite"
-            - "stevenson-arce"
-            - "bayer2"
-            - "bayer4"
-            - "bayer8"
-            - "bayer16"
-            - "clustered4"
-            - "clustered8"
