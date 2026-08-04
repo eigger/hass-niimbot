@@ -76,10 +76,6 @@
                 "preview": {
                     "name": "이미지 미리보기",
                     "description": "인쇄하는 대신 이미지를 base64 인코딩 URL로 반환합니다."
-                },
-                "dither": {
-                    "name": "디더링",
-                    "description": "라벨 전체에 적용할 팔레트 디더 방법(none, floyd, atkinson, bayer8 등). true/false도 그대로 동작합니다(floyd/none). 기본값: none."
                 }
             }
         }

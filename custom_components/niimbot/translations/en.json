@@ -76,10 +76,6 @@
                 "preview": {
                     "name": "Preview the image data",
                     "description": "Instead of printing, return the image as a base64-encoded URL."
-                },
-                "dither": {
-                    "name": "Dither",
-                    "description": "Palette dither method for the whole label (none, floyd, atkinson, bayer8, …). Boolean true/false still work (floyd/none). Default: none."
                 }
             }
         }
