@@ -430,16 +430,25 @@ class NiimbotDevice:
             return self.ble_data
 
     async def _maybe_read_rfid(self, printer: PrinterClient, heartbeat: dict) -> None:
-        """Read label RFID when the model supports it and the tag is ready."""
+        """Read label RFID when the model supports it."""
         if not self.supports_label_rfid():
             return
 
-        # Seed keys so entity platforms can discover them.
+        # Seed keys so entity platforms can discover them even before a tag read.
         for key in RFID_SENSOR_KEYS:
             self.ble_data.sensors.setdefault(key, None)
 
         rfid_ready = heartbeat.get("rfidreadstate")
-        if rfid_ready is not None and not rfid_ready:
+        # Still attempt a read when rfidreadstate is missing/unknown. Only skip
+        # the round-trip when the printer explicitly reports unreadiness as 0 —
+        # and even then fall through if we have never successfully read a tag,
+        # because some models (observed on B1) leave the flag at 0 with stock
+        # loaded.
+        if (
+            rfid_ready is not None
+            and not rfid_ready
+            and self._last_rfid_uuid is not None
+        ):
             _LOGGER.debug("Skipping RFID read: rfidreadstate falsy")
             return
 
@@ -506,14 +515,17 @@ class NiimbotDevice:
             except Exception as err:
                 self._record_error(err)
                 raise
+            else:
+                # Only mark 100% on a clean finish; leave the last reported
+                # value (and last_error) alone when the job failed.
+                if self.print_progress < 100:
+                    self.print_progress = 100.0
+                    self.ble_data.sensors["print_progress"] = 100.0
             finally:
                 if self._printer is not None:
                     self._printer.on_progress = None
                 self._print_end_time = time.time()
                 self._is_printing = False
-                if self.print_progress < 100:
-                    self.print_progress = 100.0
-                    self.ble_data.sensors["print_progress"] = 100.0
                 self._notify_printing()
                 self._notify_progress()
                 await self._release_printer()

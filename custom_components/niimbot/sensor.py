@@ -38,6 +38,7 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
         name="Battery",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "last_error": SensorEntityDescription(
         key="last_error",
@@ -185,11 +186,20 @@ async def async_setup_entry(
     entities.extend(_add_rfid_entities())
     async_add_entities(entities)
 
-    # Model may be unknown until the first successful poll.
-    if not device.supports_label_rfid():
+    # Model / RFID capability may be unknown at setup (initial poll failed, or
+    # platforms load before the first successful device-type read). Keep listening
+    # until RFID entities are created, or the model is known to lack label RFID.
+    if "labels_remaining" not in created_keys:
 
         @callback
         def _on_coordinator_update() -> None:
+            if "labels_remaining" in created_keys:
+                unsub()
+                return
+            meta = device.get_model_meta()
+            if meta is not None and not device.supports_label_rfid():
+                unsub()
+                return
             new_entities = _add_rfid_entities()
             if new_entities:
                 async_add_entities(new_entities)
@@ -319,6 +329,7 @@ class NiimbotPrintDurationSensor(
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,
@@ -403,6 +414,7 @@ class NiimbotPrintProgressSensor(
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:progress-helper"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,

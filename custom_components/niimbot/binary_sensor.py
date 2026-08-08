@@ -11,6 +11,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.entity import DeviceInfo
@@ -37,19 +38,23 @@ BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
         name="Lid",
         device_class=BinarySensorDeviceClass.DOOR,
         icon="mdi:printer-alert",
+        entity_category=EntityCategory.DIAGNOSTIC,
         # closingstate != 0 means open; door device class: is_on=True means open
     ),
     NiimbotBinarySensorEntityDescription(
         key="paperstate",
         name="Paper Loaded",
         icon="mdi:label-outline",
-        # Protocol: paperstate == 0 means inserted. Do not flip until HW-confirmed;
-        # inverted flag is wired and ready once confirmed.
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Protocol (Advanced1/2): paperstate == 0 means inserted. Confirmed on B1
+        # with stock loaded reporting Off when not inverted.
+        inverted=True,
     ),
     NiimbotBinarySensorEntityDescription(
         key="rfidreadstate",
         name="RFID Readable",
         icon="mdi:nfc-variant",
+        entity_category=EntityCategory.DIAGNOSTIC,
         # rfidreadstate != 0 means readable
     ),
 ]
@@ -125,6 +130,7 @@ class NiimbotConnectionBinarySensor(
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_icon = "mdi:bluetooth-connect"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,

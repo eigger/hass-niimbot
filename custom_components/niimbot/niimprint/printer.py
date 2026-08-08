@@ -323,11 +323,7 @@ class PrinterClient:
             printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
-        start_time = time.time()
-        while not await self.get_print_end(copies=copies):
-            if time.time() - start_time > 5:
-                break
-            await sleep(0.5)
+        await self.wait_print_complete(copies=copies)
         await self.end_print()
 
     async def print_image_b1(
@@ -355,29 +351,7 @@ class PrinterClient:
             printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
-        # The B1/B1 Pro retains the *previous* job's progress=100 and reports it
-        # immediately after end_page_print, before it has reset the counter and
-        # started the new page. Trusting that stale 100% makes us call end_print()
-        # too early, which aborts the page: the printer feeds the label in and
-        # back out without printing (and the paper counter does not increment).
-        # So we wait until the printer has actually started the new page (we see
-        # progress drop below 100, or the page counter advance) before accepting
-        # a 100% as genuine completion. A timeout still guards against a hang.
-        start_time = time.time()
-        started = False
-        while True:
-            status = await self.get_print_status()
-            if status["progress"] < 100:
-                started = True
-            if status["page"] >= copies or (started and status["progress"] >= 100):
-                break
-            if time.time() - start_time > 30:
-                _LOGGER.warning(
-                    "Print completion not confirmed within timeout (last status: %s)",
-                    status,
-                )
-                break
-            await sleep(0.5)
+        await self.wait_print_complete(copies=copies)
         await self.end_print()
 
     async def print_image_d110(
@@ -406,11 +380,7 @@ class PrinterClient:
             printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
-        start_time = time.time()
-        while not await self.get_print_end(copies=copies):
-            if time.time() - start_time > 5:
-                break
-            await sleep(0.5)
+        await self.wait_print_complete(copies=copies)
         await self.end_print()
 
     async def print_image_d110m_v4(
@@ -444,11 +414,7 @@ class PrinterClient:
         if not await self.end_page_print():
             raise RuntimeError("Page did not finish successfully")
         await sleep(1)
-        start_time = time.time()
-        while not await self.get_print_end(copies=copies):
-            if time.time() - start_time > 5:
-                break
-            await sleep(0.1)
+        await self.wait_print_complete(copies=copies, poll_interval=0.1)
         if not await self.end_print():
             raise RuntimeError("Print did not finish successfully")
         await self.heartbeat(await_for_response=False)
@@ -1025,11 +991,48 @@ class PrinterClient:
             self.on_progress(status)
         return status
 
-    async def get_print_end(self, copies: int = 1):
-        status = await self.get_print_status()
-        _LOGGER.debug("Status: %s", status)
-        if status["page"] >= copies:
-            return True
-        if status["progress"] < 100:
-            return False
-        return True
+    async def wait_print_complete(
+        self,
+        copies: int = 1,
+        *,
+        timeout: float | None = None,
+        poll_interval: float = 0.5,
+    ) -> dict:
+        """Poll print status until all copies finish (or timeout).
+
+        Many models retain the previous job's progress=100 / page count right
+        after ``end_page_print``. Wait until progress drops below 100 before
+        treating completion as real — otherwise a leftover page count or a
+        stale 100% can call ``end_print()`` before imaging starts.
+
+        Multi-copy jobs require ``page >= copies``; progress alone must not
+        end the wait after the first label. Timeout scales with ``copies``.
+        """
+        if timeout is None:
+            timeout = max(30.0, 15.0 * max(1, copies))
+        start_time = time.time()
+        started = False
+        status: dict = {}
+        while True:
+            status = await self.get_print_status()
+            _LOGGER.debug("Status: %s", status)
+            page = status.get("page", 0)
+            progress = status.get("progress", 0)
+            if progress < 100:
+                started = True
+            if started and page >= copies:
+                break
+            # Printers that never bump the page counter (single-copy only).
+            if started and copies <= 1 and progress >= 100:
+                break
+            if time.time() - start_time > timeout:
+                _LOGGER.warning(
+                    "Print completion not confirmed within %.0fs "
+                    "(copies=%s, last status: %s)",
+                    timeout,
+                    copies,
+                    status,
+                )
+                break
+            await sleep(poll_interval)
+        return status
