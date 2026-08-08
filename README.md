@@ -73,13 +73,35 @@ Configure via **Settings** → **Devices & Services** → **Niimbot** → **Conf
 
 | Option | Default | Range | Description |
 |--------|---------|-------|-------------|
-| **Use Sound** | On | On/Off | Play sound when the printer connects |
-| **Scan Interval** | 600 | 10–9999 s | How often to scan for the device |
-| **Wait Between Each Print Line** | 50 | 0–1000 ms | Delay between each line sent to the printer |
-| **Confirm Every Nth Print Line** | 1 | 1–512 | Confirm every N lines (higher = faster, less reliable) |
+| **Scan Interval** | 600 | 10–9999 s | How often to poll printer status |
+| **Wait Between Each Print Line** | 10 | 0–1000 ms | Delay between each line sent to the printer |
+| **Confirm Every Nth Print Line** | 16 | 1–512 | Confirm every N lines (higher = faster, less reliable) |
+| **Keep Connection** | Off | On/Off | Keep the BLE link open between polls and prints |
+
+Connection beep is a **Connection Sound** switch entity (not an option). Auto shutdown is an **Auto Shutdown** select entity.
 
 > [!TIP]
-> If printing is slow, try **Confirm Every Nth Print Line** = 16 and **Wait Between Each Print Line** = 10 ms. If prints fail or look corrupted, use more conservative values. See [Increasing print speed](#increasing-print-speed).
+> Defaults already favour speed. If prints fail or look corrupted, raise wait / lower confirm interval. See [Increasing print speed](#increasing-print-speed).
+
+---
+
+## Entities
+
+| Platform | Entity | Notes |
+|----------|--------|-------|
+| Sensor | Battery | Prefer heartbeat; PrinterInfo charge bucket as fallback |
+| Sensor | Labels Remaining / Used / Total, Consumable Usage, Label SKU | Label RFID models only |
+| Sensor | Ribbon Remaining / Used / Total, Ribbon Usage, Ribbon SKU | Ribbon RFID models only |
+| Sensor | Label Type | PrinterInfo, overridden by RFID tag type when present |
+| Sensor | Print Progress / Print Duration | Live during `niimbot.print` |
+| Sensor | Last Error, Print Density, Print Speed, Protocol Version, Colour Support, Print Area | Diagnostic (some disabled by default) |
+| Binary sensor | Cover | Label bay cover — Open / Closed |
+| Binary sensor | Paper | Loaded / Empty |
+| Binary sensor | RFID | Tag readable / not readable |
+| Binary sensor | Connection | BLE connectivity |
+| Select | Auto Shutdown | Typical 15 / 30 / 45–60 / 60–never (model-dependent) |
+| Switch | Connection Sound | Bluetooth connect beep |
+| Image | Last Label Made | Updated on every print or preview |
 
 ---
 
@@ -117,12 +139,16 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 | `rotate` | no | `0` | `0`, `90`, `180`, or `270` |
 | `width` | no | `400` | Label width in pixels (10–1600) |
 | `height` | no | `240` | Label height in pixels (10–1600) |
-| `density` | no | `3` | Print density 1–5 (some models max out at 3) |
-| `wait_between_print_lines` | no | `0.05` | Seconds between lines (overrides device option) |
-| `print_line_batch_size` | no | `1` | Lines per batch before confirmation (overrides device option) |
+| `density` | no | `3` | Print density (model range, typically 1–5; some up to 20) |
+| `label_type` | no | `1` | Paper type code (`1` WithGaps, `2` Black, `3` Continuous, …) |
+| `copies` | no | `1` | Number of copies in one print job |
+| `wait_between_print_lines` | no | device option | Seconds between lines (device default **10 ms**) |
+| `print_line_batch_size` | no | device option | Lines per batch before confirmation (device default **16**) |
 | `preview` | no | `false` | Render only; do not send to the printer |
 
 Use `response_variable` in scripts to receive the generated image as a `data:` URL when `preview: true`.
+
+There is also **`niimbot.refresh_info`** to re-read cached printer settings (density, label type, auto shutdown, battery bucket, protocol/area).
 
 ### Basic example
 
@@ -292,9 +318,9 @@ See [`new_multiline` in imagespec](https://github.com/eigger/imagespec/blob/main
 
 ## Increasing print speed
 
-The printer receives data line by line. Over Bluetooth proxies, waiting for a response on every line adds up — especially on dense labels.
+The printer receives data line by line. Over Bluetooth proxies, waiting for a response on every line adds up — especially on dense labels. From **3.0.0** the integration defaults are already **10 ms** wait and confirm every **16** lines, plus indexed/empty-row packing and mid-transfer checkpoints.
 
-Tune per call first:
+Tune per call if needed:
 
 ```yaml
 action: niimbot.print
@@ -315,9 +341,9 @@ data:
   print_line_batch_size: 16
 ```
 
-Then persist working values in the integration **Configure** dialog (`wait_between_print_lines × 1000` → ms for **Wait Between Each Print Line**).
+Persist working values in **Configure** (`wait_between_print_lines × 1000` → ms for **Wait Between Each Print Line**). Enabling **Keep Connection** also cuts reconnect overhead between jobs.
 
-Anecdotally, B21 Pro on a busy network is reliable at 10 ms wait and batch size 16 (~4× faster on complex labels). Report what works for your setup in [issues](https://github.com/eigger/hass-niimbot/issues).
+Anecdotally, B21 Pro on a busy network is reliable at 10 ms wait and batch size 16. Report what works for your setup in [issues](https://github.com/eigger/hass-niimbot/issues).
 
 ---
 
@@ -385,7 +411,7 @@ Reverse-engineered reference for the printers' BLE protocol.
 | [docs/protocol.md](docs/protocol.md) | Transport, packet framing, full command ID tables, error codes |
 | [docs/device-info.md](docs/device-info.md) | Connect handshake, printer info fields, heartbeat variants, print status |
 | [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
-| [docs/rfid.md](docs/rfid.md) | Reading consumable info from the label roll's RFID tag |
+| [docs/rfid.md](docs/rfid.md) | Reading consumable info from label / ribbon RFID tags |
 | [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
 
 ---
