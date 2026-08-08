@@ -92,7 +92,7 @@ class NiimbotDeviceUpdateError(Exception):
 class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Niimbot BLE."""
 
-    VERSION = 2
+    VERSION = 1
 
     def __init__(self) -> None:
         """Initialize the config flow."""
