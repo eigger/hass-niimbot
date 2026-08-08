@@ -54,6 +54,5 @@ sys.modules["bleak"] = MagicMock()
 sys.modules["bleak.backends.device"] = MagicMock()
 sys.modules["bleak_retry_connector"] = MagicMock()
 
-# Mock propcache
-sys.modules["propcache"] = MagicMock()
-sys.modules["propcache.api"] = MagicMock()
+# Mock imagespec (required by render.py / package __init__)
+sys.modules["imagespec"] = MagicMock()

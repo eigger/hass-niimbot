@@ -51,7 +51,15 @@ print:
       selector:
         number:
           min: 1
-          max: 5
+          max: 20
+          step: 1
+    label_type:
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 11
           step: 1
     wait_between_print_lines:
       required: false

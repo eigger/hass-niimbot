@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, TypedDict, Union
+from typing import List, NotRequired, TypedDict, Union
 
 class PrintDirection(Enum):
     TOP = "top"
@@ -14,6 +14,12 @@ class LabelType(Enum):
     BLACK_MARK_GAP = "BlackMarkGap"
     PVC_TAG = "PvcTag"
     PERFORATED = "Perforated"
+
+class RfidClass(Enum):
+    NONE = "none"
+    LABEL = "label"
+    RIBBON = "ribbon"
+    LABEL_RIBBON = "label_ribbon"
 
 class PrinterModel(Enum):
     UNKNOWN = "UNKNOWN"
@@ -91,6 +97,10 @@ class PrinterModelMeta(TypedDict):
     printDirection: PrintDirection
     printheadPixels: int
     paperTypes: List[LabelType]
+    rfid: NotRequired[RfidClass]
+    densityMin: NotRequired[int]
+    densityMax: NotRequired[int]
+    densityDefault: NotRequired[int]
 
 modelsLibrary: List[PrinterModelMeta] = [
     {
@@ -599,14 +609,139 @@ modelsLibrary: List[PrinterModelMeta] = [
     }
 ]
 
+# Density / RFID capabilities keyed by printer model ID (from devices.md).
+_CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int]] = {
+    256: (RfidClass.NONE, 1, 5, 3),
+    257: (RfidClass.NONE, 1, 5, 3),
+    258: (RfidClass.NONE, 1, 5, 3),
+    259: (RfidClass.NONE, 1, 5, 3),
+    260: (RfidClass.NONE, 1, 5, 3),
+    261: (RfidClass.NONE, 1, 5, 3),
+    262: (RfidClass.NONE, 1, 5, 3),
+    272: (RfidClass.LABEL, 1, 5, 3),
+    273: (RfidClass.LABEL, 1, 5, 3),
+    274: (RfidClass.LABEL, 1, 5, 3),
+    512: (RfidClass.LABEL, 1, 3, 2),
+    513: (RfidClass.LABEL, 1, 5, 3),
+    514: (RfidClass.LABEL, 1, 3, 2),
+    528: (RfidClass.LABEL, 1, 5, 3),
+    531: (RfidClass.LABEL, 1, 5, 3),
+    768: (RfidClass.LABEL, 1, 5, 3),
+    769: (RfidClass.LABEL, 1, 5, 3),
+    771: (RfidClass.LABEL, 1, 5, 3),
+    775: (RfidClass.LABEL, 1, 5, 3),
+    776: (RfidClass.LABEL, 1, 5, 3),
+    777: (RfidClass.LABEL, 1, 5, 3),
+    784: (RfidClass.LABEL, 1, 5, 3),
+    785: (RfidClass.LABEL, 1, 5, 3),
+    1024: (RfidClass.RIBBON, 1, 5, 3),
+    1025: (RfidClass.RIBBON, 1, 5, 3),
+    1026: (RfidClass.RIBBON, 1, 5, 3),
+    1792: (RfidClass.LABEL, 1, 3, 2),
+    2049: (RfidClass.RIBBON, 1, 15, 10),
+    2050: (RfidClass.RIBBON, 1, 15, 10),
+    2051: (RfidClass.RIBBON, 1, 15, 10),
+    2053: (RfidClass.NONE, 1, 15, 10),
+    2054: (RfidClass.RIBBON, 1, 15, 10),
+    2304: (RfidClass.LABEL, 1, 3, 2),
+    2305: (RfidClass.LABEL, 1, 3, 2),
+    2320: (RfidClass.LABEL, 1, 5, 3),
+    2560: (RfidClass.LABEL, 1, 3, 2),
+    2561: (RfidClass.LABEL, 1, 3, 2),
+    2816: (RfidClass.LABEL, 1, 5, 3),
+    2817: (RfidClass.LABEL, 1, 5, 3),
+    2818: (RfidClass.LABEL, 1, 5, 3),
+    3584: (RfidClass.LABEL_RIBBON, 1, 3, 2),
+    3585: (RfidClass.LABEL_RIBBON, 1, 3, 2),
+    3586: (RfidClass.LABEL_RIBBON, 1, 3, 2),
+    4096: (RfidClass.LABEL, 1, 5, 3),
+    4097: (RfidClass.LABEL, 1, 5, 3),
+    4608: (RfidClass.LABEL_RIBBON, 1, 5, 3),
+    4609: (RfidClass.LABEL_RIBBON, 1, 5, 3),
+    4864: (RfidClass.LABEL, 1, 5, 3),
+    4865: (RfidClass.LABEL, 1, 5, 3),
+    4866: (RfidClass.LABEL, 1, 5, 3),
+    4867: (RfidClass.LABEL, 1, 5, 3),
+    5376: (RfidClass.NONE, 3, 3, 3),
+    5632: (RfidClass.LABEL, 1, 5, 3),
+    6912: (RfidClass.LABEL, 1, 5, 3),
+    6913: (RfidClass.LABEL, 1, 5, 3),
+    51457: (RfidClass.NONE, 6, 15, 10),
+    51458: (RfidClass.NONE, 6, 15, 10),
+    51460: (RfidClass.NONE, 6, 15, 10),
+    51461: (RfidClass.NONE, 6, 15, 10),
+    51713: (RfidClass.NONE, 6, 15, 10),
+    51714: (RfidClass.NONE, 6, 15, 10),
+    51715: (RfidClass.NONE, 6, 15, 10),
+    51717: (RfidClass.NONE, 6, 15, 10),
+    51718: (RfidClass.NONE, 6, 15, 10),
+    52993: (RfidClass.NONE, 1, 5, 3),
+    53250: (RfidClass.NONE, 1, 20, 15),
+}
+
+_DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3)
+
+_LABEL_TYPE_NAMES = {
+    1: "WithGaps",
+    2: "Black",
+    3: "Continuous",
+    4: "Perforated",
+    5: "Transparent",
+    6: "PvcTag",
+    10: "BlackMarkGap",
+    11: "HeatShrinkTube",
+}
+
+_LABEL_TYPE_CODES = {
+    LabelType.WITH_GAPS: 1,
+    LabelType.BLACK: 2,
+    LabelType.CONTINUOUS: 3,
+    LabelType.PERFORATED: 4,
+    LabelType.TRANSPARENT: 5,
+    LabelType.PVC_TAG: 6,
+    LabelType.BLACK_MARK_GAP: 10,
+    LabelType.HEAT_SHRINK_TUBE: 11,
+}
+
+
+def consumable_type_name(type_code: int | None) -> str | None:
+    if type_code is None:
+        return None
+    return _LABEL_TYPE_NAMES.get(type_code, f"Unknown({type_code})")
+
+
+def label_type_code(label_type: LabelType) -> int:
+    return _LABEL_TYPE_CODES[label_type]
+
+
+def supports_label_rfid(rfid: RfidClass | None) -> bool:
+    return rfid in (RfidClass.LABEL, RfidClass.LABEL_RIBBON)
+
+
+def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
+    """Fill rfid / density fields from the ID capability table."""
+    out: PrinterModelMeta = dict(meta)  # type: ignore[assignment]
+    caps = _DEFAULT_CAPS
+    for pid in meta["id"]:
+        if pid in _CAPABILITIES_BY_ID:
+            caps = _CAPABILITIES_BY_ID[pid]
+            break
+    rfid, dmin, dmax, ddef = caps
+    out.setdefault("rfid", rfid)
+    out.setdefault("densityMin", dmin)
+    out.setdefault("densityMax", dmax)
+    out.setdefault("densityDefault", ddef)
+    return out
+
+
 def get_printer_meta_by_id(printer_id: int) -> Union[PrinterModelMeta, None]:
     for model in modelsLibrary:
         if printer_id in model["id"]:
-            return model
+            return _enrich_meta(model)
     return None
 
 def get_printer_meta_by_model(model: PrinterModel) -> Union[PrinterModelMeta, None]:
     for m in modelsLibrary:
         if m["model"] == model:
-            return m
+            return _enrich_meta(m)
     return None

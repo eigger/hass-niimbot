@@ -63,7 +63,11 @@
                 },
                 "density": {
                     "name": "농도",
-                    "description": "인쇄 농도(1 ~ 5). 기본값: 3."
+                    "description": "인쇄 농도. 모델에 따라 최대 1-20. 기본값: 3."
+                },
+                "label_type": {
+                    "name": "라벨 타입",
+                    "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 기본값: 1."
                 },
                 "wait_between_print_lines": {
                     "name": "라인 간 대기 시간",
