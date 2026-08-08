@@ -69,6 +69,10 @@
                     "name": "라벨 타입",
                     "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 기본값: 1."
                 },
+                "copies": {
+                    "name": "매수",
+                    "description": "같은 라벨을 인쇄할 매수. 기본값: 1."
+                },
                 "wait_between_print_lines": {
                     "name": "라인 간 대기 시간",
                     "description": "프린터로 전송되는 각 라인 사이의 대기 시간입니다."
@@ -82,6 +86,10 @@
                     "description": "인쇄하는 대신 이미지를 base64 인코딩 URL로 반환합니다."
                 }
             }
+        },
+        "refresh_info": {
+            "name": "프린터 정보 새로고침",
+            "description": "캐시된 프린터 설정(농도, 속도, 라벨 타입, 자동 종료, 배터리 버킷)을 다시 읽습니다."
         }
     }
 }

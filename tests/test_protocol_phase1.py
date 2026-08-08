@@ -1,6 +1,7 @@
 """Phase 1 protocol correctness tests."""
 
 import asyncio
+import struct
 
 import pytest
 
@@ -239,3 +240,27 @@ def test_battery_percentage_b1_pro_advanced2_is_bucket():
     # Advanced2 always uses the 0–4 bucket, even on B1 Pro.
     assert _battery_percentage(4, "B1_PRO", variant="advanced2") == 100
     assert _battery_percentage(2, "B1_PRO", variant="advanced2") == 50
+
+
+def test_get_print_status_keeps_separate_progress_fields():
+    async def _test():
+        # page=1, print=80, feed=40
+        payload = struct.pack(">HBB", 1, 80, 40)
+        transport = FakeTransport(
+            [NiimbotPacket(RequestCodeEnum.GET_PRINT_STATUS + 16, payload)]
+        )
+        client = PrinterClient(transport=transport)
+        seen = {}
+
+        def on_progress(status):
+            seen.update(status)
+
+        client.on_progress = on_progress
+        status = await client.get_print_status()
+        assert status["page"] == 1
+        assert status["page_print_progress"] == 80
+        assert status["page_feed_progress"] == 40
+        assert status["progress"] == 80
+        assert seen["progress"] == 80
+
+    run(_test())

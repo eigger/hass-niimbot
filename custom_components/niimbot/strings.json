@@ -74,6 +74,10 @@
           "name": "Label Type",
           "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). Default: 1."
         },
+        "copies": {
+          "name": "Copies",
+          "description": "Number of copies to print of the same label. Default: 1."
+        },
         "wait_between_print_lines": {
           "name": "Wait between print lines",
           "description": "Time to wait between each line sent to the printer."
@@ -87,6 +91,10 @@
           "description": "Instead of printing, return the image as a base64-encoded URL."
         }
       }
+    },
+    "refresh_info": {
+      "name": "Refresh Printer Info",
+      "description": "Re-read cached printer settings (density, speed, label type, auto shutdown, battery bucket)."
     }
   }
 }
