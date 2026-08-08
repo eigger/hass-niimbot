@@ -197,6 +197,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
 
         try:
+            # Clear leftover 100% in the UI before the BLE job starts.
+            niimbot.begin_print_progress()
+            coordinator.async_set_updated_data(niimbot.ble_data)
             result = await niimbot.print_image(
                 ble_device,
                 image,
