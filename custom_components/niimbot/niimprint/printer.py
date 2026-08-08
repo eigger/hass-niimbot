@@ -69,11 +69,17 @@ class RequestCodeEnum(enum.IntEnum):
     PRINT_BITMAP_ROW = 133  # 0x85
     PRINT_CLEAR = 32  # 0x20
     SET_SOUND = 88  # 0x58
+    SET_AUTO_SHUTDOWN_TIME = 39  # 0x27
 
 
 class SoundEnum(enum.IntEnum):
     BluetoothConnectionSound = 1
     PowerSound = 2
+
+
+class SoundSettingsType(enum.IntEnum):
+    SetSound = 1
+    GetSoundState = 2
 
 
 class PrinterErrorCodeEnum(enum.IntEnum):
@@ -965,10 +971,41 @@ class PrinterClient:
     async def set_sound(self, key, on: bool):
         packet = await self._transceive(
             RequestCodeEnum.SET_SOUND,
-            struct.pack(">BBB", 0x01, key, 0x01 if on else 0x00),
+            struct.pack(
+                ">BBB", SoundSettingsType.SetSound, key, 0x01 if on else 0x00
+            ),
             16,
         )
         return bool(packet.data[0])
+
+    async def get_sound(self, key) -> bool | None:
+        """Read a sound setting. Returns None when unsupported or timed out."""
+        try:
+            packet = await self._transceive(
+                RequestCodeEnum.SET_SOUND,
+                struct.pack(">BBB", SoundSettingsType.GetSoundState, key, 0x01),
+                16,
+            )
+        except (PrinterTimeout, PrinterCommandUnsupported) as err:
+            _LOGGER.debug("get_sound(%s) unavailable: %s", key, err)
+            return None
+        if len(packet.data) < 3:
+            return None
+        return bool(packet.data[2])
+
+    async def set_auto_shutdown_time(self, index: int) -> bool:
+        if not 1 <= index <= 4:
+            raise ValueError(f"Auto shutdown index {index} out of range 1-4")
+        try:
+            packet = await self._transceive(
+                RequestCodeEnum.SET_AUTO_SHUTDOWN_TIME,
+                bytes((index,)),
+                16,
+            )
+        except (PrinterTimeout, PrinterCommandUnsupported) as err:
+            _LOGGER.debug("set_auto_shutdown_time(%s) failed: %s", index, err)
+            return False
+        return bool(packet.data[0]) if packet.data else False
 
     async def get_print_status(self, await_for_response=True):
         _LOGGER.debug("Get print status")

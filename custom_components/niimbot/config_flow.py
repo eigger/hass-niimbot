@@ -25,7 +25,6 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
-    CONF_USE_SOUND,
     CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
     CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
@@ -41,7 +40,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 OPTIONS_SCHEMA = {
-    vol.Required(CONF_USE_SOUND, default=True): bool,
     vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): NumberSelector(
         NumberSelectorConfig(
             min=10,

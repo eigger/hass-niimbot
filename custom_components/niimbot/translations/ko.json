@@ -15,7 +15,6 @@
             "user": {
                 "data": {
                     "address": "기기",
-                    "use_sound": "소리 사용",
                     "scan_interval": "스캔 간격",
                     "wait_between_each_print_line": "인쇄 라인 간 대기 시간",
                     "confirm_every_nth_print_line": "인쇄 라인 수신 확인 간격",
@@ -30,7 +29,6 @@
         "step": {
             "init": {
                 "data": {
-                    "use_sound": "소리 사용",
                     "scan_interval": "스캔 간격",
                     "wait_between_each_print_line": "인쇄 라인 간 대기 시간",
                     "confirm_every_nth_print_line": "인쇄 라인 수신 확인 간격",

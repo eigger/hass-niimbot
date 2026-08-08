@@ -169,9 +169,9 @@ sent before the page was started — not only for physical faults.
 | --- | --- | --- | --- | --- |
 | `0x21` | SetDensity | `0x31` | `u8` | Range is per model, see [devices.md](devices.md) |
 | `0x23` | SetLabelType | `0x33` | `u8` | Label type, section 6 |
-| `0x27` | SetAutoShutdownTime | `0x37` | `u8` 1–4 | **(not implemented here)** |
+| `0x27` | SetAutoShutdownTime | `0x37` | `u8` 1–4 | Auto Shutdown select entity |
 | `0x28` | PrinterReset | `0x38` | `01` | Resets settings such as sound. **(not implemented here)** |
-| `0x58` | SoundSettings | `0x68` | `category`, `item`, `value` | Get and set share one command |
+| `0x58` | SoundSettings | `0x68` | `category`, `item`, `value` | Connection Sound switch (get/set) |
 | `0x59` | CalibrateHeight | `0x69` | `01` | **(not implemented here)** |
 | `0x8E` | LabelPositioningCalibration | `0x8F` | `u8` | Feeds ~15 cm on B1 for values 1–2. **(not implemented here)** |
 

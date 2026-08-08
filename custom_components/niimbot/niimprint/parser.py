@@ -78,13 +78,15 @@ class BLEData:
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
 
-    def __init__(self, address, use_sound, keep_connection=False):
+    def __init__(self, address, keep_connection=False, connection_sound_seed: bool | None = True):
         self.address = address
-        self.use_sound = use_sound
         self.keep_connection = keep_connection
         self.lock = asyncio.Lock()
-        self.set_sound = None
         self.model = None
+        # Seed from legacy use_sound config until the printer reports its state.
+        self.connection_sound: bool | None = (
+            bool(connection_sound_seed) if connection_sound_seed is not None else True
+        )
         self.ble_data = BLEData(
             address=address,
             name="Niimbot",
@@ -99,8 +101,8 @@ class NiimbotDevice:
                 "density": None,
                 "printspeed": None,
                 "labeltype": None,
-                "autoshutdowntime": None,
                 "print_progress": 0.0,
+                "connection_sound": self.connection_sound,
             }
         )
         self.client = None
@@ -347,12 +349,47 @@ class NiimbotDevice:
             )
         if autoshutdown is not None:
             self.ble_data.autoshutdowntime = int(autoshutdown)
-            self.ble_data.sensors["autoshutdowntime"] = self.ble_data.autoshutdowntime
         if battery_bucket is not None:
             self._info_battery_bucket = int(battery_bucket)
             self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
 
         self._info_loaded = True
+
+    def _apply_connection_sound(self, on: bool) -> None:
+        self.connection_sound = on
+        self.ble_data.sensors["connection_sound"] = on
+
+    async def set_auto_shutdown(self, ble_device: BLEDevice, index: int) -> BLEData:
+        """Write AutoShutdownTime and update the local cache."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                ok = await printer.set_auto_shutdown_time(index)
+                if not ok:
+                    raise RuntimeError(
+                        f"Printer rejected auto shutdown index {index}"
+                    )
+                self.ble_data.autoshutdowntime = int(index)
+            finally:
+                await self._release_printer()
+            return self.ble_data
+
+    async def set_connection_sound(
+        self, ble_device: BLEDevice, on: bool
+    ) -> BLEData:
+        """Write Bluetooth connection beep and update the local cache."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                ok = await printer.set_sound(
+                    SoundEnum.BluetoothConnectionSound, on
+                )
+                if not ok:
+                    raise RuntimeError("Printer rejected connection sound setting")
+                self._apply_connection_sound(on)
+            finally:
+                await self._release_printer()
+            return self.ble_data
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
@@ -385,12 +422,14 @@ class NiimbotDevice:
                             meta["model"].name if meta else str(device_type)
                         )
                         self.model = self.ble_data.model
-                if not self.set_sound:
-                    self.set_sound = await printer.set_sound(
-                        SoundEnum.BluetoothConnectionSound, self.use_sound
-                    )
 
                 await self._load_printer_info(printer)
+
+                sound = await printer.get_sound(SoundEnum.BluetoothConnectionSound)
+                if sound is not None:
+                    self._apply_connection_sound(sound)
+                else:
+                    self.ble_data.sensors["connection_sound"] = self.connection_sound
 
                 heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
                 if printer.heartbeat_payload is not None:
@@ -429,7 +468,9 @@ class NiimbotDevice:
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
 
-    async def _maybe_read_rfid(self, printer: PrinterClient, heartbeat: dict) -> None:
+    async def _maybe_read_rfid(
+        self, printer: PrinterClient, heartbeat: dict, *, force: bool = False
+    ) -> None:
         """Read label RFID when the model supports it."""
         if not self.supports_label_rfid():
             return
@@ -443,9 +484,11 @@ class NiimbotDevice:
         # the round-trip when the printer explicitly reports unreadiness as 0 —
         # and even then fall through if we have never successfully read a tag,
         # because some models (observed on B1) leave the flag at 0 with stock
-        # loaded.
+        # loaded. After a print, force=True so used_len is re-read even when the
+        # readiness flag stays 0.
         if (
-            rfid_ready is not None
+            not force
+            and rfid_ready is not None
             and not rfid_ready
             and self._last_rfid_uuid is not None
         ):
@@ -459,6 +502,28 @@ class NiimbotDevice:
             return
 
         self._apply_rfid_info(info)
+
+    async def _refresh_after_print(self, printer: PrinterClient) -> None:
+        """Re-read heartbeat + RFID after a job — used_len is written during print."""
+        try:
+            # Give the printer a moment to finish writing the tag.
+            await asyncio.sleep(0.5)
+            heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
+            self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
+            self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
+            self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
+            battery = _battery_percentage(
+                heartbeat["powerlevel"],
+                self.ble_data.model,
+                variant=heartbeat.get("variant"),
+            )
+            if battery is None and self._info_battery_bucket is not None:
+                battery = round(float(self._info_battery_bucket) * 25.0)
+            if battery is not None:
+                self.ble_data.sensors["battery"] = battery
+            await self._maybe_read_rfid(printer, heartbeat, force=True)
+        except Exception as err:
+            _LOGGER.debug("Post-print status refresh failed: %s", err)
 
     async def print_image(
         self,
@@ -521,6 +586,9 @@ class NiimbotDevice:
                 if self.print_progress < 100:
                     self.print_progress = 100.0
                     self.ble_data.sensors["print_progress"] = 100.0
+                # Printer writes used_len back to the RFID tag during the job;
+                # re-read before disconnecting so remaining/usage sensors update.
+                await self._refresh_after_print(printer)
             finally:
                 if self._printer is not None:
                     self._printer.on_progress = None

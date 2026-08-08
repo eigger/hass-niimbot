@@ -235,6 +235,27 @@ def test_get_info_unsupported_key_returns_none():
     run(_test())
 
 
+def test_get_sound_reads_state_byte():
+    async def _test():
+        # Response 0x68 with category/item/value — value at data[2]
+        transport = FakeTransport([NiimbotPacket(0x68, bytes((0x02, 0x01, 0x01)))])
+        client = PrinterClient(transport=transport)
+        assert await client.get_sound(1) is True
+
+    run(_test())
+
+
+def test_set_auto_shutdown_time_success():
+    async def _test():
+        transport = FakeTransport([NiimbotPacket(0x37, b"\x01")])
+        client = PrinterClient(transport=transport)
+        assert await client.set_auto_shutdown_time(3) is True
+        assert transport.written_packets[0].type == 0x27
+        assert transport.written_packets[0].data == b"\x03"
+
+    run(_test())
+
+
 def test_battery_percentage_none():
     assert _battery_percentage(None, "B1") is None
 
