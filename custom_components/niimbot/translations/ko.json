@@ -144,9 +144,6 @@
             "label_sku": {
                 "name": "라벨 SKU"
             },
-            "consumable_type": {
-                "name": "소모품 타입"
-            },
             "tag_uuid": {
                 "name": "태그 UUID"
             },

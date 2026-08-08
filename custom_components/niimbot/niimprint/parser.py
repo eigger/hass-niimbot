@@ -47,7 +47,6 @@ RFID_SENSOR_KEYS = (
     "labels_total",
     "consumable_usage",
     "label_sku",
-    "consumable_type",
     "tag_uuid",
 )
 
@@ -181,14 +180,16 @@ class NiimbotDevice:
         self.ble_data.sensors["labels_total"] = total
         self.ble_data.sensors["consumable_usage"] = usage
         self.ble_data.sensors["label_sku"] = info.get("barcode")
-        self.ble_data.sensors["consumable_type"] = consumable_type_name(
-            info.get("type")
-        )
         self.ble_data.sensors["tag_uuid"] = info.get("uuid")
+        # Prefer the loaded tag's type over PrinterInfo LabelType — same code space.
+        type_code = info.get("type")
+        if type_code is not None:
+            self.ble_data.labeltype = int(type_code)
+            self.ble_data.sensors["labeltype"] = consumable_type_name(type_code)
         self._rfid_attrs = {
             "serial": info.get("serial"),
             "capacity": info.get("capacity"),
-            "type_code": info.get("type"),
+            "type_code": type_code,
         }
 
         new_uuid = info.get("uuid")
