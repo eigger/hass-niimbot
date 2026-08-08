@@ -92,6 +92,13 @@
     },
     "entity": {
         "binary_sensor": {
+            "cover": {
+                "name": "커버",
+                "state": {
+                    "on": "열림",
+                    "off": "닫힘"
+                }
+            },
             "paper": {
                 "name": "용지",
                 "state": {
