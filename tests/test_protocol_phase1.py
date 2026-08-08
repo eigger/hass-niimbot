@@ -233,3 +233,9 @@ def test_battery_percentage_normal():
 def test_battery_percentage_b1_pro():
     assert _battery_percentage(60, "B1_PRO") == 60
     assert _battery_percentage(100, "B1_PRO") == 100
+
+
+def test_battery_percentage_b1_pro_advanced2_is_bucket():
+    # Advanced2 always uses the 0–4 bucket, even on B1 Pro.
+    assert _battery_percentage(4, "B1_PRO", variant="advanced2") == 100
+    assert _battery_percentage(2, "B1_PRO", variant="advanced2") == 50

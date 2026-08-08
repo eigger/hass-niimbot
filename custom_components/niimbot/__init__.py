@@ -111,11 +111,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
             _LOGGER.warning("Unable to fetch data from %s: %s; returning last known data", address, err)
-            return niimbot.ble_data
-
-        for event in niimbot.pending_events:
-            hass.bus.async_fire(event["event_type"], event["data"])
-        niimbot.pending_events.clear()
+            data = niimbot.ble_data
+        finally:
+            # Fire roll-change events even when the rest of the poll failed
+            # after RFID data was already applied.
+            for event in niimbot.pending_events:
+                hass.bus.async_fire(event["event_type"], event["data"])
+            niimbot.pending_events.clear()
 
         return data
 

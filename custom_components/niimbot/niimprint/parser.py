@@ -20,10 +20,16 @@ from .model import (
 )
 
 
-def _battery_percentage(powerlevel: int | None, model: str) -> int | None:
+def _battery_percentage(
+    powerlevel: int | None,
+    model: str,
+    variant: str | None = None,
+) -> int | None:
     if powerlevel is None:
         return None
-    if model == PrinterModel.B1_PRO.name:
+    # Advanced2 always reports a 0–4 charge bucket. The B1 Pro 0–100 special
+    # case only applies to Advanced1 heartbeats.
+    if model == PrinterModel.B1_PRO.name and variant != "advanced2":
         # The B1 Pro reports a direct 0-100 percentage in powerlevel
         # (observed: 60 -> 60%, 100 -> 100%). Clamp to guard against
         # out-of-range values rather than rescaling.
@@ -300,10 +306,12 @@ class NiimbotDevice:
                     heartbeat.get("variant"),
                 )
                 battery = _battery_percentage(
-                    heartbeat["powerlevel"], self.ble_data.model
+                    heartbeat["powerlevel"],
+                    self.ble_data.model,
+                    variant=heartbeat.get("variant"),
                 )
-                if battery is not None:
-                    self.ble_data.sensors["battery"] = battery
+                # Always write so a missing powerlevel clears a stale reading.
+                self.ble_data.sensors["battery"] = battery
 
                 await self._maybe_read_rfid(printer, heartbeat)
 
