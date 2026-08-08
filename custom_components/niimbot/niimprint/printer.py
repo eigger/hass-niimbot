@@ -11,12 +11,15 @@ from bleak import BleakClient, BleakError
 from typing import Any, Callable, TypeVar
 from asyncio import Event, wait_for, sleep
 from .packet import NiimbotPacket
-from .model import PrinterModel
+from .model import PrinterModel, get_printer_meta_by_model
 
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
 _LOGGER = logging.getLogger(__name__)
+
+# PrintBitmapRowIndexed is only safe at or below this black-pixel count.
+INDEXED_BLACK_PIXEL_LIMIT = 6
 
 
 class BleakCharacteristicMissing(BleakError):
@@ -123,6 +126,27 @@ class PrinterError(Exception):
         return self.args[0]
 
 
+class PrinterTimeout(RuntimeError):
+    """Raised when the printer does not answer a request in time."""
+
+
+# Heartbeat response command IDs (not derived as reqcode + 1 for Advanced2).
+HEARTBEAT_RESP_ADVANCED1 = 0xDD
+HEARTBEAT_RESP_BASIC = 0xDE
+HEARTBEAT_RESP_UNKNOWN = 0xDF
+HEARTBEAT_RESP_ADVANCED2 = 0xD9
+HEARTBEAT_RESP_CODES = {
+    HEARTBEAT_RESP_ADVANCED1,
+    HEARTBEAT_RESP_BASIC,
+    HEARTBEAT_RESP_UNKNOWN,
+    HEARTBEAT_RESP_ADVANCED2,
+}
+
+# Default read budget for status/info commands. Print acknowledgements may
+# override with a longer timeout.
+DEFAULT_TRANSCEIVE_TIMEOUT = 5.0
+
+
 def _packet_to_int(x):
     return int.from_bytes(x.data, "big")
 
@@ -133,7 +157,7 @@ def _packet_to_float(x):
 
 class BaseTransport(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    async def read(self, length: int) -> bytes:
+    async def read(self, length: int, timeout: float = 30.0) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -155,27 +179,13 @@ class BLETransport(BaseTransport):
         self._command_data = bytearray()
         self._event = Event()
 
-    # def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
-    #     """Decorator to handle disconnection on missing services/characteristics."""
-
-    #     async def wrapper(self, *args: Any, **kwargs: Any):
-    #         try:
-    #             return await func(self, *args, **kwargs)
-    #         except (BleakServiceMissing, BleakCharacteristicMissing) as ex:
-    #             if self._client.is_connected:
-    #                 await self._client.clear_cache()
-    #                 await self._client.disconnect()
-    #             raise
-
-    #     return cast(WrapFuncType, wrapper)
-
-    async def read(self, length: int) -> bytes:
-        return await self.read_notify(30)
+    async def read(self, length: int, timeout: float = 30.0) -> bytes:
+        return await self.read_notify(timeout)
 
     async def write(self, data: bytes, response=True):
         return await self.write_ble(CHARACTERISTIC_UUID, data, response)
 
-    async def read_notify(self, timeout: int) -> bytes:
+    async def read_notify(self, timeout: float) -> bytes:
         """Wait for notification data to be received within the timeout."""
         await wait_for(self._event.wait(), timeout=timeout)
         data = bytes(self._command_data)
@@ -183,7 +193,6 @@ class BLETransport(BaseTransport):
         self._event.clear()  # Reset the event for the next notification
         return data
 
-    # @disconnect_on_missing_services
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write data to the BLE characteristic."""
         await self._client.write_gatt_char(uuid, data, response)
@@ -199,7 +208,6 @@ class BLETransport(BaseTransport):
         self._command_data.extend(data)
         self._event.set()  # Notify the waiting coroutine that data has arrived
 
-    # @disconnect_on_missing_services
     async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic."""
         await self._client.start_notify(uuid, self._notification_handler)
@@ -211,11 +219,27 @@ class BLETransport(BaseTransport):
 
 
 class PrinterClient:
-    def __init__(self, client: BleakClient):
-        self._transport = BLETransport(client)
+    def __init__(
+        self,
+        client: BleakClient | None = None,
+        *,
+        transport: BaseTransport | None = None,
+        heartbeat_payload: bytes | None = None,
+    ):
+        if transport is not None:
+            self._transport = transport
+        elif client is not None:
+            self._transport = BLETransport(client)
+        else:
+            raise ValueError("client or transport is required")
         self._packetbuf = bytearray()
         self._timings: list[float] = []
-        # Conservative defaults.
+        # Cached heartbeat request payload that previously succeeded (b"\x01" or b"\x04").
+        self._heartbeat_payload: bytes | None = heartbeat_payload
+
+    @property
+    def heartbeat_payload(self) -> bytes | None:
+        return self._heartbeat_payload
 
     async def start_notify(self):
         await self._transport.start_notify(CHARACTERISTIC_UUID)
@@ -230,39 +254,34 @@ class PrinterClient:
         density: int,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        label_type: int = 1,
     ):
         self._timings = []
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
+            meta = get_printer_meta_by_model(model)
+            printhead_pixels = meta["printheadPixels"] if meta else None
+            density_min = meta.get("densityMin", 1) if meta else 1
+            density_max = meta.get("densityMax", 5) if meta else 5
+            kwargs = dict(
+                image=image,
+                density=density,
+                wait_between_print_lines=wait_between_print_lines,
+                print_line_batch_size=print_line_batch_size,
+                printhead_pixels=printhead_pixels,
+                label_type=label_type,
+                density_min=density_min,
+                density_max=density_max,
+            )
             if model in (PrinterModel.UNKNOWN, PrinterModel.D11, PrinterModel.D11S):
-                return await self.print_image_d11_v1(
-                    image,
-                    density,
-                    wait_between_print_lines,
-                    print_line_batch_size,
-                )
+                return await self.print_image_d11_v1(**kwargs)
             elif model in (PrinterModel.B21S, PrinterModel.B21S_C2B, PrinterModel.D110):
-                return await self.print_image_d110(
-                    image,
-                    density,
-                    wait_between_print_lines,
-                    print_line_batch_size,
-                )
+                return await self.print_image_d110(**kwargs)
             elif model in (PrinterModel.D11_H, PrinterModel.D11_PRO, PrinterModel.B21_PRO, PrinterModel.D110_M, PrinterModel.B2_PRO):
-                return await self.print_image_d110m_v4(
-                    image,
-                    density,
-                    wait_between_print_lines,
-                    print_line_batch_size,
-                )
+                return await self.print_image_d110m_v4(**kwargs)
             else:
-                return await self.print_image_b1(
-                    image,
-                    density,
-                    wait_between_print_lines,
-                    print_line_batch_size,
-                )
+                return await self.print_image_b1(**kwargs)
         finally:
             avg = (sum(self._timings) / len(self._timings)) if self._timings else 0.0
             _LOGGER.debug(
@@ -277,11 +296,15 @@ class PrinterClient:
         density,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        printhead_pixels: int | None = None,
+        label_type: int = 1,
+        density_min: int = 1,
+        density_max: int = 5,
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
         _LOGGER.debug("print_image_d11_v1: %s", locals())
-        await self.set_label_density(density)
-        await self.set_label_type(1)
+        await self.set_label_density(density, density_min, density_max)
+        await self.set_label_type(label_type)
         await self.start_print()
         await self.allow_print_clear()
         await self.start_page_print()
@@ -291,6 +314,7 @@ class PrinterClient:
             image,
             wait_between_print_lines,
             print_line_batch_size,
+            printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
         start_time = time.time()
@@ -306,10 +330,14 @@ class PrinterClient:
         density,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        printhead_pixels: int | None = None,
+        label_type: int = 1,
+        density_min: int = 1,
+        density_max: int = 5,
     ):
         _LOGGER.debug("print_image_b1: %s", locals())
-        await self.set_label_density(density)
-        await self.set_label_type(1)
+        await self.set_label_density(density, density_min, density_max)
+        await self.set_label_type(label_type)
         await self.start_print_v4()
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width)
@@ -317,6 +345,7 @@ class PrinterClient:
             image,
             wait_between_print_lines,
             print_line_batch_size,
+            printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
         # The B1/B1 Pro retains the *previous* job's progress=100 and reports it
@@ -350,10 +379,14 @@ class PrinterClient:
         density,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        printhead_pixels: int | None = None,
+        label_type: int = 1,
+        density_min: int = 1,
+        density_max: int = 5,
     ):
-        _LOGGER.debug("print_image_b1: %s", locals())
-        await self.set_label_density(density)
-        await self.set_label_type(1)
+        _LOGGER.debug("print_image_d110: %s", locals())
+        await self.set_label_density(density, density_min, density_max)
+        await self.set_label_type(label_type)
         await self.start_print()
         await self.start_page_print()
         await self.set_page_size_v2(image.height, image.width)
@@ -362,6 +395,7 @@ class PrinterClient:
             image,
             wait_between_print_lines,
             print_line_batch_size,
+            printhead_pixels=printhead_pixels,
         )
         await self.end_page_print()
         start_time = time.time()
@@ -377,12 +411,16 @@ class PrinterClient:
         density,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        printhead_pixels: int | None = None,
+        label_type: int = 1,
+        density_min: int = 1,
+        density_max: int = 5,
     ):
         _LOGGER.debug("print_image_d110m_v4: %s", locals())
-        if not await self.set_label_density(density):
+        if not await self.set_label_density(density, density_min, density_max):
             raise RuntimeError(f"Could not set label density to {density}")
-        if not await self.set_label_type(1):
-            raise RuntimeError(f"Could not set label type to {1}")
+        if not await self.set_label_type(label_type):
+            raise RuntimeError(f"Could not set label type to {label_type}")
         if not await self.start_print_9b():
             raise RuntimeError("Could not start print")
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
@@ -392,6 +430,7 @@ class PrinterClient:
             image,
             wait_between_print_lines,
             print_line_batch_size,
+            printhead_pixels=printhead_pixels,
         )
         if not await self.end_page_print():
             raise RuntimeError("Page did not finish successfully")
@@ -406,72 +445,124 @@ class PrinterClient:
         await self.heartbeat(await_for_response=False)
 
     def _countbitsofbytes(self, data):
-        n = int.from_bytes(data, "big")
-        # https://stackoverflow.com/a/9830282
-        n = (n & 0x55555555) + ((n & 0xAAAAAAAA) >> 1)
-        n = (n & 0x33333333) + ((n & 0xCCCCCCCC) >> 2)
-        n = (n & 0x0F0F0F0F) + ((n & 0xF0F0F0F0) >> 4)
-        n = (n & 0x00FF00FF) + ((n & 0xFF00FF00) >> 8)
-        n = (n & 0x0000FFFF) + ((n & 0xFFFF0000) >> 16)
-        return n
+        if not data:
+            return 0
+        # int.bit_count() handles arbitrary-length row buffers correctly.
+        return int.from_bytes(data, "big").bit_count()
+
+    def _row_counter_bytes(self, row_bytes: bytes, printhead_pixels: int) -> bytes:
+        """Build the three counter bytes for a bitmap / indexed row header."""
+        chunk_size = printhead_pixels // 8 // 3
+        if chunk_size > 0 and len(row_bytes) <= chunk_size * 3:
+            return bytes(
+                (
+                    self._countbitsofbytes(row_bytes[0:chunk_size]),
+                    self._countbitsofbytes(row_bytes[chunk_size : chunk_size * 2]),
+                    self._countbitsofbytes(row_bytes[chunk_size * 2 : chunk_size * 3]),
+                )
+            )
+        total = self._countbitsofbytes(row_bytes)
+        return bytes((0x00, total & 0xFF, (total >> 8) & 0xFF))
+
+    @staticmethod
+    def _black_pixel_indices(row_bytes: bytes, width: int) -> list[int]:
+        indices: list[int] = []
+        for x in range(width):
+            byte = row_bytes[x // 8]
+            bit = 7 - (x % 8)
+            if byte & (1 << bit):
+                indices.append(x)
+        return indices
 
     async def set_image(
         self,
         image: Image.Image,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        printhead_pixels: int | None = None,
     ):
         _LOGGER.debug("Set image")
-        # Block every 4th send to prevent BT congestion.
+        if print_line_batch_size < 1:
+            print_line_batch_size = 1
+        # Block every Nth send to prevent BT congestion.
         blocking_send = itertools.cycle([False] * (print_line_batch_size - 1) + [True])
         img = ImageOps.invert(image.convert("L")).convert("1")
+        # Fall back to legacy 96px counters when printhead size is unknown.
+        head_pixels = printhead_pixels or 96
+
         empty_row = 0
         empty_row_count = 0
+        pending_y: int | None = None
+        pending_bytes: bytes | None = None
+        pending_repeats = 0
+
+        async def flush_empty() -> None:
+            nonlocal empty_row, empty_row_count
+            while empty_row_count > 0:
+                empty_rows_to_print = min(255, empty_row_count)
+                await self.set_empty_row(
+                    empty_row,
+                    empty_rows_to_print,
+                    response=next(blocking_send),
+                    wait_between_print_lines=wait_between_print_lines,
+                )
+                empty_row += empty_rows_to_print
+                empty_row_count -= empty_rows_to_print
+
+        async def flush_pending_bitmap() -> None:
+            nonlocal pending_y, pending_bytes, pending_repeats
+            if pending_bytes is None or pending_y is None:
+                return
+            counters = self._row_counter_bytes(pending_bytes, head_pixels)
+            indices = self._black_pixel_indices(pending_bytes, img.width)
+            if len(indices) <= INDEXED_BLACK_PIXEL_LIMIT:
+                header = struct.pack(">H3BB", pending_y, *counters, pending_repeats)
+                payload = b"".join(struct.pack(">H", i) for i in indices)
+                await self.set_bitmap_row_indexed(
+                    header,
+                    payload,
+                    response=next(blocking_send),
+                    wait_between_print_lines=wait_between_print_lines,
+                )
+            else:
+                header = struct.pack(">H3BB", pending_y, *counters, pending_repeats)
+                await self.set_bitmap_row(
+                    header,
+                    pending_bytes,
+                    response=next(blocking_send),
+                    wait_between_print_lines=wait_between_print_lines,
+                )
+            pending_y = None
+            pending_bytes = None
+            pending_repeats = 0
+
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data_bytes = "".join("0" if pix == 0 else "1" for pix in line_data)
             line_data_ints = int(line_data_bytes, 2).to_bytes(
                 math.ceil(img.width / 8), "big"
             )
-            counts = (
-                self._countbitsofbytes(line_data_ints[i * 4 : (i + 1) * 4])
-                for i in range(3)
-            )
-            header = struct.pack(">H3BB", y, *counts, 1)
             if all(byte == 0 for byte in line_data_ints):
+                await flush_pending_bitmap()
                 if empty_row_count == 0:
                     empty_row = y
                 empty_row_count += 1
             else:
-                # Printer can only "print" maximum 255 empty rows.
-                # Do them a max of 255 at a time.
-                while empty_row_count > 0:
-                    empty_rows_to_print = min([255, empty_row_count])
-                    await self.set_empty_row(
-                        empty_row,
-                        empty_rows_to_print,
-                        response=next(blocking_send),
-                        wait_between_print_lines=wait_between_print_lines,
-                    )
-                    empty_row = empty_row + empty_rows_to_print
-                    empty_row_count = empty_row_count - empty_rows_to_print
-                await self.set_bitmap_row(
-                    header,
-                    line_data_ints,
-                    response=next(blocking_send),
-                    wait_between_print_lines=wait_between_print_lines,
-                )
-        # Finish by printing any empty rows too.
-        while empty_row_count > 0:
-            empty_rows_to_print = min([255, empty_row_count])
-            await self.set_empty_row(
-                empty_row,
-                empty_rows_to_print,
-                response=next(blocking_send),
-                wait_between_print_lines=wait_between_print_lines,
-            )
-            empty_row = empty_row + empty_rows_to_print
-            empty_row_count = empty_row_count - empty_rows_to_print
+                await flush_empty()
+                if (
+                    pending_bytes is not None
+                    and line_data_ints == pending_bytes
+                    and pending_repeats < 255
+                ):
+                    pending_repeats += 1
+                else:
+                    await flush_pending_bitmap()
+                    pending_y = y
+                    pending_bytes = line_data_ints
+                    pending_repeats = 1
+
+        await flush_pending_bitmap()
+        await flush_empty()
 
     async def set_empty_row(
         self,
@@ -503,9 +594,26 @@ class PrinterClient:
         await sleep(wait_between_print_lines)
         self._timings.append(time.time() - start)
 
-    async def _recv(self):
+    async def set_bitmap_row_indexed(
+        self,
+        header,
+        data,
+        response: bool,
+        wait_between_print_lines: float,
+    ):
+        packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW_INDEXED, header + data)
+        self._log_buffer("send", packet.to_bytes())
+        start = time.time()
+        await self._send(packet, response)
+        await sleep(wait_between_print_lines)
+        self._timings.append(time.time() - start)
+
+    async def _recv(self, timeout: float = 30.0):
         packets = []
-        self._packetbuf.extend(await self._transport.read(1024))
+        try:
+            self._packetbuf.extend(await self._transport.read(1024, timeout=timeout))
+        except TimeoutError:
+            return packets
         while len(self._packetbuf) > 4:
             # Resync to the next 0x55 0x55 header, discarding any stale bytes
             # left over from unsolicited mid-stream packets.
@@ -534,60 +642,79 @@ class PrinterClient:
         msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
         _LOGGER.debug(f"{prefix}({len(buff)}): {msg}")
 
-    async def _transceive(self, reqcode, data, respoffset=1, await_for_response=True):
-        respcode = respoffset + reqcode
+    async def _transceive(
+        self,
+        reqcode,
+        data,
+        respoffset=1,
+        await_for_response=True,
+        resp_codes: set[int] | None = None,
+        timeout: float = DEFAULT_TRANSCEIVE_TIMEOUT,
+    ):
+        if resp_codes is None:
+            resp_codes = {respoffset + reqcode}
         packet = NiimbotPacket(reqcode, data)
         self._log_buffer("send", packet.to_bytes())
         await self._send(packet)
         if not await_for_response:
-            return
+            return None
+        deadline = time.monotonic() + timeout
         resp = None
         for _ in range(6):
-            for packet in await self._recv():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            for packet in await self._recv(timeout=remaining):
                 if packet.type == 219:
                     # We will assume a single byte error.
                     raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
                 elif packet.type == 0:
                     raise NotImplementedError
-                elif packet.type == respcode:
+                elif packet.type in resp_codes:
                     resp = packet
             if resp:
                 return resp
-        return resp
+        raise PrinterTimeout(
+            f"No response for request 0x{int(reqcode):02x} "
+            f"(expected {[hex(c) for c in resp_codes]})"
+        )
 
     async def get_info(self, key):
-        if packet := await self._transceive(
-            RequestCodeEnum.GET_INFO, bytes((key,)), key
-        ):
-            match key:
-                case InfoEnum.DEVICESERIAL:
-                    # niimblue: varies by length
-                    if len(packet.data) < 4:
-                        return "-1"
-                    elif len(packet.data) >= 8:
-                        return bytes.fromhex(packet.data.hex()).decode("ascii", errors="replace")
-                    else:
-                        return packet.data[:4].hex().upper()
-                case InfoEnum.SOFTVERSION:
-                    return packet.data[0] + (packet.data[1] / 100)
-                case InfoEnum.HARDVERSION:
-                    return packet.data[0] + (packet.data[1] / 100)
-                case InfoEnum.DEVICETYPE:
-                    # niimblue: 1-byte => data[0] << 8, 2-byte => bytesToI16
-                    if len(packet.data) == 1:
-                        return packet.data[0] << 8
-                    else:
-                        return int.from_bytes(packet.data[:2], "big")
-                case _:
-                    return _packet_to_int(packet)
-        else:
+        try:
+            packet = await self._transceive(
+                RequestCodeEnum.GET_INFO, bytes((key,)), key
+            )
+        except PrinterTimeout:
             return None
+        match key:
+            case InfoEnum.DEVICESERIAL:
+                # niimblue: varies by length
+                if len(packet.data) < 4:
+                    return "-1"
+                elif len(packet.data) >= 8:
+                    return bytes.fromhex(packet.data.hex()).decode("ascii", errors="replace")
+                else:
+                    return packet.data[:4].hex().upper()
+            case InfoEnum.SOFTVERSION:
+                return packet.data[0] + (packet.data[1] / 100)
+            case InfoEnum.HARDVERSION:
+                return packet.data[0] + (packet.data[1] / 100)
+            case InfoEnum.DEVICETYPE:
+                # niimblue: 1-byte => data[0] << 8, 2-byte => bytesToI16
+                if len(packet.data) == 1:
+                    return packet.data[0] << 8
+                else:
+                    return int.from_bytes(packet.data[:2], "big")
+            case _:
+                return _packet_to_int(packet)
 
     async def get_rfid(self):
         packet = await self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
         data = packet.data
 
-        if data[0] == 0:
+        # A 1-byte payload means no tag. Do not test data[0] == 0 — that is the
+        # first byte of the UUID and can legitimately be zero.
+        if len(data) <= 1:
             return None
         uuid = data[0:8].hex()
         idx = 8
@@ -602,7 +729,13 @@ class PrinterClient:
         serial = data[idx : idx + serial_len].decode()
 
         idx += serial_len
-        total_len, used_len, type_ = struct.unpack(">HHB", data[idx:])
+        total_len, used_len, type_ = struct.unpack(">HHB", data[idx : idx + 5])
+        idx += 5
+        capacity = (
+            struct.unpack(">H", data[idx : idx + 2])[0]
+            if len(data) >= idx + 2
+            else None
+        )
         return {
             "uuid": uuid,
             "barcode": barcode,
@@ -610,41 +743,40 @@ class PrinterClient:
             "used_len": used_len,
             "total_len": total_len,
             "type": type_,
+            "capacity": capacity,
         }
 
-    async def heartbeat(self, await_for_response=True, model_id=None):
-        _LOGGER.debug("Heartbeat")
-        packet = await self._transceive(
-            RequestCodeEnum.HEARTBEAT, b"\x01", await_for_response=await_for_response
-        )
-        if not await_for_response:
-            return
+    def _parse_heartbeat_advanced1(self, data: bytes, model_id=None) -> dict:
         closingstate = None
         powerlevel = None
         paperstate = None
         rfidreadstate = None
-        match len(packet.data):
+        match len(data):
             case 20:
-                paperstate = packet.data[18]
-                rfidreadstate = packet.data[19]
+                paperstate = data[18]
+                rfidreadstate = data[19]
             case 13:
-                closingstate = packet.data[9]
-                powerlevel = packet.data[10]
-                paperstate = packet.data[11]
-                rfidreadstate = packet.data[12]
+                closingstate = data[9]
+                powerlevel = data[10]
+                paperstate = data[11]
+                rfidreadstate = data[12]
             case 19:
-                closingstate = packet.data[15]
-                powerlevel = packet.data[16]
-                paperstate = packet.data[17]
-                rfidreadstate = packet.data[18]
+                closingstate = data[15]
+                powerlevel = data[16]
+                paperstate = data[17]
+                rfidreadstate = data[18]
             case 10:
-                # D110 format from niimblue
-                closingstate = packet.data[8]
-                powerlevel = packet.data[9]
+                closingstate = data[8]
+                powerlevel = data[9]
             case 9:
-                closingstate = packet.data[8]
+                closingstate = data[8]
+            case _:
+                _LOGGER.debug(
+                    "Unrecognized Advanced1 heartbeat length %s: %s",
+                    len(data),
+                    data.hex(),
+                )
 
-        # niimblue: invert lid state for certain models
         if closingstate is not None and model_id is not None:
             if model_id in INVERTED_LID_MODELS:
                 closingstate = 0 if closingstate != 0 else 1
@@ -654,16 +786,98 @@ class PrinterClient:
             "powerlevel": powerlevel,
             "paperstate": paperstate,
             "rfidreadstate": rfidreadstate,
+            "variant": "advanced1",
         }
+
+    def _parse_heartbeat_advanced2(self, data: bytes) -> dict:
+        """Parse Advanced2 (0xD9) fixed-offset heartbeat. Inverted-lid list does not apply."""
+        if len(data) < 9:
+            _LOGGER.debug(
+                "Advanced2 heartbeat too short (%s): %s", len(data), data.hex()
+            )
+            return {
+                "closingstate": None,
+                "powerlevel": None,
+                "paperstate": None,
+                "rfidreadstate": None,
+                "variant": "advanced2",
+            }
+
+        result = {
+            "closingstate": data[4],
+            "powerlevel": data[2],
+            "paperstate": data[5],
+            "rfidreadstate": data[6],
+            "ribbon_rfidreadstate": data[7],
+            "ribbonstate": data[8],
+            "temperature": data[3],
+            "variant": "advanced2",
+        }
+        if len(data) >= 11:
+            result["wifi_rssi"] = int.from_bytes(data[9:11], "big", signed=True)
+        if len(data) >= 13:
+            result["lighting_error"] = data[12]
+        if len(data) >= 14:
+            result["voltage_state"] = data[13]
+        return result
+
+    def _parse_heartbeat(self, packet: NiimbotPacket, model_id=None) -> dict:
+        if packet.type == HEARTBEAT_RESP_ADVANCED2:
+            return self._parse_heartbeat_advanced2(packet.data)
+        return self._parse_heartbeat_advanced1(packet.data, model_id=model_id)
+
+    async def heartbeat(self, await_for_response=True, model_id=None):
+        _LOGGER.debug("Heartbeat")
+        if not await_for_response:
+            payload = self._heartbeat_payload or b"\x01"
+            await self._transceive(
+                RequestCodeEnum.HEARTBEAT,
+                payload,
+                await_for_response=False,
+            )
+            return None
+
+        # Prefer the payload that worked last time; otherwise try Advanced1 then Advanced2.
+        candidates: list[bytes] = []
+        if self._heartbeat_payload is not None:
+            candidates.append(self._heartbeat_payload)
+        for payload in (b"\x01", b"\x04"):
+            if payload not in candidates:
+                candidates.append(payload)
+
+        last_error: Exception | None = None
+        for payload in candidates:
+            try:
+                packet = await self._transceive(
+                    RequestCodeEnum.HEARTBEAT,
+                    payload,
+                    resp_codes=HEARTBEAT_RESP_CODES,
+                    timeout=DEFAULT_TRANSCEIVE_TIMEOUT,
+                )
+            except PrinterTimeout as err:
+                _LOGGER.debug(
+                    "Heartbeat payload %s timed out: %s", payload.hex(), err
+                )
+                last_error = err
+                continue
+            self._heartbeat_payload = payload
+            return self._parse_heartbeat(packet, model_id=model_id)
+
+        assert last_error is not None
+        raise last_error
 
     async def set_label_type(self, n):
         _LOGGER.debug("Set label type %s", n)
-        assert 1 <= n <= 3
+        if not 1 <= n <= 11:
+            raise ValueError(f"Label type {n} out of range 1-11")
         packet = await self._transceive(RequestCodeEnum.SET_LABEL_TYPE, bytes((n,)), 16)
         return bool(packet.data[0])
 
-    async def set_label_density(self, n):
-        assert 1 <= n <= 5  # B21 has 5 levels, not sure for D11
+    async def set_label_density(self, n, density_min: int = 1, density_max: int = 5):
+        if not density_min <= n <= density_max:
+            raise ValueError(
+                f"Label density {n} out of range {density_min}-{density_max}"
+            )
         _LOGGER.debug("Set label density %s", n)
         packet = await self._transceive(
             RequestCodeEnum.SET_LABEL_DENSITY, bytes((n,)), 16

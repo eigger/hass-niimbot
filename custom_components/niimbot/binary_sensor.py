@@ -43,7 +43,8 @@ BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
         key="paperstate",
         name="Paper Loaded",
         icon="mdi:label-outline",
-        # paperstate != 0 means paper is present
+        # Protocol: paperstate == 0 means inserted. Do not flip until HW-confirmed;
+        # inverted flag is wired and ready once confirmed.
     ),
     NiimbotBinarySensorEntityDescription(
         key="rfidreadstate",
@@ -110,7 +111,10 @@ class NiimbotStateBinarySensor(
         value = self.coordinator.data.sensors.get(self.entity_description.key)
         if value is None:
             return None
-        return value != 0
+        is_on = value != 0
+        if self.entity_description.inverted:
+            return not is_on
+        return is_on
 
 
 class NiimbotConnectionBinarySensor(

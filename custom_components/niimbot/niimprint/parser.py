@@ -11,13 +11,25 @@ from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
-from .printer import PrinterClient, InfoEnum, SoundEnum
-from .model import PrinterModel, get_printer_meta_by_id
-import typing
+from .printer import PrinterClient, InfoEnum, SoundEnum, PrinterTimeout, PrinterError
+from .model import (
+    PrinterModel,
+    consumable_type_name,
+    get_printer_meta_by_id,
+    supports_label_rfid,
+)
 
 
-def _battery_percentage(powerlevel: int, model: str) -> int:
-    if model == PrinterModel.B1_PRO.name:
+def _battery_percentage(
+    powerlevel: int | None,
+    model: str,
+    variant: str | None = None,
+) -> int | None:
+    if powerlevel is None:
+        return None
+    # Advanced2 always reports a 0–4 charge bucket. The B1 Pro 0–100 special
+    # case only applies to Advanced1 heartbeats.
+    if model == PrinterModel.B1_PRO.name and variant != "advanced2":
         # The B1 Pro reports a direct 0-100 percentage in powerlevel
         # (observed: 60 -> 60%, 100 -> 100%). Clamp to guard against
         # out-of-range values rather than rescaling.
@@ -25,6 +37,18 @@ def _battery_percentage(powerlevel: int, model: str) -> int:
     return round(float(powerlevel) * 25.0)
 
 _LOGGER = logging.getLogger(__name__)
+
+EVENT_ROLL_CHANGED = "niimbot_roll_changed"
+
+RFID_SENSOR_KEYS = (
+    "labels_remaining",
+    "labels_used",
+    "labels_total",
+    "consumable_usage",
+    "label_sku",
+    "consumable_type",
+    "tag_uuid",
+)
 
 
 @dataclasses.dataclass
@@ -70,16 +94,88 @@ class NiimbotDevice:
                 "closingstate": None,
                 "paperstate": None,
                 "rfidreadstate": None,
+                "last_error": None,
             }
         )
         self.client = None
         self._printer: PrinterClient | None = None
+        self._heartbeat_payload: bytes | None = None
+        self._last_rfid_uuid: str | None = None
+        self._rfid_attrs: dict = {}
+        self.last_error: str | None = None
+        self.last_error_time: float | None = None
+        self.pending_events: list[dict] = []
         self.callback_connection = None
         self.callback_printing = None
+        self.callback_error = None
         self._is_printing = False
         self._print_start_time: float | None = None
         self._print_end_time: float | None = None
         super().__init__()
+
+    def get_model_meta(self):
+        """Return enriched model metadata when device type is known."""
+        if self.ble_data.devicetype in ("", None):
+            return None
+        try:
+            return get_printer_meta_by_id(int(self.ble_data.devicetype))
+        except (TypeError, ValueError):
+            return None
+
+    def supports_label_rfid(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_label_rfid(meta.get("rfid"))
+
+    def _apply_rfid_info(self, info: dict | None) -> None:
+        """Update RFID sensors from a tag read. Keeps previous values on None."""
+        if info is None:
+            return
+        total = info.get("total_len")
+        used = info.get("used_len")
+        remaining = None
+        usage = None
+        if total is not None and used is not None:
+            remaining = max(0, total - used)
+            if total > 0:
+                usage = round(used / total * 100.0, 1)
+
+        self.ble_data.sensors["labels_remaining"] = remaining
+        self.ble_data.sensors["labels_used"] = used
+        self.ble_data.sensors["labels_total"] = total
+        self.ble_data.sensors["consumable_usage"] = usage
+        self.ble_data.sensors["label_sku"] = info.get("barcode")
+        self.ble_data.sensors["consumable_type"] = consumable_type_name(
+            info.get("type")
+        )
+        self.ble_data.sensors["tag_uuid"] = info.get("uuid")
+        self._rfid_attrs = {
+            "serial": info.get("serial"),
+            "capacity": info.get("capacity"),
+            "type_code": info.get("type"),
+        }
+
+        new_uuid = info.get("uuid")
+        if (
+            new_uuid
+            and self._last_rfid_uuid is not None
+            and new_uuid != self._last_rfid_uuid
+        ):
+            self.pending_events.append(
+                {
+                    "event_type": EVENT_ROLL_CHANGED,
+                    "data": {
+                        "address": self.address,
+                        "old_uuid": self._last_rfid_uuid,
+                        "new_uuid": new_uuid,
+                        "barcode": info.get("barcode"),
+                        "total_len": total,
+                    },
+                }
+            )
+        if new_uuid:
+            self._last_rfid_uuid = new_uuid
 
     def _notify_connection(self):
         """Notify connection state change."""
@@ -90,6 +186,19 @@ class NiimbotDevice:
         """Notify printing state change."""
         if self.callback_printing:
             self.callback_printing()
+
+    def _notify_error(self):
+        if self.callback_error:
+            self.callback_error()
+
+    def _record_error(self, err: Exception) -> None:
+        if isinstance(err, PrinterError):
+            self.last_error = err.code().name
+        else:
+            self.last_error = type(err).__name__
+        self.last_error_time = time.time()
+        self.ble_data.sensors["last_error"] = self.last_error
+        self._notify_error()
 
     @property
     def is_connected(self) -> bool:
@@ -149,7 +258,9 @@ class NiimbotDevice:
                 self._notify_connection()
 
             try:
-                printer = PrinterClient(self.client)
+                printer = PrinterClient(
+                    self.client, heartbeat_payload=self._heartbeat_payload
+                )
                 await printer.start_notify()
                 if not self.ble_data.serial_number:
                     self.ble_data.serial_number = str(
@@ -164,45 +275,50 @@ class NiimbotDevice:
                         await printer.get_info(InfoEnum.SOFTVERSION)
                     )
                 if not self.ble_data.devicetype:
-                    self.ble_data.devicetype = await printer.get_info(InfoEnum.DEVICETYPE)
-                    meta = get_printer_meta_by_id(int(self.ble_data.devicetype))
-                    self.ble_data.model = (
-                        meta["model"].name if meta else str(self.ble_data.devicetype)
-                    )
-                    self.model = self.ble_data.model
+                    device_type = await printer.get_info(InfoEnum.DEVICETYPE)
+                    if device_type is not None:
+                        self.ble_data.devicetype = device_type
+                        meta = get_printer_meta_by_id(int(device_type))
+                        self.ble_data.model = (
+                            meta["model"].name if meta else str(device_type)
+                        )
+                        self.model = self.ble_data.model
                 if not self.set_sound:
                     self.set_sound = await printer.set_sound(
                         SoundEnum.BluetoothConnectionSound, self.use_sound
                     )
 
-                # if not device.density:
-                #     device.density = str(await printer.get_info(InfoEnum.DENSITY))
-                # if not device.printspeed:
-                #     device.printspeed = str(await printer.get_info(InfoEnum.PRINTSPEED))
-                # if not device.labeltype:
-                #     device.labeltype = str(await printer.get_info(InfoEnum.LABELTYPE))
-                # if not device.languagetype:
-                #     device.languagetype = str(await printer.get_info(InfoEnum.LANGUAGETYPE))
-                # if not device.autoshutdowntime:
-                #     device.autoshutdowntime = str(await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME))
-
-                if self.ble_data.density is not None:
-                    self.ble_data.sensors["density"] = self.ble_data.density
-                if self.ble_data.printspeed is not None:
-                    self.ble_data.sensors["printspeed"] = self.ble_data.printspeed
-                if self.ble_data.labeltype is not None:
-                    self.ble_data.sensors["labeltype"] = self.ble_data.labeltype
-                if self.ble_data.languagetype is not None:
-                    self.ble_data.sensors["languagetype"] = self.ble_data.languagetype
-                if self.ble_data.autoshutdowntime is not None:
-                    self.ble_data.sensors["autoshutdowntime"] = self.ble_data.autoshutdowntime
-
                 heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
+                if printer.heartbeat_payload is not None:
+                    self._heartbeat_payload = printer.heartbeat_payload
                 self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
                 self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
                 self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
-                self.ble_data.sensors["battery"] = _battery_percentage(heartbeat["powerlevel"], self.ble_data.model)
+                # Log raw polarity values so maintainers can confirm paperstate
+                # (protocol: 0 = inserted) before flipping the binary sensor.
+                _LOGGER.debug(
+                    "Heartbeat raw: closingstate=%s paperstate=%s "
+                    "rfidreadstate=%s powerlevel=%s variant=%s",
+                    heartbeat.get("closingstate"),
+                    heartbeat.get("paperstate"),
+                    heartbeat.get("rfidreadstate"),
+                    heartbeat.get("powerlevel"),
+                    heartbeat.get("variant"),
+                )
+                battery = _battery_percentage(
+                    heartbeat["powerlevel"],
+                    self.ble_data.model,
+                    variant=heartbeat.get("variant"),
+                )
+                # Always write so a missing powerlevel clears a stale reading.
+                self.ble_data.sensors["battery"] = battery
+
+                await self._maybe_read_rfid(printer, heartbeat)
+
                 await printer.stop_notify()
+            except PrinterTimeout as err:
+                _LOGGER.warning("Printer timed out during update: %s", err)
+                raise
             finally:
                 if not self.keep_connection:
                     await self.client.disconnect()
@@ -211,6 +327,27 @@ class NiimbotDevice:
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
 
+    async def _maybe_read_rfid(self, printer: PrinterClient, heartbeat: dict) -> None:
+        """Read label RFID when the model supports it and the tag is ready."""
+        if not self.supports_label_rfid():
+            return
+
+        # Seed keys so entity platforms can discover them.
+        for key in RFID_SENSOR_KEYS:
+            self.ble_data.sensors.setdefault(key, None)
+
+        rfid_ready = heartbeat.get("rfidreadstate")
+        if rfid_ready is not None and not rfid_ready:
+            _LOGGER.debug("Skipping RFID read: rfidreadstate falsy")
+            return
+
+        try:
+            info = await printer.get_rfid()
+        except Exception as err:
+            _LOGGER.debug("RFID read failed; retaining previous values: %s", err)
+            return
+
+        self._apply_rfid_info(info)
     async def print_image(
         self,
         ble_device: BLEDevice,
@@ -218,6 +355,7 @@ class NiimbotDevice:
         density: int,
         wait_between_print_lines: float,
         print_line_batch_size: int,
+        label_type: int = 1,
     ) -> dict:
         async with self.lock:
             # Reuse existing connection when keep_connection is enabled
@@ -237,7 +375,9 @@ class NiimbotDevice:
             self._notify_printing()
 
             try:
-                printer = PrinterClient(self.client)
+                printer = PrinterClient(
+                    self.client, heartbeat_payload=self._heartbeat_payload
+                )
                 await printer.start_notify()
 
                 # Resolve model inside the lock so we never print with UNKNOWN
@@ -263,8 +403,14 @@ class NiimbotDevice:
                     density,
                     wait_between_print_lines,
                     print_line_batch_size,
+                    label_type=label_type,
                 )
+                if printer.heartbeat_payload is not None:
+                    self._heartbeat_payload = printer.heartbeat_payload
                 await printer.stop_notify()
+            except Exception as err:
+                self._record_error(err)
+                raise
             finally:
                 # 프린트 종료
                 self._print_end_time = time.time()

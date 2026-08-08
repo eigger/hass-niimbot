@@ -111,7 +111,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
             _LOGGER.warning("Unable to fetch data from %s: %s; returning last known data", address, err)
-            return niimbot.ble_data
+            data = niimbot.ble_data
+        finally:
+            # Fire roll-change events even when the rest of the poll failed
+            # after RFID data was already applied.
+            for event in niimbot.pending_events:
+                hass.bus.async_fire(event["event_type"], event["data"])
+            niimbot.pending_events.clear()
 
         return data
 
@@ -190,10 +196,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 print_line_batch_size=int(service.data["print_line_batch_size"])
                 if "print_line_batch_size" in service.data
                 else confirm_every_nth_print_line,
+                label_type=int(service.data["label_type"])
+                if "label_type" in service.data
+                else 1,
             )
             result["image"] = image_data
             return result
-        except (PrinterError, RuntimeError) as e:
+        except (PrinterError, RuntimeError, ValueError) as e:
             raise HomeAssistantError("Failed to print: %s" % e) from e
 
     # register the services

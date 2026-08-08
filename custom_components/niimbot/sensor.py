@@ -1,6 +1,7 @@
 """Support for niimbot ble sensors."""
 
 import logging
+from datetime import timedelta
 
 from .niimprint import NiimbotDevice, BLEData
 
@@ -13,6 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import (
     PERCENTAGE,
+    EntityCategory,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
@@ -25,7 +27,6 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 from homeassistant.helpers.event import async_track_time_interval
-from datetime import timedelta
 
 from .const import DOMAIN
 
@@ -38,35 +39,74 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         native_unit_of_measurement=PERCENTAGE,
         name="Battery",
     ),
-    # "powerlevel": SensorEntityDescription(
-    #     key="powerlevel",
-    #     name="powerlevel",
-    # ),
-    # "density": SensorEntityDescription(
-    #     key="density",
-    #     name="density",
-    # ),
-    # "printspeed": SensorEntityDescription(
-    #     key="printspeed",
-    #     name="printspeed",
-    # ),
-    # "labeltype": SensorEntityDescription(
-    #     key="labeltype",
-    #     name="labeltype",
-    # ),
-    # "languagetype": SensorEntityDescription(
-    #     key="languagetype",
-    #     name="languagetype",
-    # ),
-    # "autoshutdowntime": SensorEntityDescription(
-    #     key="autoshutdowntime",
-    #     name="autoshutdowntime",
-    # ),
-    # "devicetype": SensorEntityDescription(
-    #     key="devicetype",
-    #     name="devicetype",
-    # ),
+    "last_error": SensorEntityDescription(
+        key="last_error",
+        name="Last Error",
+        icon="mdi:alert-circle-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 }
+
+RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
+    "labels_remaining": SensorEntityDescription(
+        key="labels_remaining",
+        name="Labels Remaining",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:label-multiple",
+    ),
+    "labels_used": SensorEntityDescription(
+        key="labels_used",
+        name="Labels Used",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:label-off",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "labels_total": SensorEntityDescription(
+        key="labels_total",
+        name="Labels Total",
+        icon="mdi:label",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "consumable_usage": SensorEntityDescription(
+        key="consumable_usage",
+        name="Consumable Usage",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:percent",
+    ),
+    "label_sku": SensorEntityDescription(
+        key="label_sku",
+        name="Label SKU",
+        icon="mdi:barcode",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "consumable_type": SensorEntityDescription(
+        key="consumable_type",
+        name="Consumable Type",
+        icon="mdi:tag-text",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "tag_uuid": SensorEntityDescription(
+        key="tag_uuid",
+        name="Tag UUID",
+        icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+}
+
+
+def _device_info(ble_data: BLEData) -> DeviceInfo:
+    name = f"{ble_data.name} {ble_data.identifier}"
+    return DeviceInfo(
+        connections={(CONNECTION_BLUETOOTH, ble_data.address)},
+        name=name,
+        manufacturer="Niimbot",
+        model=ble_data.model,
+        hw_version=ble_data.hw_version,
+        sw_version=ble_data.sw_version,
+        serial_number=ble_data.serial_number,
+    )
 
 
 async def async_setup_entry(
@@ -80,33 +120,56 @@ async def async_setup_entry(
     ]
     device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
 
-    # we need to change some units
     sensors_mapping = SENSORS_MAPPING_TEMPLATE.copy()
+    entities: list[SensorEntity] = []
+    created_keys: set[str] = set()
 
-    entities = []
-    _LOGGER.debug("got sensors: %s", coordinator.data.sensors)
-    for sensor_type, sensor_value in coordinator.data.sensors.items():
-        if sensor_type not in sensors_mapping:
-            _LOGGER.debug(
-                "Unknown sensor type detected: %s, %s",
-                sensor_type,
-                sensor_value,
+    # Core sensors from capability / known keys (not only first-refresh data).
+    for key, description in sensors_mapping.items():
+        if key == "last_error":
+            entities.append(
+                NiimbotLastErrorSensor(
+                    coordinator, coordinator.data, description, device
+                )
             )
-            continue
-        entities.append(
-            NiimbotSensor(coordinator, coordinator.data, sensors_mapping[sensor_type])
-        )
+        else:
+            entities.append(NiimbotSensor(coordinator, coordinator.data, description))
+        created_keys.add(key)
 
-    # 프린트 경과 시간 센서 추가
     entities.append(NiimbotPrintDurationSensor(coordinator, coordinator.data, device))
 
+    def _add_rfid_entities() -> list[SensorEntity]:
+        added: list[SensorEntity] = []
+        if not device.supports_label_rfid():
+            return added
+        for key, description in RFID_SENSOR_DESCRIPTIONS.items():
+            if key in created_keys:
+                continue
+            added.append(
+                NiimbotRfidSensor(coordinator, coordinator.data, description, device)
+            )
+            created_keys.add(key)
+        return added
+
+    entities.extend(_add_rfid_entities())
     async_add_entities(entities)
+
+    # Model may be unknown until the first successful poll.
+    if not device.supports_label_rfid():
+
+        @callback
+        def _on_coordinator_update() -> None:
+            new_entities = _add_rfid_entities()
+            if new_entities:
+                async_add_entities(new_entities)
+                unsub()
+
+        unsub = coordinator.async_add_listener(_on_coordinator_update)
 
 
 class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity):
     """Niimbot BLE sensors for the device."""
 
-    # _attr_state_class = None
     _attr_has_entity_name = True
 
     def __init__(
@@ -120,24 +183,8 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
         self.entity_description = entity_description
 
         name = f"{ble_data.name} {ble_data.identifier}"
-
         self._attr_unique_id = f"{name}_{entity_description.key}"
-
-        self._id = ble_data.address
-        self._attr_device_info = DeviceInfo(
-            connections={
-                (
-                    CONNECTION_BLUETOOTH,
-                    ble_data.address,
-                )
-            },
-            name=name,
-            manufacturer="Niimbot",
-            model=ble_data.model,
-            hw_version=ble_data.hw_version,
-            sw_version=ble_data.sw_version,
-            serial_number=ble_data.serial_number,
-        )
+        self._attr_device_info = _device_info(ble_data)
 
     @property
     def native_value(self) -> StateType:
@@ -146,6 +193,64 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
             return self.coordinator.data.sensors[self.entity_description.key]
         except KeyError:
             return None
+
+
+class NiimbotLastErrorSensor(NiimbotSensor):
+    """Diagnostic sensor for the last printer error code."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        entity_description: SensorEntityDescription,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator, ble_data, entity_description)
+        self._device = device
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._device.callback_error = self._handle_error_update
+
+    async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
+        self._device.callback_error = None
+
+    @callback
+    def _handle_error_update(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> StateType:
+        return self._device.last_error or self.coordinator.data.sensors.get(
+            "last_error"
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        if self._device.last_error_time is None:
+            return None
+        return {"timestamp": self._device.last_error_time}
+
+
+class NiimbotRfidSensor(NiimbotSensor):
+    """RFID consumable sensor with optional attributes on remaining labels."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        entity_description: SensorEntityDescription,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator, ble_data, entity_description)
+        self._device = device
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        if self.entity_description.key != "labels_remaining":
+            return None
+        return dict(self._device._rfid_attrs) if self._device._rfid_attrs else None
 
 
 class NiimbotPrintDurationSensor(
@@ -172,24 +277,8 @@ class NiimbotPrintDurationSensor(
         self._unsub_timer = None
 
         name = f"{ble_data.name} {ble_data.identifier}"
-
         self._attr_unique_id = f"{name}_print_duration"
-
-        self._id = ble_data.address
-        self._attr_device_info = DeviceInfo(
-            connections={
-                (
-                    CONNECTION_BLUETOOTH,
-                    ble_data.address,
-                )
-            },
-            name=name,
-            manufacturer="Niimbot",
-            model=ble_data.model,
-            hw_version=ble_data.hw_version,
-            sw_version=ble_data.sw_version,
-            serial_number=ble_data.serial_number,
-        )
+        self._attr_device_info = _device_info(ble_data)
 
     async def async_added_to_hass(self) -> None:
         """Register callback when entity is added."""

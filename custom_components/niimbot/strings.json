@@ -68,7 +68,11 @@
         },
         "density": {
           "name": "Density",
-          "description": "Print density (1 to 5). Default: 3."
+          "description": "Print density. Range depends on the printer model (up to 1-20). Default: 3."
+        },
+        "label_type": {
+          "name": "Label Type",
+          "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). Default: 1."
         },
         "wait_between_print_lines": {
           "name": "Wait between print lines",

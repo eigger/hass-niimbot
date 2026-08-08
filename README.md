@@ -376,6 +376,20 @@ sequence:
 
 ---
 
+## Protocol documentation
+
+Reverse-engineered reference for the printers' BLE protocol.
+
+| Document | Contents |
+|----------|----------|
+| [docs/protocol.md](docs/protocol.md) | Transport, packet framing, full command ID tables, error codes |
+| [docs/device-info.md](docs/device-info.md) | Connect handshake, printer info fields, heartbeat variants, print status |
+| [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
+| [docs/rfid.md](docs/rfid.md) | Reading consumable info from the label roll's RFID tag |
+| [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
+
+---
+
 ## Custom fonts
 
 Place `.ttf` files in `custom_components/niimbot/fonts/` or `config/www/fonts/` and reference by filename (e.g. `ppb.ttf`, `rbm.ttf`).
