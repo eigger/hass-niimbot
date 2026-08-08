@@ -36,10 +36,10 @@ class NiimbotBinarySensorEntityDescription(BinarySensorEntityDescription):
 BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
     NiimbotBinarySensorEntityDescription(
         key="closingstate",
-        device_class=BinarySensorDeviceClass.DOOR,
-        icon="mdi:printer-alert",
+        translation_key="cover",
+        icon="mdi:tray",
         entity_category=EntityCategory.DIAGNOSTIC,
-        # closingstate != 0 means open; door device class: is_on=True means open
+        # closingstate != 0 means open (label cover). Custom name — not a door.
     ),
     NiimbotBinarySensorEntityDescription(
         key="paperstate",

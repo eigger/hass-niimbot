@@ -92,6 +92,13 @@
     },
     "entity": {
         "binary_sensor": {
+            "cover": {
+                "name": "Cover",
+                "state": {
+                    "on": "Open",
+                    "off": "Closed"
+                }
+            },
             "paper": {
                 "name": "Paper",
                 "state": {
