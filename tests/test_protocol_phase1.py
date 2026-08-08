@@ -9,6 +9,7 @@ from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.printer import (
     HEARTBEAT_RESP_ADVANCED1,
     HEARTBEAT_RESP_ADVANCED2,
+    InfoEnum,
     PrinterClient,
     PrinterTimeout,
     RequestCodeEnum,
@@ -219,6 +220,17 @@ def test_transceive_raises_printer_timeout():
         client = PrinterClient(transport=transport)
         with pytest.raises(PrinterTimeout):
             await client._transceive(RequestCodeEnum.HEARTBEAT, b"\x01", timeout=0.05)
+
+    run(_test())
+
+
+def test_get_info_unsupported_key_returns_none():
+    """B1 rejects PRINTSPEED (key 2) with packet type 0x00; polling must continue."""
+
+    async def _test():
+        transport = FakeTransport([NiimbotPacket(0x00, b"\x01")])
+        client = PrinterClient(transport=transport)
+        assert await client.get_info(InfoEnum.PRINTSPEED) is None
 
     run(_test())
 

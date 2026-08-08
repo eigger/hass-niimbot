@@ -130,6 +130,10 @@ class PrinterTimeout(RuntimeError):
     """Raised when the printer does not answer a request in time."""
 
 
+class PrinterCommandUnsupported(RuntimeError):
+    """Raised when the printer replies with packet type 0x00 (unsupported)."""
+
+
 # Heartbeat response command IDs (not derived as reqcode + 1 for Advanced2).
 HEARTBEAT_RESP_ADVANCED1 = 0xDD
 HEARTBEAT_RESP_BASIC = 0xDE
@@ -644,7 +648,12 @@ class PrinterClient:
                     # We will assume a single byte error.
                     raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
                 elif packet.type == 0:
-                    raise NotImplementedError
+                    # Printer NAK / unsupported command or info key
+                    # (e.g. B1 rejects PRINTSPEED key 2 with 55 55 00 01 01 …).
+                    raise PrinterCommandUnsupported(
+                        f"Unsupported request 0x{int(reqcode):02x} "
+                        f"(payload={data.hex()})"
+                    )
                 elif packet.type in resp_codes:
                     resp = packet
             if resp:
@@ -659,7 +668,8 @@ class PrinterClient:
             packet = await self._transceive(
                 RequestCodeEnum.GET_INFO, bytes((key,)), key
             )
-        except PrinterTimeout:
+        except (PrinterTimeout, PrinterCommandUnsupported) as err:
+            _LOGGER.debug("get_info(%s) unavailable: %s", key, err)
             return None
         match key:
             case InfoEnum.DEVICESERIAL:
