@@ -387,7 +387,6 @@ Reverse-engineered reference for the printers' BLE protocol.
 | [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
 | [docs/rfid.md](docs/rfid.md) | Reading consumable info from the label roll's RFID tag |
 | [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
-| [docs/improvement-plan.md](docs/improvement-plan.md) | Planned sensor and print pipeline work derived from the above |
 
 ---
 
