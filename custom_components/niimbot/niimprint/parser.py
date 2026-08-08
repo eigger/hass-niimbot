@@ -126,6 +126,7 @@ class NiimbotDevice:
         self.print_page: int = 0
         self.print_page_print_progress: int = 0
         self.print_page_feed_progress: int = 0
+        self._print_progress_started = False
         super().__init__()
 
     def get_model_meta(self):
@@ -206,6 +207,16 @@ class NiimbotDevice:
         if self.callback_progress:
             self.callback_progress()
 
+    def begin_print_progress(self) -> None:
+        """Reset progress to 0 for a new job and notify UI immediately."""
+        self.print_progress = 0.0
+        self.print_page = 0
+        self.print_page_print_progress = 0
+        self.print_page_feed_progress = 0
+        self._print_progress_started = False
+        self.ble_data.sensors["print_progress"] = 0.0
+        self._notify_progress()
+
     def _notify_error(self):
         if self.callback_error:
             self.callback_error()
@@ -220,10 +231,18 @@ class NiimbotDevice:
         self._notify_error()
 
     def _handle_print_progress(self, status: dict) -> None:
-        self.print_page = int(status.get("page") or 0)
+        progress = float(status.get("progress") or 0)
+        page = int(status.get("page") or 0)
+        # Printers often echo the previous job's 100% right after a new job
+        # starts. Ignore that until we have seen real in-progress values.
+        if progress < 100:
+            self._print_progress_started = True
+        elif not self._print_progress_started and page <= 0:
+            return
+        self.print_page = page
         self.print_page_print_progress = int(status.get("page_print_progress") or 0)
         self.print_page_feed_progress = int(status.get("page_feed_progress") or 0)
-        self.print_progress = float(status.get("progress") or 0)
+        self.print_progress = progress
         self.ble_data.sensors["print_progress"] = self.print_progress
         self._notify_progress()
 
@@ -539,13 +558,8 @@ class NiimbotDevice:
             self._is_printing = True
             self._print_start_time = time.time()
             self._print_end_time = None
-            self.print_progress = 0.0
-            self.print_page = 0
-            self.print_page_print_progress = 0
-            self.print_page_feed_progress = 0
-            self.ble_data.sensors["print_progress"] = 0.0
+            self.begin_print_progress()
             self._notify_printing()
-            self._notify_progress()
 
             try:
                 printer = await self._ensure_printer(ble_device)
