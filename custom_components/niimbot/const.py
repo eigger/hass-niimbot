@@ -10,8 +10,10 @@ CONF_WAIT_BETWEEN_EACH_PRINT_LINE = "wait_between_each_print_line"
 CONF_CONFIRM_EVERY_NTH_PRINT_LINE = "confirm_every_nth_print_line"
 CONF_KEEP_CONNECTION = "keep_connection"
 DEFAULT_SCAN_INTERVAL = 600
-DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE = 50
-DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE = 1
+# Match niimblue's packetIntervalMs; previous 50 ms + confirm-every-line
+# made even small labels spend seconds idle.
+DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE = 10
+DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE = 16
 DEFAULT_KEEP_CONNECTION = False
 
 EMPTY_PNG: bytes = base64.b64decode(

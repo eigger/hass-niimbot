@@ -63,6 +63,27 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         icon="mdi:tag-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    "protocol_version": SensorEntityDescription(
+        key="protocol_version",
+        translation_key="protocol_version",
+        icon="mdi:numeric",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    "colour_support": SensorEntityDescription(
+        key="colour_support",
+        translation_key="colour_support",
+        icon="mdi:palette",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    "print_area": SensorEntityDescription(
+        key="print_area",
+        translation_key="print_area",
+        icon="mdi:resize",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
@@ -98,15 +119,57 @@ RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
         icon="mdi:barcode",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    "consumable_type": SensorEntityDescription(
-        key="consumable_type",
-        translation_key="consumable_type",
-        icon="mdi:tag-text",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
     "tag_uuid": SensorEntityDescription(
         key="tag_uuid",
         translation_key="tag_uuid",
+        icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+}
+
+RIBBON_RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
+    "ribbon_remaining": SensorEntityDescription(
+        key="ribbon_remaining",
+        translation_key="ribbon_remaining",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:filmstrip",
+    ),
+    "ribbon_used": SensorEntityDescription(
+        key="ribbon_used",
+        translation_key="ribbon_used",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:filmstrip-box",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "ribbon_total": SensorEntityDescription(
+        key="ribbon_total",
+        translation_key="ribbon_total",
+        icon="mdi:film",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "ribbon_usage": SensorEntityDescription(
+        key="ribbon_usage",
+        translation_key="ribbon_usage",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:percent",
+    ),
+    "ribbon_sku": SensorEntityDescription(
+        key="ribbon_sku",
+        translation_key="ribbon_sku",
+        icon="mdi:barcode",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "ribbon_type": SensorEntityDescription(
+        key="ribbon_type",
+        translation_key="ribbon_type",
+        icon="mdi:tag-text",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "ribbon_tag_uuid": SensorEntityDescription(
+        key="ribbon_tag_uuid",
+        translation_key="ribbon_tag_uuid",
         icon="mdi:identifier",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -176,26 +239,57 @@ async def async_setup_entry(
             created_keys.add(key)
         return added
 
+    def _add_ribbon_rfid_entities() -> list[SensorEntity]:
+        added: list[SensorEntity] = []
+        if not device.supports_ribbon_rfid():
+            return added
+        for key, description in RIBBON_RFID_SENSOR_DESCRIPTIONS.items():
+            if key in created_keys:
+                continue
+            added.append(
+                NiimbotRibbonRfidSensor(
+                    coordinator, coordinator.data, description, device
+                )
+            )
+            created_keys.add(key)
+        return added
+
     entities.extend(_add_rfid_entities())
+    entities.extend(_add_ribbon_rfid_entities())
     async_add_entities(entities)
 
     # Model / RFID capability may be unknown at setup (initial poll failed, or
     # platforms load before the first successful device-type read). Keep listening
-    # until RFID entities are created, or the model is known to lack label RFID.
-    if "labels_remaining" not in created_keys:
+    # until RFID entities are created, or the model is known to lack them.
+    need_label = "labels_remaining" not in created_keys
+    need_ribbon = "ribbon_remaining" not in created_keys
+    if need_label or need_ribbon:
 
         @callback
         def _on_coordinator_update() -> None:
-            if "labels_remaining" in created_keys:
-                unsub()
-                return
             meta = device.get_model_meta()
-            if meta is not None and not device.supports_label_rfid():
-                unsub()
-                return
-            new_entities = _add_rfid_entities()
+            new_entities: list[SensorEntity] = []
+            if "labels_remaining" not in created_keys:
+                if meta is not None and not device.supports_label_rfid():
+                    pass
+                else:
+                    new_entities.extend(_add_rfid_entities())
+            if "ribbon_remaining" not in created_keys:
+                if meta is not None and not device.supports_ribbon_rfid():
+                    pass
+                else:
+                    new_entities.extend(_add_ribbon_rfid_entities())
             if new_entities:
                 async_add_entities(new_entities)
+            label_done = (
+                "labels_remaining" in created_keys
+                or (meta is not None and not device.supports_label_rfid())
+            )
+            ribbon_done = (
+                "ribbon_remaining" in created_keys
+                or (meta is not None and not device.supports_ribbon_rfid())
+            )
+            if label_done and ribbon_done:
                 unsub()
 
         unsub = coordinator.async_add_listener(_on_coordinator_update)
@@ -310,6 +404,27 @@ class NiimbotRfidSensor(NiimbotSensor):
         if self.entity_description.key != "labels_remaining":
             return None
         return dict(self._device._rfid_attrs) if self._device._rfid_attrs else None
+
+
+class NiimbotRibbonRfidSensor(NiimbotSensor):
+    """Ribbon RFID sensor with optional attributes on remaining length."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        entity_description: SensorEntityDescription,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator, ble_data, entity_description)
+        self._device = device
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        if self.entity_description.key != "ribbon_remaining":
+            return None
+        attrs = self._device._ribbon_rfid_attrs
+        return dict(attrs) if attrs else None
 
 
 class NiimbotPrintDurationSensor(

@@ -747,6 +747,10 @@ def supports_label_rfid(rfid: RfidClass | None) -> bool:
     return rfid in (RfidClass.LABEL, RfidClass.LABEL_RIBBON)
 
 
+def supports_ribbon_rfid(rfid: RfidClass | None) -> bool:
+    return rfid in (RfidClass.RIBBON, RfidClass.LABEL_RIBBON)
+
+
 def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
     """Fill rfid / density fields from the ID capability table."""
     out: PrinterModelMeta = dict(meta)  # type: ignore[assignment]

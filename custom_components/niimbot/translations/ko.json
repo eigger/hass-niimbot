@@ -120,6 +120,15 @@
             "labeltype": {
                 "name": "라벨 타입"
             },
+            "protocol_version": {
+                "name": "프로토콜 버전"
+            },
+            "colour_support": {
+                "name": "컬러 지원"
+            },
+            "print_area": {
+                "name": "인쇄 영역"
+            },
             "labels_remaining": {
                 "name": "남은 라벨"
             },
@@ -135,11 +144,29 @@
             "label_sku": {
                 "name": "라벨 SKU"
             },
-            "consumable_type": {
-                "name": "소모품 타입"
-            },
             "tag_uuid": {
                 "name": "태그 UUID"
+            },
+            "ribbon_remaining": {
+                "name": "남은 리본"
+            },
+            "ribbon_used": {
+                "name": "사용한 리본"
+            },
+            "ribbon_total": {
+                "name": "전체 리본"
+            },
+            "ribbon_usage": {
+                "name": "리본 사용률"
+            },
+            "ribbon_sku": {
+                "name": "리본 SKU"
+            },
+            "ribbon_type": {
+                "name": "리본 타입"
+            },
+            "ribbon_tag_uuid": {
+                "name": "리본 태그 UUID"
             },
             "print_duration": {
                 "name": "인쇄 시간"
