@@ -6,7 +6,6 @@
         "description": "[%key:component::bluetooth::config::step::user::description%]",
         "data": {
           "address": "[%key:component::bluetooth::config::step::user::data::address%]",
-          "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
@@ -16,7 +15,6 @@
       "bluetooth_confirm": {
         "description": "[%key:component::bluetooth::config::step::bluetooth_confirm::description%]",
         "data": {
-          "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
@@ -36,7 +34,6 @@
     "step": {
       "init": {
         "data": {
-          "use_sound": "Use Sound",
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",

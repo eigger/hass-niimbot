@@ -133,7 +133,7 @@ An index, not minutes. The mapping is model-dependent:
 | 3 | 45 or 60 min |
 | 4 | 60 min or never |
 
-Write it back with `SetAutoShutdownTime` (`0x27`). **(not implemented here)**
+Write it back with `SetAutoShutdownTime` (`0x27`). Exposed as the Auto Shutdown select entity.
 
 ## 4. Heartbeat (`0xDC`)
 
@@ -256,7 +256,8 @@ One command does both get and set. Payload is always 3 bytes:
 | `0x02` | Power on/off beep |
 
 For a set, `value` is `0` or `1`. For a get, send `value = 1` and read the state from `data[2]` of the
-`0x68` response. This integration implements set only.
+`0x68` response. This integration implements get and set for the Bluetooth connection beep via the
+Connection Sound switch.
 
 ## 7. Other state commands
 

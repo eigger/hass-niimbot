@@ -64,12 +64,6 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         icon="mdi:tag-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    "autoshutdowntime": SensorEntityDescription(
-        key="autoshutdowntime",
-        name="Auto Shutdown",
-        icon="mdi:timer-outline",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
 }
 
 RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {

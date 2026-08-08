@@ -41,7 +41,13 @@ from .const import (
     ImageAndBLEData,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.IMAGE, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.IMAGE,
+    Platform.BINARY_SENSOR,
+    Platform.SELECT,
+    Platform.SWITCH,
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +56,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
-    use_sound = entry.options.get(CONF_USE_SOUND, entry.data.get(CONF_USE_SOUND))
+    # Legacy option — only seeds the Connection Sound switch until get_sound works.
+    connection_sound_seed = entry.options.get(
+        CONF_USE_SOUND, entry.data.get(CONF_USE_SOUND, True)
+    )
     scan_interval = float(
         entry.options.get(
             CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -98,7 +107,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             address,
         )
 
-    niimbot = NiimbotDevice(address, use_sound, keep_connection)
+    niimbot = NiimbotDevice(
+        address,
+        keep_connection=keep_connection,
+        connection_sound_seed=connection_sound_seed,
+    )
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
@@ -201,6 +214,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 else 1,
                 copies=int(service.data["copies"]) if "copies" in service.data else 1,
             )
+            # Push post-print RFID / heartbeat updates into entities immediately.
+            coordinator.async_set_updated_data(niimbot.ble_data)
             result["image"] = image_data
             return result
         except (PrinterError, RuntimeError, ValueError) as e:

@@ -710,6 +710,28 @@ def consumable_type_name(type_code: int | None) -> str | None:
     return _LABEL_TYPE_NAMES.get(type_code, f"Unknown({type_code})")
 
 
+# PrinterInfo AutoShutdownTime is an index, not minutes (model-dependent).
+AUTO_SHUTDOWN_OPTIONS: dict[int, str] = {
+    1: "15 min",
+    2: "30 min",
+    3: "45–60 min",
+    4: "60 min / never",
+}
+
+
+def auto_shutdown_label(index: int | None) -> str | None:
+    if index is None:
+        return None
+    return AUTO_SHUTDOWN_OPTIONS.get(int(index), f"Index {index}")
+
+
+def auto_shutdown_index(label: str) -> int | None:
+    for index, name in AUTO_SHUTDOWN_OPTIONS.items():
+        if name == label:
+            return index
+    return None
+
+
 def label_type_code(label_type: LabelType) -> int:
     return _LABEL_TYPE_CODES[label_type]
 
