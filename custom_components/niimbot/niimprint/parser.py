@@ -17,6 +17,7 @@ from .model import (
     consumable_type_name,
     get_printer_meta_by_id,
     supports_label_rfid,
+    supports_ribbon_rfid,
 )
 
 
@@ -48,6 +49,16 @@ RFID_SENSOR_KEYS = (
     "label_sku",
     "consumable_type",
     "tag_uuid",
+)
+
+RIBBON_RFID_SENSOR_KEYS = (
+    "ribbon_remaining",
+    "ribbon_used",
+    "ribbon_total",
+    "ribbon_usage",
+    "ribbon_sku",
+    "ribbon_type",
+    "ribbon_tag_uuid",
 )
 
 
@@ -109,7 +120,9 @@ class NiimbotDevice:
         self._printer: PrinterClient | None = None
         self._heartbeat_payload: bytes | None = None
         self._last_rfid_uuid: str | None = None
+        self._last_ribbon_uuid: str | None = None
         self._rfid_attrs: dict = {}
+        self._ribbon_rfid_attrs: dict = {}
         self._info_battery_bucket: int | None = None
         self._info_loaded = False
         self.last_error: str | None = None
@@ -143,6 +156,12 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_label_rfid(meta.get("rfid"))
+
+    def supports_ribbon_rfid(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_ribbon_rfid(meta.get("rfid"))
 
     def _apply_rfid_info(self, info: dict | None) -> None:
         """Update RFID sensors from a tag read. Keeps previous values on None."""
@@ -192,6 +211,35 @@ class NiimbotDevice:
             )
         if new_uuid:
             self._last_rfid_uuid = new_uuid
+
+    def _apply_ribbon_rfid_info(self, info: dict | None) -> None:
+        """Update ribbon RFID sensors from RfidInfo2. Keeps previous on None."""
+        if info is None:
+            return
+        total = info.get("total_len")
+        used = info.get("used_len")
+        remaining = None
+        usage = None
+        if total is not None and used is not None:
+            remaining = max(0, total - used)
+            if total > 0:
+                usage = round(used / total * 100.0, 1)
+
+        self.ble_data.sensors["ribbon_remaining"] = remaining
+        self.ble_data.sensors["ribbon_used"] = used
+        self.ble_data.sensors["ribbon_total"] = total
+        self.ble_data.sensors["ribbon_usage"] = usage
+        self.ble_data.sensors["ribbon_sku"] = info.get("barcode")
+        self.ble_data.sensors["ribbon_type"] = consumable_type_name(info.get("type"))
+        self.ble_data.sensors["ribbon_tag_uuid"] = info.get("uuid")
+        self._ribbon_rfid_attrs = {
+            "serial": info.get("serial"),
+            "capacity": info.get("capacity"),
+            "type_code": info.get("type"),
+        }
+        new_uuid = info.get("uuid")
+        if new_uuid:
+            self._last_ribbon_uuid = new_uuid
 
     def _notify_connection(self):
         """Notify connection state change."""
@@ -354,6 +402,8 @@ class NiimbotDevice:
         labeltype = await printer.get_info(InfoEnum.LABELTYPE)
         autoshutdown = await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME)
         battery_bucket = await printer.get_info(InfoEnum.BATTERY)
+        area = await printer.get_info(InfoEnum.AREA)
+        status_data = await printer.get_printer_status_data()
 
         if density is not None:
             self.ble_data.density = int(density)
@@ -371,6 +421,15 @@ class NiimbotDevice:
         if battery_bucket is not None:
             self._info_battery_bucket = int(battery_bucket)
             self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
+        if area is not None:
+            self.ble_data.sensors["print_area"] = area
+        if status_data is not None:
+            self.ble_data.sensors["protocol_version"] = status_data.get(
+                "protocol_version"
+            )
+            self.ble_data.sensors["colour_support"] = bool(
+                status_data.get("support_color")
+            )
 
         self._info_loaded = True
 
@@ -478,6 +537,7 @@ class NiimbotDevice:
                     self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
 
                 await self._maybe_read_rfid(printer, heartbeat)
+                await self._maybe_read_ribbon_rfid(printer)
             except PrinterTimeout as err:
                 _LOGGER.warning("Printer timed out during update: %s", err)
                 raise
@@ -522,6 +582,22 @@ class NiimbotDevice:
 
         self._apply_rfid_info(info)
 
+    async def _maybe_read_ribbon_rfid(self, printer: PrinterClient) -> None:
+        """Read ribbon RFID when the model supports it."""
+        if not self.supports_ribbon_rfid():
+            return
+
+        for key in RIBBON_RFID_SENSOR_KEYS:
+            self.ble_data.sensors.setdefault(key, None)
+
+        try:
+            info = await printer.get_rfid2()
+        except Exception as err:
+            _LOGGER.debug("Ribbon RFID read failed; retaining previous: %s", err)
+            return
+
+        self._apply_ribbon_rfid_info(info)
+
     async def _refresh_after_print(self, printer: PrinterClient) -> None:
         """Re-read heartbeat + RFID after a job — used_len is written during print."""
         try:
@@ -541,6 +617,7 @@ class NiimbotDevice:
             if battery is not None:
                 self.ble_data.sensors["battery"] = battery
             await self._maybe_read_rfid(printer, heartbeat, force=True)
+            await self._maybe_read_ribbon_rfid(printer)
         except Exception as err:
             _LOGGER.debug("Post-print status refresh failed: %s", err)
 

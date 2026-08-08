@@ -20,6 +20,12 @@ _LOGGER = logging.getLogger(__name__)
 
 # PrintBitmapRowIndexed is only safe at or below this black-pixel count.
 INDEXED_BLACK_PIXEL_LIMIT = 6
+# Mid-transfer checkpoint interval (niimblue ImageEncoder).
+CHECK_LINE_INTERVAL = 200
+# Unsolicited page-complete notification.
+PAGE_INDEX_CMD = 0xE0
+PRINTER_CHECK_LINE_RESP = 0xD3
+PRINTER_STATUS_DATA_RESP = 0xB5
 
 
 class BleakCharacteristicMissing(BleakError):
@@ -48,11 +54,13 @@ class InfoEnum(enum.IntEnum):
     BATTERY = 10
     DEVICESERIAL = 11
     HARDVERSION = 12
+    AREA = 15
 
 
 class RequestCodeEnum(enum.IntEnum):
     GET_INFO = 64  # 0x40
     GET_RFID = 26  # 0x1A
+    GET_RFID2 = 28  # 0x1C
     HEARTBEAT = 220  # 0xDC
     SET_LABEL_TYPE = 35  # 0x23
     SET_LABEL_DENSITY = 33  # 0x21
@@ -64,9 +72,11 @@ class RequestCodeEnum(enum.IntEnum):
     SET_DIMENSION = 19  # 0x13
     SET_QUANTITY = 21  # 0x15
     GET_PRINT_STATUS = 163  # 0xA3
+    GET_PRINTER_STATUS_DATA = 165  # 0xA5
     PRINT_BITMAP_ROW_INDEXED = 131  # 0x83
     PRINT_EMPTY_ROW = 132  # 0x84
     PRINT_BITMAP_ROW = 133  # 0x85
+    PRINTER_CHECK_LINE = 134  # 0x86
     PRINT_CLEAR = 32  # 0x20
     SET_SOUND = 88  # 0x58
     SET_AUTO_SHUTDOWN_TIME = 39  # 0x27
@@ -247,6 +257,8 @@ class PrinterClient:
         # Cached heartbeat request payload that previously succeeded (b"\x01" or b"\x04").
         self._heartbeat_payload: bytes | None = heartbeat_payload
         self.on_progress: Callable[[dict], None] | None = None
+        # Latest unsolicited 0xE0 page index (0 = none seen this job).
+        self._last_page_index: int = 0
 
     @property
     def heartbeat_payload(self) -> bytes | None:
@@ -269,6 +281,7 @@ class PrinterClient:
         copies: int = 1,
     ):
         self._timings = []
+        self._last_page_index = 0
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
@@ -521,6 +534,14 @@ class PrinterClient:
             pending_bytes = None
             pending_repeats = 0
 
+        async def maybe_check_line(y: int) -> None:
+            # niimblue inserts a checkpoint after rows 199, 399, …
+            if y % CHECK_LINE_INTERVAL != CHECK_LINE_INTERVAL - 1:
+                return
+            await flush_pending_bitmap()
+            await flush_empty()
+            await self.check_line(y)
+
         for y in range(img.height):
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data_bytes = "".join("0" if pix == 0 else "1" for pix in line_data)
@@ -545,9 +566,28 @@ class PrinterClient:
                     pending_y = y
                     pending_bytes = line_data_ints
                     pending_repeats = 1
+            await maybe_check_line(y)
 
         await flush_pending_bitmap()
         await flush_empty()
+
+    async def check_line(self, line: int) -> None:
+        """Mid-transfer checkpoint; printer replies with 0xD3."""
+        try:
+            await self._transceive(
+                RequestCodeEnum.PRINTER_CHECK_LINE,
+                struct.pack(">HB", line, 0x01),
+                resp_codes={PRINTER_CHECK_LINE_RESP},
+                # Keep this short: unsupported firmwares must not stall the page.
+                timeout=1.0,
+            )
+        except (PrinterTimeout, PrinterCommandUnsupported) as err:
+            # Not all firmwares answer; keep transferring rather than abort.
+            _LOGGER.debug("PrinterCheckLine(%s) skipped: %s", line, err)
+
+    async def _pace_after_row(self, wait_between_print_lines: float) -> None:
+        if wait_between_print_lines > 0:
+            await sleep(wait_between_print_lines)
 
     async def set_empty_row(
         self,
@@ -562,7 +602,7 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
-        await sleep(wait_between_print_lines)
+        await self._pace_after_row(wait_between_print_lines)
         self._timings.append(time.time() - start)
 
     async def set_bitmap_row(
@@ -576,7 +616,7 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
-        await sleep(wait_between_print_lines)
+        await self._pace_after_row(wait_between_print_lines)
         self._timings.append(time.time() - start)
 
     async def set_bitmap_row_indexed(
@@ -590,7 +630,7 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
-        await sleep(wait_between_print_lines)
+        await self._pace_after_row(wait_between_print_lines)
         self._timings.append(time.time() - start)
 
     async def _recv(self, timeout: float = 30.0):
@@ -650,6 +690,9 @@ class PrinterClient:
             if remaining <= 0:
                 break
             for packet in await self._recv(timeout=remaining):
+                if packet.type == PAGE_INDEX_CMD:
+                    self._note_page_index(packet)
+                    continue
                 if packet.type == 219:
                     # We will assume a single byte error.
                     raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
@@ -668,6 +711,24 @@ class PrinterClient:
             f"No response for request 0x{int(reqcode):02x} "
             f"(expected {[hex(c) for c in resp_codes]})"
         )
+
+    def _note_page_index(self, packet: NiimbotPacket) -> int | None:
+        """Record an unsolicited 0xE0 page-complete notification."""
+        if len(packet.data) < 2:
+            return None
+        page = struct.unpack(">H", packet.data[:2])[0]
+        self._last_page_index = page
+        _LOGGER.debug("Page index notification: page=%s", page)
+        if self.on_progress is not None:
+            self.on_progress(
+                {
+                    "page": page,
+                    "page_print_progress": 100,
+                    "page_feed_progress": 100,
+                    "progress": 100,
+                }
+            )
+        return page
 
     async def get_info(self, key):
         try:
@@ -696,13 +757,55 @@ class PrinterClient:
                     return packet.data[0] << 8
                 else:
                     return int.from_bytes(packet.data[:2], "big")
+            case InfoEnum.AREA:
+                return self._parse_print_area(packet.data)
             case _:
                 return _packet_to_int(packet)
 
-    async def get_rfid(self):
-        packet = await self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
-        data = packet.data
+    @staticmethod
+    def _parse_print_area(data: bytes) -> str | None:
+        """Best-effort printable area string; layout is not fully documented."""
+        if not data:
+            return None
+        if len(data) >= 4:
+            a, b = struct.unpack(">HH", data[:4])
+            if a > 0 and b > 0:
+                return f"{a}x{b}"
+        return data.hex()
 
+    @staticmethod
+    def _parse_protocol_version(n: int) -> int:
+        if 204 <= n < 300:
+            return 3
+        if n in (300, 301):
+            return 4
+        if n >= 302:
+            return 5
+        return 0
+
+    async def get_printer_status_data(self) -> dict | None:
+        """Colour support flag and protocol version from PrinterStatusData (0xA5)."""
+        try:
+            packet = await self._transceive(
+                RequestCodeEnum.GET_PRINTER_STATUS_DATA,
+                b"\x01",
+                resp_codes={PRINTER_STATUS_DATA_RESP},
+            )
+        except (PrinterTimeout, PrinterCommandUnsupported) as err:
+            _LOGGER.debug("PrinterStatusData unavailable: %s", err)
+            return None
+        data = packet.data
+        if len(data) <= 12:
+            return {"support_color": 0, "protocol_version": 0, "raw_version": None}
+        support_color = data[10]
+        raw = data[11] * 100 + data[12]
+        return {
+            "support_color": support_color,
+            "protocol_version": self._parse_protocol_version(raw),
+            "raw_version": raw,
+        }
+
+    def _parse_rfid_payload(self, data: bytes) -> dict | None:
         # A 1-byte payload means no tag. Do not test data[0] == 0 — that is the
         # first byte of the UUID and can legitimately be zero.
         if len(data) <= 1:
@@ -736,6 +839,15 @@ class PrinterClient:
             "type": type_,
             "capacity": capacity,
         }
+
+    async def get_rfid(self):
+        packet = await self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
+        return self._parse_rfid_payload(packet.data)
+
+    async def get_rfid2(self):
+        """Read ribbon NFC tag (RfidInfo2). Same payload layout as get_rfid."""
+        packet = await self._transceive(RequestCodeEnum.GET_RFID2, b"\x01")
+        return self._parse_rfid_payload(packet.data)
 
     def _parse_heartbeat_advanced1(self, data: bytes, model_id=None) -> dict:
         closingstate = None
@@ -1045,7 +1157,7 @@ class PrinterClient:
         timeout: float | None = None,
         poll_interval: float = 0.5,
     ) -> dict:
-        """Poll print status until all copies finish (or timeout).
+        """Wait until all copies finish via 0xE0, with 0xA3 poll as fallback.
 
         Many models retain the previous job's progress=100 / page count right
         after ``end_page_print``. Wait until progress drops below 100 before
@@ -1061,6 +1173,28 @@ class PrinterClient:
         started = False
         status: dict = {}
         while True:
+            # Drain any unsolicited 0xE0 that arrived between polls.
+            for packet in await self._recv(timeout=0.05):
+                if packet.type == PAGE_INDEX_CMD:
+                    page = self._note_page_index(packet)
+                    if page is not None and page >= copies:
+                        return {
+                            "page": page,
+                            "page_print_progress": 100,
+                            "page_feed_progress": 100,
+                            "progress": 100,
+                        }
+                elif packet.type == 219:
+                    raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
+
+            if self._last_page_index >= copies:
+                return {
+                    "page": self._last_page_index,
+                    "page_print_progress": 100,
+                    "page_feed_progress": 100,
+                    "progress": 100,
+                }
+
             status = await self.get_print_status()
             _LOGGER.debug("Status: %s", status)
             page = status.get("page", 0)
@@ -1075,10 +1209,11 @@ class PrinterClient:
             if time.time() - start_time > timeout:
                 _LOGGER.warning(
                     "Print completion not confirmed within %.0fs "
-                    "(copies=%s, last status: %s)",
+                    "(copies=%s, last status: %s, page_index=%s)",
                     timeout,
                     copies,
                     status,
+                    self._last_page_index,
                 )
                 break
             await sleep(poll_interval)

@@ -120,6 +120,15 @@
             "labeltype": {
                 "name": "Label Type"
             },
+            "protocol_version": {
+                "name": "Protocol Version"
+            },
+            "colour_support": {
+                "name": "Colour Support"
+            },
+            "print_area": {
+                "name": "Print Area"
+            },
             "labels_remaining": {
                 "name": "Labels Remaining"
             },
@@ -140,6 +149,27 @@
             },
             "tag_uuid": {
                 "name": "Tag UUID"
+            },
+            "ribbon_remaining": {
+                "name": "Ribbon Remaining"
+            },
+            "ribbon_used": {
+                "name": "Ribbon Used"
+            },
+            "ribbon_total": {
+                "name": "Ribbon Total"
+            },
+            "ribbon_usage": {
+                "name": "Ribbon Usage"
+            },
+            "ribbon_sku": {
+                "name": "Ribbon SKU"
+            },
+            "ribbon_type": {
+                "name": "Ribbon Type"
+            },
+            "ribbon_tag_uuid": {
+                "name": "Ribbon Tag UUID"
             },
             "print_duration": {
                 "name": "Print Duration"

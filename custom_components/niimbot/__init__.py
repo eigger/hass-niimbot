@@ -36,6 +36,8 @@ from .const import (
     DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DEFAULT_KEEP_CONNECTION,
+    LEGACY_WAIT_BETWEEN_EACH_PRINT_LINE,
+    LEGACY_CONFIRM_EVERY_NTH_PRINT_LINE,
     DOMAIN,
     EMPTY_PNG,
     ImageAndBLEData,
@@ -50,6 +52,35 @@ PLATFORMS: list[Platform] = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _migrate_print_flow_defaults(data: dict) -> dict:
+    """Bump legacy slow print pacing defaults once."""
+    out = dict(data)
+    if out.get(CONF_WAIT_BETWEEN_EACH_PRINT_LINE) == LEGACY_WAIT_BETWEEN_EACH_PRINT_LINE:
+        out[CONF_WAIT_BETWEEN_EACH_PRINT_LINE] = DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE
+    if (
+        out.get(CONF_CONFIRM_EVERY_NTH_PRINT_LINE)
+        == LEGACY_CONFIRM_EVERY_NTH_PRINT_LINE
+    ):
+        out[CONF_CONFIRM_EVERY_NTH_PRINT_LINE] = DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE
+    return out
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entry to a new version."""
+    if entry.version < 2:
+        hass.config_entries.async_update_entry(
+            entry,
+            data=_migrate_print_flow_defaults(dict(entry.data)),
+            options=_migrate_print_flow_defaults(dict(entry.options)),
+            version=2,
+        )
+        _LOGGER.info(
+            "Migrated %s to config v2 (faster print pacing defaults)",
+            entry.title,
+        )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
