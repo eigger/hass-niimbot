@@ -37,30 +37,29 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         key="battery",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
-        name="Battery",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "last_error": SensorEntityDescription(
         key="last_error",
-        name="Last Error",
+        translation_key="last_error",
         icon="mdi:alert-circle-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "density": SensorEntityDescription(
         key="density",
-        name="Print Density",
+        translation_key="density",
         icon="mdi:printer-3d-nozzle",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "printspeed": SensorEntityDescription(
         key="printspeed",
-        name="Print Speed",
+        translation_key="printspeed",
         icon="mdi:speedometer",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "labeltype": SensorEntityDescription(
         key="labeltype",
-        name="Label Type",
+        translation_key="labeltype",
         icon="mdi:tag-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -69,45 +68,45 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
 RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
     "labels_remaining": SensorEntityDescription(
         key="labels_remaining",
-        name="Labels Remaining",
+        translation_key="labels_remaining",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:label-multiple",
     ),
     "labels_used": SensorEntityDescription(
         key="labels_used",
-        name="Labels Used",
+        translation_key="labels_used",
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:label-off",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "labels_total": SensorEntityDescription(
         key="labels_total",
-        name="Labels Total",
+        translation_key="labels_total",
         icon="mdi:label",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "consumable_usage": SensorEntityDescription(
         key="consumable_usage",
-        name="Consumable Usage",
+        translation_key="consumable_usage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:percent",
     ),
     "label_sku": SensorEntityDescription(
         key="label_sku",
-        name="Label SKU",
+        translation_key="label_sku",
         icon="mdi:barcode",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "consumable_type": SensorEntityDescription(
         key="consumable_type",
-        name="Consumable Type",
+        translation_key="consumable_type",
         icon="mdi:tag-text",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "tag_uuid": SensorEntityDescription(
         key="tag_uuid",
-        name="Tag UUID",
+        translation_key="tag_uuid",
         icon="mdi:identifier",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -319,7 +318,7 @@ class NiimbotPrintDurationSensor(
     """Niimbot print duration sensor."""
 
     _attr_has_entity_name = True
-    _attr_name = "Print Duration"
+    _attr_translation_key = "print_duration"
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -404,7 +403,7 @@ class NiimbotPrintProgressSensor(
     """Live print progress percentage from GET_PRINT_STATUS polls."""
 
     _attr_has_entity_name = True
-    _attr_name = "Print Progress"
+    _attr_translation_key = "print_progress"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:progress-helper"

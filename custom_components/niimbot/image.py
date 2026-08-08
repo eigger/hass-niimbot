@@ -33,7 +33,7 @@ async def async_setup_entry(
     image_coordinator = hass.data[DOMAIN][config_entry.entry_id]["image_coordinator"]
     desc = ImageEntityDescription(
         key="last_label_made",
-        name="Last Label Made",
+        translation_key="last_label_made",
     )
     async_add_entities(
         [

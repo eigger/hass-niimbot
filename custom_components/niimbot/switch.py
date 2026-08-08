@@ -45,7 +45,7 @@ class NiimbotConnectionSoundSwitch(
     """Switch for Bluetooth connection beep."""
 
     _attr_has_entity_name = True
-    _attr_name = "Connection Sound"
+    _attr_translation_key = "connection_sound"
     _attr_icon = "mdi:volume-high"
     _attr_entity_category = EntityCategory.CONFIG
 

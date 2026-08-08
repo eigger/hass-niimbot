@@ -23,7 +23,7 @@ from .niimprint import BLEData, NiimbotDevice
 from .niimprint.model import (
     AUTO_SHUTDOWN_OPTIONS,
     auto_shutdown_index,
-    auto_shutdown_label,
+    auto_shutdown_option,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class NiimbotAutoShutdownSelect(
     """Select for printer auto-shutdown time."""
 
     _attr_has_entity_name = True
-    _attr_name = "Auto Shutdown"
+    _attr_translation_key = "auto_shutdown"
     _attr_icon = "mdi:timer-outline"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = list(AUTO_SHUTDOWN_OPTIONS.values())
@@ -77,7 +77,7 @@ class NiimbotAutoShutdownSelect(
 
     @property
     def current_option(self) -> str | None:
-        return auto_shutdown_label(self._device.ble_data.autoshutdowntime)
+        return auto_shutdown_option(self._device.ble_data.autoshutdowntime)
 
     async def async_select_option(self, option: str) -> None:
         index = auto_shutdown_index(option)

@@ -93,5 +93,89 @@
       "name": "Refresh Printer Info",
       "description": "Re-read cached printer settings (density, speed, label type, auto shutdown, battery bucket)."
     }
+  },
+    "entity": {
+    "binary_sensor": {
+      "paper": {
+        "name": "Paper",
+        "state": {
+          "on": "Loaded",
+          "off": "Empty"
+        }
+      },
+      "rfid": {
+        "name": "RFID",
+        "state": {
+          "on": "Readable",
+          "off": "Not readable"
+        }
+      }
+    },
+    "sensor": {
+      "last_error": {
+        "name": "Last Error"
+      },
+      "density": {
+        "name": "Print Density"
+      },
+      "printspeed": {
+        "name": "Print Speed"
+      },
+      "labeltype": {
+        "name": "Label Type"
+      },
+      "labels_remaining": {
+        "name": "Labels Remaining"
+      },
+      "labels_used": {
+        "name": "Labels Used"
+      },
+      "labels_total": {
+        "name": "Labels Total"
+      },
+      "consumable_usage": {
+        "name": "Consumable Usage"
+      },
+      "label_sku": {
+        "name": "Label SKU"
+      },
+      "consumable_type": {
+        "name": "Consumable Type"
+      },
+      "tag_uuid": {
+        "name": "Tag UUID"
+      },
+      "print_duration": {
+        "name": "Print Duration"
+      },
+      "print_progress": {
+        "name": "Print Progress"
+      }
+    },
+    "select": {
+      "auto_shutdown": {
+        "name": "Auto Shutdown",
+        "state": {
+          "15_min": "15 min",
+          "30_min": "30 min",
+          "45_60_min": "45–60 min",
+          "60_min_never": "60 min / never"
+        }
+      }
+    },
+    "switch": {
+      "connection_sound": {
+        "name": "Connection Sound",
+        "state": {
+          "on": "On",
+          "off": "Off"
+        }
+      }
+    },
+    "image": {
+      "last_label_made": {
+        "name": "Last Label Made"
+      }
+    }
   }
 }
