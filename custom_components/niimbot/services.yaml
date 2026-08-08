@@ -61,6 +61,14 @@ print:
           min: 1
           max: 11
           step: 1
+    copies:
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 99
+          step: 1
     wait_between_print_lines:
       required: false
       default: 0.05
@@ -82,3 +90,8 @@ print:
       example: 'false'
       selector:
         boolean:
+
+refresh_info:
+  target:
+    device:
+      integration: niimbot

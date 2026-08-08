@@ -199,15 +199,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 label_type=int(service.data["label_type"])
                 if "label_type" in service.data
                 else 1,
+                copies=int(service.data["copies"]) if "copies" in service.data else 1,
             )
             result["image"] = image_data
             return result
         except (PrinterError, RuntimeError, ValueError) as e:
             raise HomeAssistantError("Failed to print: %s" % e) from e
 
+    @callback
+    async def refresh_info_service(service: ServiceCall) -> ServiceResponse:
+        ble_device = bluetooth.async_ble_device_from_address(hass, address)
+        if ble_device is None:
+            raise HomeAssistantError(
+                f"could not find printer with address {address} through your Bluetooth network"
+            )
+        try:
+            data = await niimbot.refresh_info(ble_device)
+            coordinator.async_set_updated_data(data)
+            return {
+                "density": data.density,
+                "printspeed": data.printspeed,
+                "labeltype": data.labeltype,
+                "autoshutdowntime": data.autoshutdowntime,
+                "battery_bucket": niimbot._info_battery_bucket,
+            }
+        except Exception as e:
+            raise HomeAssistantError("Failed to refresh printer info: %s" % e) from e
+
     # register the services
     hass.services.async_register(
         DOMAIN, "print", printservice, supports_response=SupportsResponse.OPTIONAL
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "refresh_info",
+        refresh_info_service,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
     return True

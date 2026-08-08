@@ -236,6 +236,7 @@ class PrinterClient:
         self._timings: list[float] = []
         # Cached heartbeat request payload that previously succeeded (b"\x01" or b"\x04").
         self._heartbeat_payload: bytes | None = heartbeat_payload
+        self.on_progress: Callable[[dict], None] | None = None
 
     @property
     def heartbeat_payload(self) -> bytes | None:
@@ -255,11 +256,14 @@ class PrinterClient:
         wait_between_print_lines: float,
         print_line_batch_size: int,
         label_type: int = 1,
+        copies: int = 1,
     ):
         self._timings = []
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
+            if copies < 1:
+                raise ValueError(f"copies must be >= 1, got {copies}")
             meta = get_printer_meta_by_model(model)
             printhead_pixels = meta["printheadPixels"] if meta else None
             density_min = meta.get("densityMin", 1) if meta else 1
@@ -273,6 +277,7 @@ class PrinterClient:
                 label_type=label_type,
                 density_min=density_min,
                 density_max=density_max,
+                copies=copies,
             )
             if model in (PrinterModel.UNKNOWN, PrinterModel.D11, PrinterModel.D11S):
                 return await self.print_image_d11_v1(**kwargs)
@@ -300,6 +305,7 @@ class PrinterClient:
         label_type: int = 1,
         density_min: int = 1,
         density_max: int = 5,
+        copies: int = 1,
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
         _LOGGER.debug("print_image_d11_v1: %s", locals())
@@ -309,7 +315,7 @@ class PrinterClient:
         await self.allow_print_clear()
         await self.start_page_print()
         await self.set_page_size_v2(image.height, 0)  # D11_V1 only sends height
-        await self.set_quantity(1)
+        await self.set_quantity(copies)
         await self.set_image(
             image,
             wait_between_print_lines,
@@ -318,7 +324,7 @@ class PrinterClient:
         )
         await self.end_page_print()
         start_time = time.time()
-        while not await self.get_print_end():
+        while not await self.get_print_end(copies=copies):
             if time.time() - start_time > 5:
                 break
             await sleep(0.5)
@@ -334,13 +340,14 @@ class PrinterClient:
         label_type: int = 1,
         density_min: int = 1,
         density_max: int = 5,
+        copies: int = 1,
     ):
         _LOGGER.debug("print_image_b1: %s", locals())
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
-        await self.start_print_v4()
+        await self.start_print_v4(total_pages=1)
         await self.start_page_print()
-        await self.set_page_size_v3(image.height, image.width)
+        await self.set_page_size_v3(image.height, image.width, copies_count=copies)
         await self.set_image(
             image,
             wait_between_print_lines,
@@ -362,7 +369,7 @@ class PrinterClient:
             status = await self.get_print_status()
             if status["progress"] < 100:
                 started = True
-            if status["page"] >= 1 or (started and status["progress"] >= 100):
+            if status["page"] >= copies or (started and status["progress"] >= 100):
                 break
             if time.time() - start_time > 30:
                 _LOGGER.warning(
@@ -383,6 +390,7 @@ class PrinterClient:
         label_type: int = 1,
         density_min: int = 1,
         density_max: int = 5,
+        copies: int = 1,
     ):
         _LOGGER.debug("print_image_d110: %s", locals())
         await self.set_label_density(density, density_min, density_max)
@@ -390,7 +398,7 @@ class PrinterClient:
         await self.start_print()
         await self.start_page_print()
         await self.set_page_size_v2(image.height, image.width)
-        await self.set_quantity(1)
+        await self.set_quantity(copies)
         await self.set_image(
             image,
             wait_between_print_lines,
@@ -399,7 +407,7 @@ class PrinterClient:
         )
         await self.end_page_print()
         start_time = time.time()
-        while not await self.get_print_end():
+        while not await self.get_print_end(copies=copies):
             if time.time() - start_time > 5:
                 break
             await sleep(0.5)
@@ -415,17 +423,18 @@ class PrinterClient:
         label_type: int = 1,
         density_min: int = 1,
         density_max: int = 5,
+        copies: int = 1,
     ):
         _LOGGER.debug("print_image_d110m_v4: %s", locals())
         if not await self.set_label_density(density, density_min, density_max):
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(label_type):
             raise RuntimeError(f"Could not set label type to {label_type}")
-        if not await self.start_print_9b():
+        if not await self.start_print_9b(total_pages=1):
             raise RuntimeError("Could not start print")
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
         await self.heartbeat(await_for_response=False)
-        await self.set_page_size_9b(image.height, image.width)
+        await self.set_page_size_9b(image.height, image.width, copies_count=copies)
         await self.set_image(
             image,
             wait_between_print_lines,
@@ -436,7 +445,7 @@ class PrinterClient:
             raise RuntimeError("Page did not finish successfully")
         await sleep(1)
         start_time = time.time()
-        while not await self.get_print_end():
+        while not await self.get_print_end(copies=copies):
             if time.time() - start_time > 5:
                 break
             await sleep(0.1)
@@ -1006,11 +1015,21 @@ class PrinterClient:
         # use the maximum of both non-zero values, falling back to whichever is non-zero.
         active = [p for p in (progress1, progress2) if p > 0]
         progress = max(active) if active else 0
-        return {"page": page, "progress": progress}
+        status = {
+            "page": page,
+            "page_print_progress": progress1,
+            "page_feed_progress": progress2,
+            "progress": progress,
+        }
+        if self.on_progress is not None:
+            self.on_progress(status)
+        return status
 
-    async def get_print_end(self):
+    async def get_print_end(self, copies: int = 1):
         status = await self.get_print_status()
         _LOGGER.debug("Status: %s", status)
+        if status["page"] >= copies:
+            return True
         if status["progress"] < 100:
             return False
         return True

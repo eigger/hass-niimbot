@@ -91,10 +91,16 @@ class NiimbotDevice:
             identifier=address.replace(":", "")[-6:],
             sensors={
                 "battery": None,
+                "battery_bucket": None,
                 "closingstate": None,
                 "paperstate": None,
                 "rfidreadstate": None,
                 "last_error": None,
+                "density": None,
+                "printspeed": None,
+                "labeltype": None,
+                "autoshutdowntime": None,
+                "print_progress": 0.0,
             }
         )
         self.client = None
@@ -102,15 +108,22 @@ class NiimbotDevice:
         self._heartbeat_payload: bytes | None = None
         self._last_rfid_uuid: str | None = None
         self._rfid_attrs: dict = {}
+        self._info_battery_bucket: int | None = None
+        self._info_loaded = False
         self.last_error: str | None = None
         self.last_error_time: float | None = None
         self.pending_events: list[dict] = []
         self.callback_connection = None
         self.callback_printing = None
         self.callback_error = None
+        self.callback_progress = None
         self._is_printing = False
         self._print_start_time: float | None = None
         self._print_end_time: float | None = None
+        self.print_progress: float = 0.0
+        self.print_page: int = 0
+        self.print_page_print_progress: int = 0
+        self.print_page_feed_progress: int = 0
         super().__init__()
 
     def get_model_meta(self):
@@ -187,6 +200,10 @@ class NiimbotDevice:
         if self.callback_printing:
             self.callback_printing()
 
+    def _notify_progress(self):
+        if self.callback_progress:
+            self.callback_progress()
+
     def _notify_error(self):
         if self.callback_error:
             self.callback_error()
@@ -199,6 +216,59 @@ class NiimbotDevice:
         self.last_error_time = time.time()
         self.ble_data.sensors["last_error"] = self.last_error
         self._notify_error()
+
+    def _handle_print_progress(self, status: dict) -> None:
+        self.print_page = int(status.get("page") or 0)
+        self.print_page_print_progress = int(status.get("page_print_progress") or 0)
+        self.print_page_feed_progress = int(status.get("page_feed_progress") or 0)
+        self.print_progress = float(status.get("progress") or 0)
+        self.ble_data.sensors["print_progress"] = self.print_progress
+        self._notify_progress()
+
+    async def _ensure_printer(self, ble_device: BLEDevice) -> PrinterClient:
+        """Connect and return a PrinterClient, reusing it when keep_connection is on."""
+        if not self.is_connected:
+            self.client = await establish_connection(
+                BleakClient,
+                ble_device,
+                ble_device.address,
+                use_services_cache=False,
+            )
+            if not self.client.is_connected:
+                raise RuntimeError("could not connect to thermal printer")
+            self._printer = None
+            self._notify_connection()
+
+        if self._printer is None:
+            self._printer = PrinterClient(
+                self.client, heartbeat_payload=self._heartbeat_payload
+            )
+            await self._printer.start_notify()
+        else:
+            self._printer._heartbeat_payload = self._heartbeat_payload
+        return self._printer
+
+    async def _release_printer(self) -> None:
+        """Stop notify / disconnect unless keep_connection holds the session open."""
+        if self._printer is not None and self._printer.heartbeat_payload is not None:
+            self._heartbeat_payload = self._printer.heartbeat_payload
+
+        if self.keep_connection and self.is_connected:
+            return
+
+        if self._printer is not None:
+            try:
+                await self._printer.stop_notify()
+            except Exception:
+                pass
+            self._printer = None
+
+        if self.client is not None:
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+            self._notify_connection()
 
     @property
     def is_connected(self) -> bool:
@@ -225,19 +295,64 @@ class NiimbotDevice:
 
     async def disconnect(self):
         """Disconnect from the BLE device if connected."""
-        if self.client and self.client.is_connected:
+        if self._printer is not None:
             try:
-                if self._printer:
-                    await self._printer.stop_notify()
+                await self._printer.stop_notify()
             except Exception:
                 pass
             finally:
                 self._printer = None
+        if self.client and self.client.is_connected:
             try:
                 await self.client.disconnect()
             except Exception:
                 pass
             self._notify_connection()
+
+    async def refresh_info(self, ble_device: BLEDevice) -> BLEData:
+        """Force-refresh cached PrinterInfo settings."""
+        async with self.lock:
+            if not self.ble_data.name:
+                self.ble_data.name = ble_device.name or "(no such device)"
+            printer = await self._ensure_printer(ble_device)
+            try:
+                await self._load_printer_info(printer, force=True)
+            finally:
+                await self._release_printer()
+            return self.ble_data
+
+    async def _load_printer_info(
+        self, printer: PrinterClient, force: bool = False
+    ) -> None:
+        """Read PrinterInfo settings once (or again when force=True)."""
+        if self._info_loaded and not force:
+            return
+
+        density = await printer.get_info(InfoEnum.DENSITY)
+        printspeed = await printer.get_info(InfoEnum.PRINTSPEED)
+        labeltype = await printer.get_info(InfoEnum.LABELTYPE)
+        autoshutdown = await printer.get_info(InfoEnum.AUTOSHUTDOWNTIME)
+        battery_bucket = await printer.get_info(InfoEnum.BATTERY)
+
+        if density is not None:
+            self.ble_data.density = int(density)
+            self.ble_data.sensors["density"] = self.ble_data.density
+        if printspeed is not None:
+            self.ble_data.printspeed = int(printspeed)
+            self.ble_data.sensors["printspeed"] = self.ble_data.printspeed
+        if labeltype is not None:
+            self.ble_data.labeltype = int(labeltype)
+            self.ble_data.sensors["labeltype"] = consumable_type_name(
+                self.ble_data.labeltype
+            )
+        if autoshutdown is not None:
+            self.ble_data.autoshutdowntime = int(autoshutdown)
+            self.ble_data.sensors["autoshutdowntime"] = self.ble_data.autoshutdowntime
+        if battery_bucket is not None:
+            self._info_battery_bucket = int(battery_bucket)
+            self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
+
+        self._info_loaded = True
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
@@ -247,21 +362,8 @@ class NiimbotDevice:
             if not self.ble_data.address:
                 self.ble_data.address = ble_device.address
 
-            # Reuse existing connection when keep_connection is enabled
-            if not self.is_connected:
-                self.client = await establish_connection(
-                    BleakClient, ble_device, ble_device.address,
-                    use_services_cache=False,
-                )
-                if not self.client.is_connected:
-                    raise RuntimeError("could not connect to thermal printer")
-                self._notify_connection()
-
             try:
-                printer = PrinterClient(
-                    self.client, heartbeat_payload=self._heartbeat_payload
-                )
-                await printer.start_notify()
+                printer = await self._ensure_printer(ble_device)
                 if not self.ble_data.serial_number:
                     self.ble_data.serial_number = str(
                         await printer.get_info(InfoEnum.DEVICESERIAL)
@@ -288,14 +390,14 @@ class NiimbotDevice:
                         SoundEnum.BluetoothConnectionSound, self.use_sound
                     )
 
+                await self._load_printer_info(printer)
+
                 heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
                 if printer.heartbeat_payload is not None:
                     self._heartbeat_payload = printer.heartbeat_payload
                 self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
                 self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
                 self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
-                # Log raw polarity values so maintainers can confirm paperstate
-                # (protocol: 0 = inserted) before flipping the binary sensor.
                 _LOGGER.debug(
                     "Heartbeat raw: closingstate=%s paperstate=%s "
                     "rfidreadstate=%s powerlevel=%s variant=%s",
@@ -310,19 +412,19 @@ class NiimbotDevice:
                     self.ble_data.model,
                     variant=heartbeat.get("variant"),
                 )
-                # Always write so a missing powerlevel clears a stale reading.
+                # Prefer live heartbeat; fall back to cached PrinterInfo key 10.
+                if battery is None and self._info_battery_bucket is not None:
+                    battery = round(float(self._info_battery_bucket) * 25.0)
                 self.ble_data.sensors["battery"] = battery
+                if self._info_battery_bucket is not None:
+                    self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
 
                 await self._maybe_read_rfid(printer, heartbeat)
-
-                await printer.stop_notify()
             except PrinterTimeout as err:
                 _LOGGER.warning("Printer timed out during update: %s", err)
                 raise
             finally:
-                if not self.keep_connection:
-                    await self.client.disconnect()
-                    self._notify_connection()
+                await self._release_printer()
 
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
@@ -348,6 +450,7 @@ class NiimbotDevice:
             return
 
         self._apply_rfid_info(info)
+
     async def print_image(
         self,
         ble_device: BLEDevice,
@@ -356,32 +459,24 @@ class NiimbotDevice:
         wait_between_print_lines: float,
         print_line_batch_size: int,
         label_type: int = 1,
+        copies: int = 1,
     ) -> dict:
         async with self.lock:
-            # Reuse existing connection when keep_connection is enabled
-            if not self.is_connected:
-                self.client = await establish_connection(
-                    BleakClient, ble_device, ble_device.address,
-                    use_services_cache=False,
-                )
-                if not self.client.is_connected:
-                    raise RuntimeError("could not connect to thermal printer")
-                self._notify_connection()
-
-            # 프린트 시작
             self._is_printing = True
             self._print_start_time = time.time()
             self._print_end_time = None
+            self.print_progress = 0.0
+            self.print_page = 0
+            self.print_page_print_progress = 0
+            self.print_page_feed_progress = 0
+            self.ble_data.sensors["print_progress"] = 0.0
             self._notify_printing()
+            self._notify_progress()
 
             try:
-                printer = PrinterClient(
-                    self.client, heartbeat_payload=self._heartbeat_payload
-                )
-                await printer.start_notify()
+                printer = await self._ensure_printer(ble_device)
+                printer.on_progress = self._handle_print_progress
 
-                # Resolve model inside the lock so we never print with UNKNOWN
-                # if update_device hasn't run yet (e.g. first print after HA start).
                 if not self.model:
                     device_type = await printer.get_info(InfoEnum.DEVICETYPE)
                     if device_type is not None:
@@ -395,7 +490,9 @@ class NiimbotDevice:
                     printer_model = PrinterModel(self.model)
                 except (ValueError, TypeError):
                     printer_model = PrinterModel.UNKNOWN
-                    _LOGGER.warning("Unknown printer model %r, falling back to UNKNOWN", self.model)
+                    _LOGGER.warning(
+                        "Unknown printer model %r, falling back to UNKNOWN", self.model
+                    )
 
                 await printer.print_image(
                     printer_model,
@@ -404,25 +501,26 @@ class NiimbotDevice:
                     wait_between_print_lines,
                     print_line_batch_size,
                     label_type=label_type,
+                    copies=copies,
                 )
-                if printer.heartbeat_payload is not None:
-                    self._heartbeat_payload = printer.heartbeat_payload
-                await printer.stop_notify()
             except Exception as err:
                 self._record_error(err)
                 raise
             finally:
-                # 프린트 종료
+                if self._printer is not None:
+                    self._printer.on_progress = None
                 self._print_end_time = time.time()
                 self._is_printing = False
+                if self.print_progress < 100:
+                    self.print_progress = 100.0
+                    self.ble_data.sensors["print_progress"] = 100.0
                 self._notify_printing()
-
-                if not self.keep_connection:
-                    await self.client.disconnect()
-                    self._notify_connection()
+                self._notify_progress()
+                await self._release_printer()
 
         return {
             "status": "ok",
             "duration": self.print_duration,
+            "copies": copies,
         }
 

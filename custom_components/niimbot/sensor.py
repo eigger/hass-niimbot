@@ -45,6 +45,30 @@ SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
         icon="mdi:alert-circle-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    "density": SensorEntityDescription(
+        key="density",
+        name="Print Density",
+        icon="mdi:printer-3d-nozzle",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "printspeed": SensorEntityDescription(
+        key="printspeed",
+        name="Print Speed",
+        icon="mdi:speedometer",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "labeltype": SensorEntityDescription(
+        key="labeltype",
+        name="Label Type",
+        icon="mdi:tag-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "autoshutdowntime": SensorEntityDescription(
+        key="autoshutdowntime",
+        name="Auto Shutdown",
+        icon="mdi:timer-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 }
 
 RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
@@ -132,11 +156,18 @@ async def async_setup_entry(
                     coordinator, coordinator.data, description, device
                 )
             )
+        elif key == "battery":
+            entities.append(
+                NiimbotBatterySensor(
+                    coordinator, coordinator.data, description, device
+                )
+            )
         else:
             entities.append(NiimbotSensor(coordinator, coordinator.data, description))
         created_keys.add(key)
 
     entities.append(NiimbotPrintDurationSensor(coordinator, coordinator.data, device))
+    entities.append(NiimbotPrintProgressSensor(coordinator, coordinator.data, device))
 
     def _add_rfid_entities() -> list[SensorEntity]:
         added: list[SensorEntity] = []
@@ -193,6 +224,31 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
             return self.coordinator.data.sensors[self.entity_description.key]
         except KeyError:
             return None
+
+
+class NiimbotBatterySensor(NiimbotSensor):
+    """Battery sensor with optional charge-bucket attribute."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        entity_description: SensorEntityDescription,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator, ble_data, entity_description)
+        self._device = device
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        bucket = self.coordinator.data.sensors.get("battery_bucket")
+        if bucket is None and self._device._info_battery_bucket is None:
+            return None
+        return {
+            "charge_bucket": bucket
+            if bucket is not None
+            else self._device._info_battery_bucket
+        }
 
 
 class NiimbotLastErrorSensor(NiimbotSensor):
@@ -333,5 +389,54 @@ class NiimbotPrintDurationSensor(
         seconds = int(duration % 60)
         return {
             "formatted": f"{minutes:02d}:{seconds:01d}",
+            "is_printing": self._device.is_printing,
+        }
+
+
+class NiimbotPrintProgressSensor(
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+):
+    """Live print progress percentage from GET_PRINT_STATUS polls."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Print Progress"
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:progress-helper"
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator)
+        self._device = device
+        name = f"{ble_data.name} {ble_data.identifier}"
+        self._attr_unique_id = f"{name}_print_progress"
+        self._attr_device_info = _device_info(ble_data)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._device.callback_progress = self._handle_progress_update
+
+    async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
+        self._device.callback_progress = None
+
+    @callback
+    def _handle_progress_update(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> float:
+        return round(self._device.print_progress, 1)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "page": self._device.print_page,
+            "page_print_progress": self._device.print_page_print_progress,
+            "page_feed_progress": self._device.print_page_feed_progress,
             "is_printing": self._device.is_printing,
         }
