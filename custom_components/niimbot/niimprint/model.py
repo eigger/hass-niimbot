@@ -711,25 +711,32 @@ def consumable_type_name(type_code: int | None) -> str | None:
 
 
 # PrinterInfo AutoShutdownTime is an index, not minutes (model-dependent).
+# Option values are stable translation keys (see entity.select.auto_shutdown.state).
 AUTO_SHUTDOWN_OPTIONS: dict[int, str] = {
-    1: "15 min",
-    2: "30 min",
-    3: "45–60 min",
-    4: "60 min / never",
+    1: "15_min",
+    2: "30_min",
+    3: "45_60_min",
+    4: "60_min_never",
 }
 
 
-def auto_shutdown_label(index: int | None) -> str | None:
+def auto_shutdown_option(index: int | None) -> str | None:
+    """Return the select option key for a PrinterInfo auto-shutdown index."""
     if index is None:
         return None
-    return AUTO_SHUTDOWN_OPTIONS.get(int(index), f"Index {index}")
+    return AUTO_SHUTDOWN_OPTIONS.get(int(index))
 
 
-def auto_shutdown_index(label: str) -> int | None:
-    for index, name in AUTO_SHUTDOWN_OPTIONS.items():
-        if name == label:
+def auto_shutdown_index(option: str) -> int | None:
+    for index, key in AUTO_SHUTDOWN_OPTIONS.items():
+        if key == option:
             return index
     return None
+
+
+# Back-compat alias used by older call sites.
+def auto_shutdown_label(index: int | None) -> str | None:
+    return auto_shutdown_option(index)
 
 
 def label_type_code(label_type: LabelType) -> int:

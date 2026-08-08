@@ -29,13 +29,13 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass(frozen=True)
 class NiimbotBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Binary sensor description with inversion flag."""
+
     inverted: bool = False
 
 
 BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
     NiimbotBinarySensorEntityDescription(
         key="closingstate",
-        name="Lid",
         device_class=BinarySensorDeviceClass.DOOR,
         icon="mdi:printer-alert",
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -43,7 +43,7 @@ BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
     ),
     NiimbotBinarySensorEntityDescription(
         key="paperstate",
-        name="Paper Loaded",
+        translation_key="paper",
         icon="mdi:label-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
         # Protocol (Advanced1/2): paperstate == 0 means inserted. Confirmed on B1
@@ -52,7 +52,7 @@ BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
     ),
     NiimbotBinarySensorEntityDescription(
         key="rfidreadstate",
-        name="RFID Readable",
+        translation_key="rfid",
         icon="mdi:nfc-variant",
         entity_category=EntityCategory.DIAGNOSTIC,
         # rfidreadstate != 0 means readable
@@ -146,7 +146,6 @@ class NiimbotConnectionBinarySensor(
         name = f"{ble_data.name} {ble_data.identifier}"
 
         self._attr_unique_id = f"{name}_connection"
-        self._attr_name = "Connection"
 
         self._id = ble_data.address
         self._attr_device_info = DeviceInfo(

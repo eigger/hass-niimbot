@@ -89,5 +89,89 @@
             "name": "프린터 정보 새로고침",
             "description": "캐시된 프린터 설정(농도, 속도, 라벨 타입, 자동 종료, 배터리 버킷)을 다시 읽습니다."
         }
+    },
+    "entity": {
+        "binary_sensor": {
+            "paper": {
+                "name": "용지",
+                "state": {
+                    "on": "장착됨",
+                    "off": "없음"
+                }
+            },
+            "rfid": {
+                "name": "RFID",
+                "state": {
+                    "on": "읽기 가능",
+                    "off": "읽기 불가"
+                }
+            }
+        },
+        "sensor": {
+            "last_error": {
+                "name": "최근 오류"
+            },
+            "density": {
+                "name": "인쇄 농도"
+            },
+            "printspeed": {
+                "name": "인쇄 속도"
+            },
+            "labeltype": {
+                "name": "라벨 타입"
+            },
+            "labels_remaining": {
+                "name": "남은 라벨"
+            },
+            "labels_used": {
+                "name": "사용한 라벨"
+            },
+            "labels_total": {
+                "name": "전체 라벨"
+            },
+            "consumable_usage": {
+                "name": "소모품 사용률"
+            },
+            "label_sku": {
+                "name": "라벨 SKU"
+            },
+            "consumable_type": {
+                "name": "소모품 타입"
+            },
+            "tag_uuid": {
+                "name": "태그 UUID"
+            },
+            "print_duration": {
+                "name": "인쇄 시간"
+            },
+            "print_progress": {
+                "name": "인쇄 진행률"
+            }
+        },
+        "select": {
+            "auto_shutdown": {
+                "name": "자동 종료",
+                "state": {
+                    "15_min": "15분",
+                    "30_min": "30분",
+                    "45_60_min": "45–60분",
+                    "60_min_never": "60분 / 안 함"
+                }
+            }
+        },
+        "switch": {
+            "connection_sound": {
+                "name": "연결음",
+                "state": {
+                    "on": "켜짐",
+                    "off": "꺼짐"
+                }
+            }
+        },
+        "image": {
+            "last_label_made": {
+                "name": "최근 라벨"
+            }
+        }
     }
 }
