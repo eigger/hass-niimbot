@@ -177,7 +177,7 @@
         "name": "Ribbon SKU"
       },
       "ribbon_type": {
-        "name": "Ribbon Type"
+        "name": "Ribbon Material"
       },
       "ribbon_tag_uuid": {
         "name": "Ribbon Tag UUID"

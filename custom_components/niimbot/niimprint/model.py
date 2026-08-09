@@ -757,7 +757,6 @@ def material_name(type_code: int | None) -> str | None:
     return _MATERIAL_NAMES.get(type_code, f"Unknown({type_code})")
 
 
-
 # PrinterInfo AutoShutdownTime is an index, not minutes (model-dependent).
 # Option values are stable translation keys (see entity.select.auto_shutdown.state).
 AUTO_SHUTDOWN_OPTIONS: dict[int, str] = {

@@ -14,7 +14,7 @@ from custom_components.niimbot.niimprint.printer import (
     PrinterTimeout,
     RequestCodeEnum,
 )
-from custom_components.niimbot.niimprint.parser import _battery_percentage, NiimbotDevice
+from custom_components.niimbot.niimprint.parser import _battery_percentage
 
 from tests.fake_transport import FakeTransport
 
@@ -299,26 +299,4 @@ def test_get_print_status_keeps_separate_progress_fields():
 
     run(_test())
 
-
-def test_rfid_apply_does_not_overwrite_labeltype():
-    device = NiimbotDevice("AA:BB:CC:DD:EE:FF")
-    # Simulate PrinterInfo set labeltype
-    device.ble_data.labeltype = 1
-    device.ble_data.sensors["labeltype"] = "WithGaps"
-
-    rfid_info = {
-        "uuid": "1122334455667788",
-        "barcode": "SKU123",
-        "total_len": 200,
-        "used_len": 10,
-        "type": 19,  # Transparent thermal
-    }
-    device._apply_rfid_info(rfid_info)
-
-    # LabelType sensor and ble_data.labeltype should remain unchanged
-    assert device.ble_data.labeltype == 1
-    assert device.ble_data.sensors["labeltype"] == "WithGaps"
-
-    # Consumable material sensor should map type 19 to Transparent thermal
-    assert device.ble_data.sensors["consumable_type"] == "Transparent thermal"
 

@@ -22,7 +22,6 @@ from .model import (
 )
 
 
-
 def _battery_percentage(
     powerlevel: int | None,
     model: str,

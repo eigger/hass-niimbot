@@ -82,7 +82,7 @@ Suggested order: **T1 → T2 → T3 → T4 → T5 → T6 → T7 → T9 → T8.**
 
 ---
 
-## T1 — Render the RFID `type` byte as a material code
+## T1 — Render the RFID `type` byte as a material code [Done]
 
 **Goal.** Stop showing `Unknown(19)` for transparent thermal stock and stop showing the wrong label
 type for six other codes.

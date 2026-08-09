@@ -173,7 +173,7 @@
                 "name": "리본 SKU"
             },
             "ribbon_type": {
-                "name": "리본 타입"
+                "name": "리본 재질"
             },
             "ribbon_tag_uuid": {
                 "name": "리본 태그 UUID"
