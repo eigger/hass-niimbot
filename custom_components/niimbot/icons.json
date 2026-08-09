@@ -12,9 +12,6 @@
             "calibrate_roll_feed": {
                 "default": "mdi:ruler"
             },
-            "cancel_print": {
-                "default": "mdi:cancel"
-            },
             "reset_printer_settings": {
                 "default": "mdi:restart"
             },

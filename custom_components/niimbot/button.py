@@ -36,7 +36,6 @@ async def async_setup_entry(
     device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
 
     entities: list[ButtonEntity] = [
-        NiimbotCancelPrintButton(coordinator, coordinator.data, device),
         NiimbotPrinterResetButton(coordinator, coordinator.data, device),
     ]
 
@@ -153,31 +152,6 @@ class NiimbotCalibrateHeightButton(NiimbotBaseButton):
                 raise HomeAssistantError("Printer rejected roll feed calibration")
         except Exception as err:
             _reraise_action_error("calibrate roll feed", err)
-
-
-class NiimbotCancelPrintButton(NiimbotBaseButton):
-    """Button to cancel an in-flight print job."""
-
-    def __init__(
-        self,
-        coordinator: DataUpdateCoordinator[BLEData],
-        ble_data: BLEData,
-        device: NiimbotDevice,
-    ) -> None:
-        super().__init__(coordinator, ble_data, device, "cancel_print")
-
-    @property
-    def available(self) -> bool:
-        return super().available and self._device.is_printing
-
-    async def async_press(self) -> None:
-        ble_dev = self._get_ble_device()
-        try:
-            ok = await self._device.cancel_print(ble_dev)
-            if not ok:
-                raise HomeAssistantError("Printer rejected cancel print request")
-        except Exception as err:
-            _reraise_action_error("cancel print", err)
 
 
 class NiimbotPrinterResetButton(NiimbotBaseButton):

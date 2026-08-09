@@ -25,7 +25,6 @@ def test_platform_module_imports(module_name: str) -> None:
 def test_button_module_defines_action_entities() -> None:
     button = importlib.import_module("custom_components.niimbot.button")
     for name in (
-        "NiimbotCancelPrintButton",
         "NiimbotPrinterResetButton",
         "NiimbotCalibrateHeightButton",
         "NiimbotCalibrateLabelPositionButton",
