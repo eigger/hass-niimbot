@@ -322,7 +322,7 @@ version up does; an unknown version does.
 
 ---
 
-## T6 — Printer action buttons
+## T6 — Printer action buttons [Done]
 
 **Goal.** Expose the actions the app has and this integration does not.
 

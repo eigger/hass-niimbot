@@ -124,6 +124,7 @@ class PrinterModelMeta(TypedDict):
     densityMax: NotRequired[int]
     densityDefault: NotRequired[int]
     printheadPixelsEstimated: NotRequired[bool]
+    isSupportCalibration: NotRequired[bool]
 
 modelsLibrary: list[PrinterModelMeta] = [
     {
@@ -837,91 +838,99 @@ modelsLibrary: list[PrinterModelMeta] = [
     },
 ]
 
-# Density / RFID capabilities keyed by printer model ID (from devices.md).
-_CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int]] = {
-    256: (RfidClass.NONE, 1, 5, 3),
-    257: (RfidClass.NONE, 1, 5, 3),
-    258: (RfidClass.NONE, 1, 5, 3),
-    259: (RfidClass.NONE, 1, 5, 3),
-    260: (RfidClass.NONE, 1, 5, 3),
-    261: (RfidClass.NONE, 1, 5, 3),
-    262: (RfidClass.NONE, 1, 5, 3),
-    272: (RfidClass.LABEL, 1, 5, 3),
-    273: (RfidClass.LABEL, 1, 5, 3),
-    274: (RfidClass.LABEL, 1, 5, 3),
-    512: (RfidClass.LABEL, 1, 3, 2),
-    513: (RfidClass.LABEL, 1, 5, 3),
-    514: (RfidClass.LABEL, 1, 3, 2),
-    528: (RfidClass.LABEL, 1, 5, 3),
-    531: (RfidClass.LABEL, 1, 5, 3),
-    768: (RfidClass.LABEL, 1, 5, 3),
-    769: (RfidClass.LABEL, 1, 5, 3),
-    771: (RfidClass.LABEL, 1, 5, 3),
-    775: (RfidClass.LABEL, 1, 5, 3),
-    776: (RfidClass.LABEL, 1, 5, 3),
-    777: (RfidClass.LABEL, 1, 5, 3),
-    784: (RfidClass.LABEL, 1, 5, 3),
-    785: (RfidClass.LABEL, 1, 5, 3),
-    1024: (RfidClass.RIBBON, 1, 5, 3),
-    1025: (RfidClass.RIBBON, 1, 5, 3),
-    1026: (RfidClass.RIBBON, 1, 5, 3),
-    1792: (RfidClass.LABEL, 1, 3, 2),
-    2049: (RfidClass.RIBBON, 1, 15, 10),
-    2050: (RfidClass.RIBBON, 1, 15, 10),
-    2051: (RfidClass.RIBBON, 1, 15, 10),
-    2053: (RfidClass.NONE, 1, 15, 10),
-    2054: (RfidClass.RIBBON, 1, 15, 10),
-    2304: (RfidClass.LABEL, 1, 3, 2),
-    2305: (RfidClass.LABEL, 1, 3, 2),
-    2320: (RfidClass.LABEL, 1, 5, 3),
-    2560: (RfidClass.LABEL, 1, 3, 2),
-    2561: (RfidClass.LABEL, 1, 3, 2),
-    2816: (RfidClass.LABEL, 1, 5, 3),
-    2817: (RfidClass.LABEL, 1, 5, 3),
-    2818: (RfidClass.LABEL, 1, 5, 3),
-    3584: (RfidClass.LABEL_RIBBON, 1, 3, 2),
-    3585: (RfidClass.LABEL_RIBBON, 1, 3, 2),
-    3586: (RfidClass.LABEL_RIBBON, 1, 3, 2),
-    3840: (RfidClass.LABEL, 1, 3, 2),
-    4096: (RfidClass.LABEL, 1, 5, 3),
-    4097: (RfidClass.LABEL, 1, 5, 3),
-    4098: (RfidClass.LABEL, 1, 5, 3),
-    4352: (RfidClass.LABEL, 1, 3, 2),
-    4608: (RfidClass.LABEL_RIBBON, 1, 5, 3),
-    4609: (RfidClass.LABEL_RIBBON, 1, 5, 3),
-    4610: (RfidClass.LABEL_RIBBON, 1, 5, 3),
-    4864: (RfidClass.LABEL, 1, 5, 3),
-    4865: (RfidClass.LABEL, 1, 5, 3),
-    4866: (RfidClass.LABEL, 1, 5, 3),
-    4867: (RfidClass.LABEL, 1, 5, 3),
-    4868: (RfidClass.LABEL, 1, 5, 3),
-    5120: (RfidClass.RIBBON, 1, 5, 3),
-    5121: (RfidClass.RIBBON, 1, 5, 3),
-    5376: (RfidClass.NONE, 3, 3, 3),
-    5632: (RfidClass.LABEL, 1, 5, 3),
-    6144: (RfidClass.LABEL, 1, 5, 3),
-    6400: (RfidClass.LABEL_RIBBON, 1, 5, 3),
-    6402: (RfidClass.LABEL_RIBBON, 1, 5, 3),
-    6656: (RfidClass.LABEL, 1, 5, 3),
-    6657: (RfidClass.LABEL, 1, 5, 3),
-    6912: (RfidClass.LABEL, 1, 5, 3),
-    6913: (RfidClass.LABEL, 1, 5, 3),
-    7168: (RfidClass.LABEL, 1, 15, 7),
-    7424: (RfidClass.NONE, 1, 5, 3),
-    51457: (RfidClass.NONE, 6, 15, 10),
-    51458: (RfidClass.NONE, 6, 15, 10),
-    51460: (RfidClass.NONE, 6, 15, 10),
-    51461: (RfidClass.NONE, 6, 15, 10),
-    51713: (RfidClass.NONE, 6, 15, 10),
-    51714: (RfidClass.NONE, 6, 15, 10),
-    51715: (RfidClass.NONE, 6, 15, 10),
-    51717: (RfidClass.NONE, 6, 15, 10),
-    51718: (RfidClass.NONE, 6, 15, 10),
-    52993: (RfidClass.NONE, 1, 5, 3),
-    53250: (RfidClass.NONE, 1, 20, 15),
+# Density / RFID / Calibration capabilities keyed by printer model ID (from devices.md).
+_CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int, bool]] = {
+    256: (RfidClass.NONE, 1, 5, 3, True),
+    257: (RfidClass.NONE, 1, 5, 3, True),
+    258: (RfidClass.NONE, 1, 5, 3, True),
+    259: (RfidClass.NONE, 1, 5, 3, True),
+    260: (RfidClass.NONE, 1, 5, 3, True),
+    261: (RfidClass.NONE, 1, 5, 3, True),
+    262: (RfidClass.NONE, 1, 5, 3, True),
+    272: (RfidClass.LABEL, 1, 5, 3, True),
+    273: (RfidClass.LABEL, 1, 5, 3, True),
+    274: (RfidClass.LABEL, 1, 5, 3, True),
+    512: (RfidClass.LABEL, 1, 3, 2, True),
+    513: (RfidClass.LABEL, 1, 5, 3, False),
+    514: (RfidClass.LABEL, 1, 3, 2, False),
+    528: (RfidClass.LABEL, 1, 5, 3, True),
+    531: (RfidClass.LABEL, 1, 5, 3, True),
+    768: (RfidClass.LABEL, 1, 5, 3, True),
+    769: (RfidClass.LABEL, 1, 5, 3, True),
+    771: (RfidClass.LABEL, 1, 5, 3, True),
+    775: (RfidClass.LABEL, 1, 5, 3, True),
+    776: (RfidClass.LABEL, 1, 5, 3, True),
+    777: (RfidClass.LABEL, 1, 5, 3, True),
+    784: (RfidClass.LABEL, 1, 5, 3, True),
+    785: (RfidClass.LABEL, 1, 5, 3, True),
+    1024: (RfidClass.RIBBON, 1, 5, 3, False),
+    1025: (RfidClass.RIBBON, 1, 5, 3, False),
+    1026: (RfidClass.RIBBON, 1, 5, 3, False),
+    1792: (RfidClass.LABEL, 1, 3, 2, False),
+    2049: (RfidClass.RIBBON, 1, 15, 10, True),
+    2050: (RfidClass.RIBBON, 1, 15, 10, False),
+    2051: (RfidClass.RIBBON, 1, 15, 10, True),
+    2053: (RfidClass.NONE, 1, 15, 10, True),
+    2054: (RfidClass.RIBBON, 1, 15, 10, True),
+    2304: (RfidClass.LABEL, 1, 3, 2, False),
+    2305: (RfidClass.LABEL, 1, 3, 2, False),
+    2320: (RfidClass.LABEL, 1, 5, 3, True),
+    2560: (RfidClass.LABEL, 1, 3, 2, False),
+    2561: (RfidClass.LABEL, 1, 3, 2, True),
+    2816: (RfidClass.LABEL, 1, 5, 3, True),
+    2817: (RfidClass.LABEL, 1, 5, 3, True),
+    2818: (RfidClass.LABEL, 1, 5, 3, True),
+    3584: (RfidClass.LABEL_RIBBON, 1, 3, 2, False),
+    3585: (RfidClass.LABEL_RIBBON, 1, 3, 2, False),
+    3586: (RfidClass.LABEL_RIBBON, 1, 3, 2, True),
+    3840: (RfidClass.LABEL, 1, 3, 2, True),
+    4096: (RfidClass.LABEL, 1, 5, 3, True),
+    4097: (RfidClass.LABEL, 1, 5, 3, True),
+    4098: (RfidClass.LABEL, 1, 5, 3, True),
+    4352: (RfidClass.LABEL, 1, 3, 2, True),
+    4608: (RfidClass.LABEL_RIBBON, 1, 5, 3, True),
+    4609: (RfidClass.LABEL_RIBBON, 1, 5, 3, True),
+    4610: (RfidClass.LABEL_RIBBON, 1, 5, 3, True),
+    4864: (RfidClass.LABEL, 1, 5, 3, True),
+    4865: (RfidClass.LABEL, 1, 5, 3, True),
+    4866: (RfidClass.LABEL, 1, 5, 3, True),
+    4867: (RfidClass.LABEL, 1, 5, 3, True),
+    4868: (RfidClass.LABEL, 1, 5, 3, True),
+    5120: (RfidClass.RIBBON, 1, 5, 3, True),
+    5121: (RfidClass.RIBBON, 1, 5, 3, True),
+    5376: (RfidClass.NONE, 3, 3, 3, False),
+    5632: (RfidClass.LABEL, 1, 5, 3, True),
+    6144: (RfidClass.LABEL, 1, 5, 3, True),
+    6400: (RfidClass.LABEL_RIBBON, 1, 5, 3, True),
+    6402: (RfidClass.LABEL_RIBBON, 1, 5, 3, True),
+    6656: (RfidClass.LABEL, 1, 5, 3, True),
+    6657: (RfidClass.LABEL, 1, 5, 3, True),
+    6912: (RfidClass.LABEL, 1, 5, 3, True),
+    6913: (RfidClass.LABEL, 1, 5, 3, True),
+    7168: (RfidClass.LABEL, 1, 15, 7, True),
+    7424: (RfidClass.NONE, 1, 5, 3, True),
+    51457: (RfidClass.NONE, 6, 15, 10, False),
+    51458: (RfidClass.NONE, 6, 15, 10, False),
+    51460: (RfidClass.NONE, 6, 15, 10, False),
+    51461: (RfidClass.NONE, 6, 15, 10, False),
+    51713: (RfidClass.NONE, 6, 15, 10, False),
+    51714: (RfidClass.NONE, 6, 15, 10, False),
+    51715: (RfidClass.NONE, 6, 15, 10, False),
+    51717: (RfidClass.NONE, 6, 15, 10, False),
+    51718: (RfidClass.NONE, 6, 15, 10, False),
+    52993: (RfidClass.NONE, 1, 5, 3, False),
+    53250: (RfidClass.NONE, 1, 20, 15, False),
 }
 
-_DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3)
+_DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3, False)
+
+
+def supports_calibration(meta: PrinterModelMeta | None) -> bool:
+    """Return True if printer model supports label positioning / roll feed calibration."""
+    if meta is None:
+        return False
+    return meta.get("isSupportCalibration", False)
+
 
 _LABEL_TYPE_NAMES = {
     1: "WithGaps",
@@ -1048,11 +1057,12 @@ def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
         if pid in _CAPABILITIES_BY_ID:
             caps = _CAPABILITIES_BY_ID[pid]
             break
-    rfid, dmin, dmax, ddef = caps
+    rfid, dmin, dmax, ddef, calibration = caps
     out.setdefault("rfid", rfid)
     out.setdefault("densityMin", dmin)
     out.setdefault("densityMax", dmax)
     out.setdefault("densityDefault", ddef)
+    out.setdefault("isSupportCalibration", calibration)
     return out
 
 

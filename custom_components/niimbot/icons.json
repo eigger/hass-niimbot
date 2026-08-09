@@ -3,5 +3,24 @@
         "print": {
             "service": "mdi:printer-wireless"
         }
+    },
+    "entity": {
+        "button": {
+            "calibrate_label_position": {
+                "default": "mdi:format-vertical-align-center"
+            },
+            "calibrate_roll_feed": {
+                "default": "mdi:ruler"
+            },
+            "cancel_print": {
+                "default": "mdi:cancel"
+            },
+            "reset_printer_settings": {
+                "default": "mdi:restart"
+            },
+            "print_test_page": {
+                "default": "mdi:printer-eye"
+            }
+        }
     }
 }
