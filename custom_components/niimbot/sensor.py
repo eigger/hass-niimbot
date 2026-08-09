@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import (
     PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATTS,
     EntityCategory,
     UnitOfTime,
 )
@@ -182,6 +183,38 @@ RIBBON_RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
     ),
 }
 
+ADVANCED2_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
+    "printhead_temperature": SensorEntityDescription(
+        key="printhead_temperature",
+        translation_key="printhead_temperature",
+        icon="mdi:thermometer",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "wifi_rssi": SensorEntityDescription(
+        key="wifi_rssi",
+        translation_key="wifi_rssi",
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+        native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATTS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:wifi",
+    ),
+    "voltage_state": SensorEntityDescription(
+        key="voltage_state",
+        translation_key="voltage_state",
+        icon="mdi:flash-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    "lighting_error": SensorEntityDescription(
+        key="lighting_error",
+        translation_key="lighting_error",
+        icon="mdi:lightbulb-alert-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+}
+
 
 def _device_info(ble_data: BLEData) -> DeviceInfo:
     name = f"{ble_data.name} {ble_data.identifier}"
@@ -260,16 +293,34 @@ async def async_setup_entry(
             created_keys.add(key)
         return added
 
+    def _add_advanced2_entities() -> list[SensorEntity]:
+        added: list[SensorEntity] = []
+        for key, description in ADVANCED2_SENSOR_DESCRIPTIONS.items():
+            if key in created_keys:
+                continue
+            if key in coordinator.data.sensors:
+                added.append(
+                    NiimbotSensor(coordinator, coordinator.data, description)
+                )
+                created_keys.add(key)
+        return added
+
     entities.extend(_add_rfid_entities())
     entities.extend(_add_ribbon_rfid_entities())
+    entities.extend(_add_advanced2_entities())
     async_add_entities(entities)
 
-    # Model / RFID capability may be unknown at setup (initial poll failed, or
-    # platforms load before the first successful device-type read). Keep listening
-    # until RFID entities are created, or the model is known to lack them.
+    # Model / RFID capability / Advanced2 sensors may be unknown at setup.
+    # Keep listening until entities are created or capabilities settled.
     need_label = "labels_remaining" not in created_keys
     need_ribbon = "ribbon_remaining" not in created_keys
-    if need_label or need_ribbon:
+    need_adv2 = len(created_keys) < (
+        len(sensors_mapping)
+        + len(RFID_SENSOR_DESCRIPTIONS)
+        + len(RIBBON_RFID_SENSOR_DESCRIPTIONS)
+        + len(ADVANCED2_SENSOR_DESCRIPTIONS)
+    )
+    if need_label or need_ribbon or need_adv2:
 
         @callback
         def _on_coordinator_update() -> None:
@@ -285,6 +336,8 @@ async def async_setup_entry(
                     pass
                 else:
                     new_entities.extend(_add_ribbon_rfid_entities())
+            new_entities.extend(_add_advanced2_entities())
+
             if new_entities:
                 async_add_entities(new_entities)
             label_done = (
@@ -295,7 +348,10 @@ async def async_setup_entry(
                 "ribbon_remaining" in created_keys
                 or (meta is not None and not device.supports_ribbon_rfid())
             )
-            if label_done and ribbon_done:
+            adv2_done = all(
+                k in created_keys for k in ADVANCED2_SENSOR_DESCRIPTIONS
+            ) or (device.heartbeat_variant not in (None, "advanced2"))
+            if label_done and ribbon_done and adv2_done:
                 unsub()
 
         unsub = coordinator.async_add_listener(_on_coordinator_update)

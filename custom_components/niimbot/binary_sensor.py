@@ -57,6 +57,21 @@ BINARY_SENSORS: list[NiimbotBinarySensorEntityDescription] = [
         entity_category=EntityCategory.DIAGNOSTIC,
         # rfidreadstate != 0 means readable
     ),
+    NiimbotBinarySensorEntityDescription(
+        key="ribbonstate",
+        translation_key="ribbon_paper",
+        icon="mdi:filmstrip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Protocol: ribbonstate == 0 means inserted
+        inverted=True,
+    ),
+    NiimbotBinarySensorEntityDescription(
+        key="ribbon_rfidreadstate",
+        translation_key="ribbon_rfid",
+        icon="mdi:nfc-variant",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # ribbon_rfidreadstate != 0 means readable
+    ),
 ]
 
 
@@ -71,17 +86,44 @@ async def async_setup_entry(
     ]
     device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
 
-    entities = [
+    entities: list[BinarySensorEntity] = [
         NiimbotConnectionBinarySensor(coordinator, coordinator.data, device),
     ]
+    created_keys: set[str] = set()
 
     for description in BINARY_SENSORS:
         if description.key in coordinator.data.sensors:
             entities.append(
                 NiimbotStateBinarySensor(coordinator, coordinator.data, description)
             )
+            created_keys.add(description.key)
 
     async_add_entities(entities)
+
+    if len(created_keys) < len(BINARY_SENSORS):
+
+        @callback
+        def _on_coordinator_update() -> None:
+            new_entities: list[BinarySensorEntity] = []
+            for description in BINARY_SENSORS:
+                if (
+                    description.key not in created_keys
+                    and description.key in coordinator.data.sensors
+                ):
+                    new_entities.append(
+                        NiimbotStateBinarySensor(
+                            coordinator, coordinator.data, description
+                        )
+                    )
+                    created_keys.add(description.key)
+            if new_entities:
+                async_add_entities(new_entities)
+            if len(created_keys) == len(BINARY_SENSORS) or (
+                device.heartbeat_variant not in (None, "advanced2")
+            ):
+                unsub()
+
+        unsub = coordinator.async_add_listener(_on_coordinator_update)
 
 
 class NiimbotStateBinarySensor(

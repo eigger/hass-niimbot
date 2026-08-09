@@ -137,7 +137,7 @@ shipping this cannot regress ordinary gap or transparent stock.
 
 ---
 
-## T2 — Surface the Advanced2 heartbeat fields
+## T2 — Surface the Advanced2 heartbeat fields [Done]
 
 **Goal.** Stop computing six values per poll and throwing them away.
 

@@ -15,7 +15,6 @@ from custom_components.niimbot.niimprint.printer import (
     RequestCodeEnum,
 )
 from custom_components.niimbot.niimprint.parser import _battery_percentage
-
 from tests.fake_transport import FakeTransport
 
 
@@ -298,5 +297,7 @@ def test_get_print_status_keeps_separate_progress_fields():
         assert seen["progress"] == 80
 
     run(_test())
+
+
 
 

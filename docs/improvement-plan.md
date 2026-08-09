@@ -71,23 +71,20 @@ order — files, exact change, tests, acceptance criteria — in [work-plan.md](
 **[HW]** The material reading is inference until a tag returns a value above 11. Black-mark stock made
 of plain thermal paper settles it — see the test described in rfid.md.
 
-### 2. Advanced2 heartbeat sensors (was 3.3)
+### 2. Advanced2 heartbeat sensors — **Done (T2)** (was 3.3)
 
-`_parse_heartbeat_advanced2` already returns `temperature`, `ribbon_rfidreadstate`, `ribbonstate`,
-`wifi_rssi`, `lighting_error` and `voltage_state`. `update_device` copies four of the ten fields, so
-the rest are computed once per poll and dropped.
+`_parse_heartbeat_advanced2` returns six extra fields when parsed. Surfaced as diagnostic sensors and binary sensors when present in the heartbeat payload:
 
 | Entity | Platform | Notes |
 | --- | --- | --- |
-| Print Head Temperature | sensor | `TEMPERATURE`, unit unconfirmed, assume °C |
+| Print Head Temperature | sensor | Diagnostic, raw value (unit unconfirmed) |
 | Ribbon Loaded | binary_sensor | `0` means inserted |
 | Ribbon RFID Readable | binary_sensor | non-zero means success |
 | WiFi Signal | sensor | `SIGNAL_STRENGTH`, dBm, diagnostic |
-| Voltage State | sensor | diagnostic, raw |
-| Lighting Error Code | sensor | diagnostic, raw |
+| Voltage State | sensor | diagnostic, raw, disabled by default |
+| Lighting Error Code | sensor | diagnostic, raw, disabled by default |
 
-Create them only when the Advanced2 parse actually produced a value, so protocol-v2 hardware is
-unaffected. **[HW]** all six — no Advanced2 device has been observed.
+Entities are created dynamically only when the Advanced2 payload provides the value, leaving protocol-v1/v2 hardware unaffected. **[HW]** all six — no Advanced2 device has been observed by this project.
 
 ### 3. The 14 missing model IDs (5.1)
 

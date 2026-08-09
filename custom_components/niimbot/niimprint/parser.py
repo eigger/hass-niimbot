@@ -140,6 +140,7 @@ class NiimbotDevice:
         self.print_page_print_progress: int = 0
         self.print_page_feed_progress: int = 0
         self._print_progress_started = False
+        self.heartbeat_variant: str | None = None
         super().__init__()
 
     def get_model_meta(self):
@@ -162,6 +163,28 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_ribbon_rfid(meta.get("rfid"))
+
+    def _apply_heartbeat(self, heartbeat: dict) -> None:
+        """Apply heartbeat data to sensors."""
+        variant = heartbeat.get("variant")
+        if variant:
+            self.heartbeat_variant = variant
+
+        self.ble_data.sensors["closingstate"] = heartbeat.get("closingstate")
+        self.ble_data.sensors["paperstate"] = heartbeat.get("paperstate")
+        self.ble_data.sensors["rfidreadstate"] = heartbeat.get("rfidreadstate")
+
+        # Advanced2 fields are retained once set (consistent with RFID hold-last-known-value policy)
+        for sensor_key, hb_key in (
+            ("printhead_temperature", "temperature"),
+            ("ribbonstate", "ribbonstate"),
+            ("ribbon_rfidreadstate", "ribbon_rfidreadstate"),
+            ("wifi_rssi", "wifi_rssi"),
+            ("voltage_state", "voltage_state"),
+            ("lighting_error", "lighting_error"),
+        ):
+            if hb_key in heartbeat and heartbeat[hb_key] is not None:
+                self.ble_data.sensors[sensor_key] = heartbeat[hb_key]
 
     def _apply_rfid_info(self, info: dict | None) -> None:
         """Update RFID sensors from a tag read. Keeps previous values on None."""
@@ -512,9 +535,7 @@ class NiimbotDevice:
                 heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
                 if printer.heartbeat_payload is not None:
                     self._heartbeat_payload = printer.heartbeat_payload
-                self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
-                self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
-                self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
+                self._apply_heartbeat(heartbeat)
                 _LOGGER.debug(
                     "Heartbeat raw: closingstate=%s paperstate=%s "
                     "rfidreadstate=%s powerlevel=%s variant=%s",
@@ -604,9 +625,7 @@ class NiimbotDevice:
             # Give the printer a moment to finish writing the tag.
             await asyncio.sleep(0.5)
             heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
-            self.ble_data.sensors["closingstate"] = heartbeat["closingstate"]
-            self.ble_data.sensors["paperstate"] = heartbeat["paperstate"]
-            self.ble_data.sensors["rfidreadstate"] = heartbeat["rfidreadstate"]
+            self._apply_heartbeat(heartbeat)
             battery = _battery_percentage(
                 heartbeat["powerlevel"],
                 self.ble_data.model,
