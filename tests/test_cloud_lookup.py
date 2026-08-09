@@ -155,11 +155,13 @@ def test_get_fetches_and_caches_on_success(monkeypatch):
             "preview_url": "https://oss-print.niimbot.com/preview.png",
         }
         assert session.calls == ["6972842748577"]
+        assert lookup.last_source == "network"
 
         # Second lookup for the same barcode must not hit the network again.
         info2 = await lookup.get("6972842748577")
         assert info2 == info
         assert session.calls == ["6972842748577"]
+        assert lookup.last_source == "cache"
         assert store.saved, "result must have been persisted"
 
     run(_test())

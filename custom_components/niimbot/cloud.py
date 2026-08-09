@@ -94,6 +94,7 @@ class LabelCloudLookup:
         self._store: Store = Store(hass, _STORE_VERSION, _STORE_KEY)
         self._cache: dict[str, dict] | None = None
         self.last_result_definitive: bool = False
+        self.last_source: str | None = None  # "cache" | "network"
 
     async def _load_cache(self) -> dict[str, dict]:
         if self._cache is None:
@@ -103,6 +104,7 @@ class LabelCloudLookup:
     async def get(self, barcode: str) -> LabelInfo | None:
         """Return label info for a barcode, using the on-disk cache when possible."""
         self.last_result_definitive = False
+        self.last_source = None
         if not barcode:
             self.last_result_definitive = True
             return None
@@ -113,13 +115,16 @@ class LabelCloudLookup:
             if entry.get("negative"):
                 if time.time() - entry.get("checked_at", 0) < _NEGATIVE_RECHECK_SECONDS:
                     self.last_result_definitive = True
+                    self.last_source = "cache"
                     return None
             else:
                 self.last_result_definitive = True
+                self.last_source = "cache"
                 return entry.get("info")
 
         info, definitive = await self._fetch(barcode)
         self.last_result_definitive = definitive
+        self.last_source = "network"
         if not definitive:
             return None
 

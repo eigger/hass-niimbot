@@ -29,8 +29,11 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DOMAIN
-
+from .const import (
+    CONF_USE_CLOUD_LABEL_INFO,
+    DEFAULT_USE_CLOUD_LABEL_INFO,
+    DOMAIN,
+)
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
@@ -215,6 +218,13 @@ ADVANCED2_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
     ),
 }
 
+CLOUD_LABEL_INFO_DESCRIPTION = SensorEntityDescription(
+    key="cloud_label_info",
+    translation_key="cloud_label_info",
+    icon="mdi:cloud-search-outline",
+    entity_category=EntityCategory.DIAGNOSTIC,
+)
+
 
 def _device_info(ble_data: BLEData) -> DeviceInfo:
     name = f"{ble_data.name} {ble_data.identifier}"
@@ -308,6 +318,20 @@ async def async_setup_entry(
     entities.extend(_add_rfid_entities())
     entities.extend(_add_ribbon_rfid_entities())
     entities.extend(_add_advanced2_entities())
+
+    use_cloud = bool(
+        entry.options.get(
+            CONF_USE_CLOUD_LABEL_INFO,
+            entry.data.get(CONF_USE_CLOUD_LABEL_INFO, DEFAULT_USE_CLOUD_LABEL_INFO),
+        )
+    )
+    if use_cloud:
+        entities.append(
+            NiimbotCloudLabelInfoSensor(
+                coordinator, coordinator.data, CLOUD_LABEL_INFO_DESCRIPTION, device
+            )
+        )
+
     async_add_entities(entities)
 
     # Model / RFID capability / Advanced2 sensors may be unknown at setup.
@@ -469,6 +493,47 @@ class NiimbotRfidSensor(NiimbotSensor):
             attrs = self._device._cloud_label_attrs
             return dict(attrs) if attrs else None
         return None
+
+
+class NiimbotCloudLabelInfoSensor(NiimbotSensor):
+    """Cloud catalogue lookup result (status + request time)."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        entity_description: SensorEntityDescription,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator, ble_data, entity_description)
+        self._device = device
+
+    @property
+    def native_value(self) -> StateType:
+        state = self._device._cloud_lookup_state
+        if not state:
+            return None
+        status = state.get("status")
+        if status == "found":
+            return state.get("label_name") or "found"
+        return status
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        state = self._device._cloud_lookup_state
+        if not state:
+            return None
+        attrs = {
+            "status": state.get("status"),
+            "barcode": state.get("barcode"),
+            "requested_at": state.get("requested_at"),
+            "source": state.get("source"),
+            "label_name": state.get("label_name"),
+            "label_width_mm": state.get("label_width_mm"),
+            "label_height_mm": state.get("label_height_mm"),
+            "preview_url": state.get("preview_url"),
+        }
+        return {key: value for key, value in attrs.items() if value is not None}
 
 
 class NiimbotRibbonRfidSensor(NiimbotSensor):
