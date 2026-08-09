@@ -155,6 +155,9 @@
       "label_sku": {
         "name": "Label SKU"
       },
+      "consumable_type": {
+        "name": "Consumable Material"
+      },
       "tag_uuid": {
         "name": "Tag UUID"
       },

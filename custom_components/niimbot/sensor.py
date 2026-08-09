@@ -119,6 +119,12 @@ RFID_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
         icon="mdi:barcode",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    "consumable_type": SensorEntityDescription(
+        key="consumable_type",
+        translation_key="consumable_type",
+        icon="mdi:tag-text",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
     "tag_uuid": SensorEntityDescription(
         key="tag_uuid",
         translation_key="tag_uuid",
