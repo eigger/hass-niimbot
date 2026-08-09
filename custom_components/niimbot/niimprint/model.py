@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import List, NotRequired, TypedDict, Union
+from typing import NotRequired, TypedDict
+
 
 class PrintGeneration(Enum):
     OLD_D11 = "OLD_D11"
@@ -112,11 +113,11 @@ class PrinterModel(Enum):
 
 class PrinterModelMeta(TypedDict):
     model: PrinterModel
-    id: List[int]
+    id: list[int]
     dpi: int
     printDirection: PrintDirection
     printheadPixels: int
-    paperTypes: List[LabelType]
+    paperTypes: list[LabelType]
     generation: PrintGeneration
     rfid: NotRequired[RfidClass]
     densityMin: NotRequired[int]
@@ -124,7 +125,7 @@ class PrinterModelMeta(TypedDict):
     densityDefault: NotRequired[int]
     printheadPixelsEstimated: NotRequired[bool]
 
-modelsLibrary: List[PrinterModelMeta] = [
+modelsLibrary: list[PrinterModelMeta] = [
     {
         "model": PrinterModel.B3S_P,
         "generation": PrintGeneration.V4,
@@ -1055,15 +1056,55 @@ def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
     return out
 
 
-def get_printer_meta_by_id(printer_id: int) -> Union[PrinterModelMeta, None]:
+def get_printer_meta_by_id(printer_id: int) -> PrinterModelMeta | None:
     """Look up printer metadata by model ID. First matching model entry in modelsLibrary wins."""
     for model in modelsLibrary:
         if printer_id in model["id"]:
             return _enrich_meta(model)
     return None
 
-def get_printer_meta_by_model(model: PrinterModel) -> Union[PrinterModelMeta, None]:
+def get_printer_meta_by_model(model: PrinterModel) -> PrinterModelMeta | None:
     for m in modelsLibrary:
         if m["model"] == model:
             return _enrich_meta(m)
     return None
+
+
+_RFID_UNSUPPORTED_FIRMWARE: dict[int, frozenset[str]] = {
+    512: frozenset({
+        "1.01", "1.04", "1.05", "1.06", "1.07", "1.08", "1.09",
+        "2.02", "2.03", "2.08", "2.09", "2.14", "2.15", "2.16",
+    }),
+    777: frozenset({
+        "1.01", "1.02", "1.03", "1.04", "2.01", "2.02", "2.03", "2.04",
+        "2.05", "2.06", "2.07", "2.08", "2.09", "3.01", "5.01", "5.02",
+        "6.00", "10.01", "20.01", "21.01", "30.01", "31.01", "32.01",
+        "33.01", "35.01",
+    }),
+}
+_RFID_UNSUPPORTED_FIRMWARE[771] = _RFID_UNSUPPORTED_FIRMWARE[777]
+_RFID_UNSUPPORTED_FIRMWARE[775] = _RFID_UNSUPPORTED_FIRMWARE[777]
+
+
+def rfid_supported_on_firmware(
+    model_id: int | str | None, sw_version: str | float | None
+) -> bool:
+    """Return False if model_id has known firmware versions where RFID reading fails."""
+    if model_id is None or sw_version is None:
+        return True
+    try:
+        mid = int(model_id)
+    except (TypeError, ValueError):
+        return True
+
+    unsupported = _RFID_UNSUPPORTED_FIRMWARE.get(mid)
+    if not unsupported:
+        return True
+
+    if isinstance(sw_version, (int, float)):
+        ver_str = f"{int(sw_version)}.{round((sw_version - int(sw_version)) * 100):02d}"
+    else:
+        ver_str = str(sw_version).strip()
+
+    return ver_str not in unsupported
+

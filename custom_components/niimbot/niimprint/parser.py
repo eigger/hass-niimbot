@@ -1,25 +1,27 @@
 """Parser for Niimbot BLE devices"""
 
+import asyncio
 import dataclasses
 import logging
-import asyncio
 import time
 
-# from logging import Logger
-from PIL import Image, ImageOps
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
 
-from .printer import PrinterClient, InfoEnum, SoundEnum, PrinterTimeout, PrinterError
+# from logging import Logger
+from PIL import Image
+
 from .model import (
     PrinterModel,
     consumable_type_name,
     get_printer_meta_by_id,
     material_name,
+    rfid_supported_on_firmware,
     supports_label_rfid,
     supports_ribbon_rfid,
 )
+from .printer import InfoEnum, PrinterClient, PrinterError, PrinterTimeout, SoundEnum
 
 
 def _battery_percentage(
@@ -80,7 +82,7 @@ class BLEData:
     autoshutdowntime: int | None = None
     devicetype: str = ""
     sensors: dict[str, str | float | None] = dataclasses.field(
-        default_factory=lambda: {}
+        default_factory=dict
     )
 
 
@@ -142,6 +144,7 @@ class NiimbotDevice:
         self._print_progress_started = False
         self.heartbeat_variant: str | None = None
         self._warned_estimated_models: set[str] = set()
+        self._warned_rfid_firmware: bool = False
         super().__init__()
 
     def get_model_meta(self):
@@ -576,6 +579,17 @@ class NiimbotDevice:
         if not self.supports_label_rfid():
             return
 
+        if not rfid_supported_on_firmware(self.ble_data.devicetype, self.ble_data.sw_version):
+            if not self._warned_rfid_firmware:
+                self._warned_rfid_firmware = True
+                _LOGGER.info(
+                    "Skipping RFID read for %s (model_id=%s, sw_version=%s): RFID unsupported on this firmware version",
+                    self.ble_data.model,
+                    self.ble_data.devicetype,
+                    self.ble_data.sw_version,
+                )
+            return
+
         # Seed keys so entity platforms can discover them even before a tag read.
         for key in RFID_SENSOR_KEYS:
             self.ble_data.sensors.setdefault(key, None)
@@ -607,6 +621,17 @@ class NiimbotDevice:
     async def _maybe_read_ribbon_rfid(self, printer: PrinterClient) -> None:
         """Read ribbon RFID when the model supports it."""
         if not self.supports_ribbon_rfid():
+            return
+
+        if not rfid_supported_on_firmware(self.ble_data.devicetype, self.ble_data.sw_version):
+            if not self._warned_rfid_firmware:
+                self._warned_rfid_firmware = True
+                _LOGGER.info(
+                    "Skipping RFID read for %s (model_id=%s, sw_version=%s): RFID unsupported on this firmware version",
+                    self.ble_data.model,
+                    self.ble_data.devicetype,
+                    self.ble_data.sw_version,
+                )
             return
 
         for key in RIBBON_RFID_SENSOR_KEYS:
