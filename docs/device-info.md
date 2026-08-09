@@ -263,35 +263,40 @@ Connection Sound switch.
 
 ## 7. Other state commands
 
-**(not implemented here)** — listed so they are not mistaken for gaps in the protocol.
+Calibration / maintenance buttons implemented by this integration; remaining rows are still unused.
 
 | Command | ID | Notes |
 | --- | --- | --- |
-| PrinterReset | `0x28` | Clears settings such as sound. Response `0x38` |
-| CalibrateHeight | `0x59` | Response `0x69` |
-| LabelPositioningCalibration | `0x8E` | Response `0x8F`, `data[0] == 1` on success. Values 1–2 make B1 eject roughly 15 cm of paper |
-| PrintTestPage | `0x5A` | Response `0x6A` |
-| PrinterLog | `0x05` | Response `0x06` |
-| GetKeyFunction | `0x09` | Hardware button mapping, response `0x0A` |
-| GetPrintQuality | `0x0D` | Request and response share the ID |
-| GetCurrentTimeFormat | `0x12` | Response `0x11` |
-| AntiFake | `0x0B` | Genuine-consumable check. `01` long form, `02` short form. Response `0x0C` |
+| PrinterReset | `0x28` | Clears settings such as sound. Response `0x38`. Reset Printer Settings button |
+| CalibrateHeight | `0x59` | Response `0x69`. Calibrate Roll Feed button |
+| LabelPositioningCalibration | `0x8E` | Response `0x8F`, `data[0] == 1` on success. Values 1–2 make B1 eject roughly 15 cm of paper. Calibrate Label Offset button |
+| PrintTestPage | `0x5A` | Response `0x6A`. Print Test Page button |
+| CancelPrint | `0xDA` | Response `0xD0`. Cancel Print button (enabled while a job is running) |
+| PrinterLog | `0x05` | Response `0x06`. **(not implemented here)** |
+| GetKeyFunction | `0x09` | Hardware button mapping, response `0x0A`. **(not implemented here)** |
+| GetPrintQuality | `0x0D` | Request and response share the ID. **(not implemented here)** |
+| GetCurrentTimeFormat | `0x12` | Response `0x11`. **(not implemented here)** |
+| AntiFake | `0x0B` | Genuine-consumable check. `01` long form, `02` short form. Response `0x0C`. **(not implemented here)** |
 
 ## 8. What this integration exposes
 
-Read at every coordinator refresh:
+Read at every coordinator refresh (and after prints where noted):
 
 | Entity source | Command |
 | --- | --- |
 | Model, serial, software/hardware version | `PrinterInfo` keys 8, 11, 9, 12 |
-| Battery level | `PrinterInfo` key 10 |
-| Lid closed, paper present, RFID readable | `Heartbeat` Advanced1 |
+| Density, speed, label type, auto shutdown, battery bucket, print area | `PrinterInfo` keys 1–3, 7, 10, 15 (cached) |
+| Protocol version, colour support | `PrinterStatusData` (`0xA5`) |
+| Lid/cover, paper, RFID readable, battery | `Heartbeat` Advanced1 (`0x01` → `0xDD`) |
+| Temperature, ribbon, WiFi RSSI, voltage (when present) | `Heartbeat` Advanced2 (`0x04` → `0xD9`) on protocol ≥ 3 |
+| Label / ribbon consumable sensors | `RfidInfo` / `RfidInfo2` when the model supports RFID |
+| Print progress | `PrintStatus` (`0xA3`) and unsolicited `0xE0` during jobs |
 
-Known gaps:
+Print sequence selection uses model `generation` metadata, with `PrinterStatusData` protocol version as a fallback for unknown models (V5 vs V4).
 
-- Heartbeat Advanced2 is never requested, so temperature, ribbon state, WiFi RSSI and voltage are
-  unavailable even on models that report them.
-- `PrinterStatusData` (`0xA5`) is never sent, so protocol version and colour support are unknown, and
-  the print sequence is chosen from the model ID table instead.
-- `pageFeedProgress` is merged into a single progress value.
-- RFID tag contents are read by `get_rfid()` but not surfaced as entities. See [rfid.md](rfid.md).
+Remaining gaps:
+
+- `pageFeedProgress` is still merged into a single progress value for the Print Progress sensor.
+- Colour / greyscale printing is unsupported even when Colour Support is reported.
+- Several information commands in section 7 remain unused (`PrinterLog`, `AntiFake`, …).
+- Optional cloud label lookup (`getCloudTemplateByOneCode`) is off by default.

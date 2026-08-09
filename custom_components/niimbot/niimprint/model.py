@@ -152,7 +152,13 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 120,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.HEAT_SHRINK_TUBE, LabelType.TRANSPARENT, LabelType.BLACK_MARK_GAP],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.HEAT_SHRINK_TUBE,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK_MARK_GAP,
+            LabelType.CONTINUOUS,
+        ],
     },
     {
         "model": PrinterModel.TP2M_H,
@@ -188,7 +194,7 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 567,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
     },
     {
         "model": PrinterModel.B2,
@@ -197,7 +203,7 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
     },
     {
         "model": PrinterModel.B18S,
@@ -206,7 +212,13 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 120,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK_MARK_GAP, LabelType.HEAT_SHRINK_TUBE],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK_MARK_GAP,
+            LabelType.HEAT_SHRINK_TUBE,
+            LabelType.CONTINUOUS,
+        ],
     },
     {
         "model": PrinterModel.D11_H,
@@ -648,7 +660,13 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 120,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK_MARK_GAP, LabelType.HEAT_SHRINK_TUBE],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK_MARK_GAP,
+            LabelType.HEAT_SHRINK_TUBE,
+            LabelType.CONTINUOUS,
+        ],
     },
     {
         "model": PrinterModel.D11,
