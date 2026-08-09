@@ -572,14 +572,11 @@ class NiimbotDevice:
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
 
-    async def _maybe_read_rfid(
-        self, printer: PrinterClient, heartbeat: dict, *, force: bool = False
-    ) -> None:
-        """Read label RFID when the model supports it."""
-        if not self.supports_label_rfid():
-            return
-
-        if not rfid_supported_on_firmware(self.ble_data.devicetype, self.ble_data.sw_version):
+    def _check_rfid_firmware_support(self) -> bool:
+        """Check if RFID reading is supported on this firmware version, logging once per connection."""
+        if not rfid_supported_on_firmware(
+            self.ble_data.devicetype, self.ble_data.sw_version
+        ):
             if not self._warned_rfid_firmware:
                 self._warned_rfid_firmware = True
                 _LOGGER.info(
@@ -588,6 +585,17 @@ class NiimbotDevice:
                     self.ble_data.devicetype,
                     self.ble_data.sw_version,
                 )
+            return False
+        return True
+
+    async def _maybe_read_rfid(
+        self, printer: PrinterClient, heartbeat: dict, *, force: bool = False
+    ) -> None:
+        """Read label RFID when the model supports it."""
+        if not self.supports_label_rfid():
+            return
+
+        if not self._check_rfid_firmware_support():
             return
 
         # Seed keys so entity platforms can discover them even before a tag read.
@@ -623,15 +631,10 @@ class NiimbotDevice:
         if not self.supports_ribbon_rfid():
             return
 
-        if not rfid_supported_on_firmware(self.ble_data.devicetype, self.ble_data.sw_version):
-            if not self._warned_rfid_firmware:
-                self._warned_rfid_firmware = True
-                _LOGGER.info(
-                    "Skipping RFID read for %s (model_id=%s, sw_version=%s): RFID unsupported on this firmware version",
-                    self.ble_data.model,
-                    self.ble_data.devicetype,
-                    self.ble_data.sw_version,
-                )
+        # Note: All currently gated model IDs (512, 771, 775, 777) are LABEL-class models,
+        # so supports_ribbon_rfid() returns False above for them. This gate check is kept
+        # for consistency if ribbon-class models with firmware gates are added in the future.
+        if not self._check_rfid_firmware_support():
             return
 
         for key in RIBBON_RFID_SENSOR_KEYS:

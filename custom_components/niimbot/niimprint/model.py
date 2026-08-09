@@ -1070,6 +1070,8 @@ def get_printer_meta_by_model(model: PrinterModel) -> PrinterModelMeta | None:
     return None
 
 
+# Note: D41 / D61 / Dxx also have rfidNotSupportVersions in the vendor database,
+# but lack protocol model IDs so they cannot be keyed by ID in this table.
 _RFID_UNSUPPORTED_FIRMWARE: dict[int, frozenset[str]] = {
     512: frozenset({
         "1.01", "1.04", "1.05", "1.06", "1.07", "1.08", "1.09",
@@ -1101,10 +1103,13 @@ def rfid_supported_on_firmware(
     if not unsupported:
         return True
 
-    if isinstance(sw_version, (int, float)):
-        ver_str = f"{int(sw_version)}.{round((sw_version - int(sw_version)) * 100):02d}"
+    ver_str = str(sw_version).strip()
+    try:
+        v = float(ver_str)
+    except ValueError:
+        pass
     else:
-        ver_str = str(sw_version).strip()
+        ver_str = f"{int(v)}.{round((v - int(v)) * 100):02d}"
 
     return ver_str not in unsupported
 

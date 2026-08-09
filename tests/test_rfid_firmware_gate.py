@@ -18,11 +18,14 @@ def test_rfid_supported_on_firmware_helper():
     assert not rfid_supported_on_firmware(512, "2.08")
     assert not rfid_supported_on_firmware("512", 2.08)
     assert not rfid_supported_on_firmware(512, "1.04")
+    assert rfid_supported_on_firmware(512, "2.1")
     assert rfid_supported_on_firmware(512, "2.10")
     assert rfid_supported_on_firmware(512, "3.00")
 
     # Model 777 (B21S)
     assert not rfid_supported_on_firmware(777, "2.08")
+    assert not rfid_supported_on_firmware(777, "6.0")
+    assert not rfid_supported_on_firmware(777, "6.00")
     assert not rfid_supported_on_firmware(777, "35.01")
     assert rfid_supported_on_firmware(777, "36.00")
 
