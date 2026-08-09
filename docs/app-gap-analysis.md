@@ -191,7 +191,7 @@ two rows: `RfidInfo2` (`0x1C`) and `PrinterStatusData` (`0xA5`) **are** implemen
 
 ---
 
-## B. Cloud label lookup as an opt-in
+## B. Cloud label lookup as an opt-in — **Done (T9)**
 
 ### Can label size be resolved offline? No — and not because of a parser gap
 
@@ -225,60 +225,57 @@ code. What it does **not** give is anything human-readable: label name, physical
 [rfid.md](rfid.md#what-barcode-gets-you) states this correctly — geometry lives in the vendor
 catalogue only.
 
-Relevant endpoints found in `libapp.so`, on base host `https://print.niimbot.com`:
+The endpoints originally found in `libapp.so` by static analysis (`/labels/:id/consumable-attributes`
+and friends, on `print.niimbot.com`, gated by an `Authorization: Bearer …` account login) turned out
+not to be what the app actually uses for this lookup. Live traffic capture found the real one:
 
-| Endpoint | Purpose |
-| --- | --- |
-| `/labels/:id/consumable-attributes` | Attributes of one label SKU |
-| `/labels/tube/scanBarcode` | Barcode → tube consumable |
-| `/labels/tube/spec-list`, `/labels/tube/categories` | Tube spec catalogue |
-| `/rfid/machines`, `/rfid/machine/alias` | RFID-capable machine registry |
-| `/system/statistics/paperUsedQuantity` | Server-side consumption stats |
+```
+POST https://print.niimbot.com/api/template/getCloudTemplateByOneCode
+Content-Type: application/json
+niimbot-user-agent: <must contain the substring "AppVersionName">
 
-Response shape, from the bundled C1 catalogue asset
-(`packages/niimbot_cache_manager/assets/c1_consumableCode.json`), is `id`, `name`, `height`,
-`margin[4]`, `size`, `previewImageUrl` on `oss-print.niimbot.com`.
-
-### The blocker
-
-The app's HTTP layer sends `Authorization: Bearer …` and the endpoints sit behind the account login
-(`/oauth/*`). **Whether any of these answer unauthenticated has not been tested** — that needs a live
-request, which is a decision for you, not something to assume. If they require a token, this feature
-means asking Home Assistant users for NIIMBOT credentials, which is a poor trade for a label name.
-
-### Recommendation
-
-Do it in two independent pieces, and note that the first piece removes most of the motivation for the
-second.
-
-**B1 — offline enrichment, no option needed.** The material table already sits in
-[rfid.md](rfid.md#4-consumable-type-code-type) and the model table in [devices.md](devices.md); what
-is missing is code that uses them. Wiring the material table into `consumable_type_name()` turns
-`Unknown(19)` into `Transparent Thermal Paper` and brings print mode with it, without a network call.
-This is where most of the practical value is, and it does not help with size — nothing offline does,
-see above.
-
-**B2 — cloud lookup behind an explicit opt-in.** If you still want the SKU name and preview:
-
-```python
-CONF_USE_CLOUD_LABEL_INFO = "use_cloud_label_info"
-DEFAULT_USE_CLOUD_LABEL_INFO = False   # local-only by default
+{"oneCode": "<barcode>"}
 ```
 
-Design constraints that matter for a local-first integration:
+Verified manually against the live API (2026-08-09) with two real barcodes. Two things worth recording
+because they contradict what static analysis alone suggested:
 
-- Default **off**, added to `OPTIONS_SCHEMA` so it appears in both the initial config flow and the
-  options flow, same as `CONF_KEEP_CONNECTION`. Existing entries keep the default and stay offline.
-- Never block the coordinator on it. Look up only when `tag_uuid` changes — that event already
-  exists as `niimbot_roll_changed` — and cache the result per SKU on disk (HA `Store`), so a roll that
-  has been seen before never hits the network again.
-- Every cloud-derived value goes on **attributes of the existing** `label_sku` sensor, not into new
-  entities. Entities that only exist when the option is on make the two configurations diverge.
-- A failed lookup is a debug log line and nothing else. No unavailable entities, no repair issue.
-- The strings need a clear description in `strings.json` and `translations/*.json` saying that
-  enabling it sends the loaded label's SKU to a NIIMBOT server.
+- **No account login.** No `Authorization` header, no cookie, no session. The only gate is
+  `niimbot-user-agent`, and the server only checks that it *contains* the substring
+  `AppVersionName` — an honest value like `AppVersionName/hass-niimbot` passes. This is client
+  identification for routing/analytics, not an authentication boundary, and the data behind it
+  (product name and dimensions for a barcode) is the same public catalogue lookup the app itself does
+  for any user. It is not equivalent to a login wall, and is not being treated as one.
+- **`width`/`height` are separate numeric fields, not something parsed from the name.** This matters
+  because the name string does not reliably encode them — barcode `02282280`'s name is
+  `T15*30-210`, but its actual `width`/`height` fields are `30`/`15`. Trusting the fields rather than
+  parsing `"T{n}*{m}"` avoided a real bug.
+- **A found barcode still isn't a guarantee of a full response.** `data.names[]` — the per-language
+  name list — has inconsistent coverage: some SKUs carry every language, others only `zh-cn`. An
+  unknown barcode returns HTTP 200 with no `data` key at all, not a 404.
 
-If the endpoints turn out to need an account, stop at B1 rather than adding a credentials field.
+### What shipped
+
+Implemented in `custom_components/niimbot/cloud.py`, gated by `CONF_USE_CLOUD_LABEL_INFO` (default
+**off**) in `OPTIONS_SCHEMA`. Per the design below, unchanged from the original plan:
+
+- Triggered from the coordinator's poll loop when the current barcode hasn't been looked up yet
+  (covers both a roll change and the first poll after startup), never blocking it — the fetch runs as
+  a background task.
+- Cached per barcode via HA `Store`, including negative results (re-checked at most weekly), so a
+  given barcode reaches the network at most once.
+- Results land as attributes (`label_name`, `label_width_mm`, `label_height_mm`, `preview_url`) on the
+  existing `label_sku` sensor — no new entities.
+- Every failure mode (timeout, non-200, malformed body, no match) degrades to "no extra info" with a
+  debug log line; nothing surfaces as unavailable or as an error.
+- `strings.json` / `translations/*.json` state plainly that enabling the option sends the loaded
+  label's product code to a NIIMBOT server.
+
+### What this replaces
+
+The B1/B2 split from the original plan is now moot: B1 (wiring the material table into
+`consumable_type_name()` for offline enrichment) landed separately as **T1**, and this section (B2,
+the cloud opt-in) landed as **T9**. Neither depends on the other having shipped, and both are done.
 
 ---
 

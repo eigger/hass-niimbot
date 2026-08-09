@@ -463,9 +463,12 @@ class NiimbotRfidSensor(NiimbotSensor):
 
     @property
     def extra_state_attributes(self) -> dict | None:
-        if self.entity_description.key != "labels_remaining":
-            return None
-        return dict(self._device._rfid_attrs) if self._device._rfid_attrs else None
+        if self.entity_description.key == "labels_remaining":
+            return dict(self._device._rfid_attrs) if self._device._rfid_attrs else None
+        if self.entity_description.key == "label_sku":
+            attrs = self._device._cloud_label_attrs
+            return dict(attrs) if attrs else None
+        return None
 
 
 class NiimbotRibbonRfidSensor(NiimbotSensor):

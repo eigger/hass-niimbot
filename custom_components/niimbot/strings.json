@@ -9,7 +9,11 @@
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
-          "keep_connection": "Keep BLE Connection"
+          "keep_connection": "Keep BLE Connection",
+          "use_cloud_label_info": "Fetch Label Info Online"
+        },
+        "data_description": {
+          "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
       },
       "bluetooth_confirm": {
@@ -18,7 +22,11 @@
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
-          "keep_connection": "Keep BLE Connection"
+          "keep_connection": "Keep BLE Connection",
+          "use_cloud_label_info": "Fetch Label Info Online"
+        },
+        "data_description": {
+          "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
       }
     },
@@ -37,7 +45,11 @@
           "scan_interval": "Scan Interval",
           "wait_between_each_print_line": "Wait Between Each Print Line",
           "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
-          "keep_connection": "Keep BLE Connection"
+          "keep_connection": "Keep BLE Connection",
+          "use_cloud_label_info": "Fetch Label Info Online"
+        },
+        "data_description": {
+          "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
       }
     }
@@ -94,7 +106,7 @@
       "description": "Re-read cached printer settings (density, speed, label type, auto shutdown, battery bucket)."
     }
   },
-    "entity": {
+  "entity": {
     "binary_sensor": {
       "cover": {
         "name": "Cover",

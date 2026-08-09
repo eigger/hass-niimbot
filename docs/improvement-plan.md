@@ -154,8 +154,9 @@ With reasoning in [app-gap-analysis.md](app-gap-analysis.md):
   the app itself restricts the operation to Bluetooth. Section C of the gap analysis.
 - **Firmware "latest version" check.** No public version feed exists; the only source is the same
   authenticated API. Use the version we already read for capability gating (item 5) instead.
-- **Cloud label catalogue as a default.** Optional and off by default at most — section B of the gap
-  analysis. Do the offline enrichment in item 1 first; it covers most of the value.
+- **Cloud label catalogue as a default.** Shipped as an opt-in, off by default — **T9**, section B of
+  the gap analysis. The offline enrichment from item 1 still covers most of the value; T9 only adds
+  name/size/preview for users who explicitly turn it on.
 - **WiFi / MQTT transport, cutter support, greyscale and two-colour printing, print margins.**
   Separate projects, each larger than everything above.
 
