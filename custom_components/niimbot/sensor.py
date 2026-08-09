@@ -528,6 +528,7 @@ class NiimbotCloudLabelInfoSensor(NiimbotSensor):
             "barcode": state.get("barcode"),
             "requested_at": state.get("requested_at"),
             "source": state.get("source"),
+            "error": state.get("error"),
             "label_name": state.get("label_name"),
             "label_width_mm": state.get("label_width_mm"),
             "label_height_mm": state.get("label_height_mm"),

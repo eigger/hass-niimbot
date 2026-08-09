@@ -149,13 +149,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             info = await cloud_lookup.get(barcode)
         except Exception as err:  # noqa: BLE001 — never leave the sensor on pending
-            _LOGGER.debug("Cloud label lookup for %s raised: %s", barcode, err)
+            _LOGGER.warning(
+                "Cloud label lookup for %s raised %s",
+                barcode,
+                f"{type(err).__name__}: {err!r}",
+                exc_info=True,
+            )
             if niimbot._cloud_lookup_barcode == barcode:
                 niimbot._cloud_lookup_barcode = None
             niimbot._cloud_lookup_state = {
                 "status": "error",
                 "barcode": barcode,
                 "requested_at": requested_at,
+                "error": f"{type(err).__name__}: {err!r}",
             }
             coordinator.async_set_updated_data(niimbot.ble_data)
             return
@@ -163,12 +169,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not cloud_lookup.last_result_definitive:
             if niimbot._cloud_lookup_barcode == barcode:
                 niimbot._cloud_lookup_barcode = None
-            niimbot._cloud_lookup_state = {
+            state = {
                 "status": "error",
                 "barcode": barcode,
                 "requested_at": requested_at,
                 "source": cloud_lookup.last_source,
             }
+            if cloud_lookup.last_error:
+                state["error"] = cloud_lookup.last_error
+            niimbot._cloud_lookup_state = state
             coordinator.async_set_updated_data(niimbot.ble_data)
             return
 

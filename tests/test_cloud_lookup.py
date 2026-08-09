@@ -69,7 +69,7 @@ class FakeSession:
         self._responder = responder
         self.calls: list[str] = []
 
-    def post(self, url, *, json, headers, timeout):
+    def post(self, url, *, json, headers, timeout=None, **kwargs):
         self.calls.append(json["oneCode"])
         return self._responder(json["oneCode"])
 
@@ -219,6 +219,23 @@ def test_get_returns_none_on_client_error(monkeypatch):
         # Must not raise — a network failure degrades to "no info", never an error.
         assert await lookup.get("02282280") is None
         assert lookup.last_result_definitive is False
+        assert lookup.last_error is not None
+        assert "ClientError" in lookup.last_error
+        assert store.saved == []
+
+    run(_test())
+
+
+def test_get_returns_none_on_empty_oserror(monkeypatch):
+    async def _test():
+        store = FakeStore()
+        # SSLError/OSError often stringify to "" — must still be visible via last_error.
+        session = FakeSession(RaisingResponse(OSError()))
+        lookup = _lookup_with(monkeypatch, session, store)
+
+        assert await lookup.get("02282280") is None
+        assert lookup.last_result_definitive is False
+        assert lookup.last_error == "OSError: OSError()"
         assert store.saved == []
 
     run(_test())
