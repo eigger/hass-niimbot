@@ -1041,6 +1041,31 @@ def label_type_code(label_type: LabelType) -> int:
     return _LABEL_TYPE_CODES[label_type]
 
 
+def get_supported_label_type_codes(meta: PrinterModelMeta | None) -> list[int]:
+    """Return the list of integer label type codes supported by the printer model.
+
+    The fallback (unknown model) returns every known code, so callers that pass meta=None
+    never reject a type the printer might accept.
+    """
+    if meta is None or "paperTypes" not in meta or not meta["paperTypes"]:
+        # Derived from _LABEL_TYPE_CODES to avoid diverging when new types are added.
+        return list(_LABEL_TYPE_CODES.values())
+    return [label_type_code(t) for t in meta["paperTypes"]]
+
+
+def default_label_type_code(meta: PrinterModelMeta | None) -> int:
+    """Return the integer label type code to use when the caller did not specify one.
+
+    Prefer WithGaps (1) if the model supports it — this preserves existing behaviour for the
+    76 models that include WithGaps.  Only models that genuinely do not support WithGaps (e.g.
+    P1/P18/P1S=PvcTag, C1/ET10/EP1C=Continuous, A1_PRO=Perforated) will receive a different
+    code.  The vendor paperTypes[0] ordering is not treated as a priority ranking.
+    """
+    supported = get_supported_label_type_codes(meta)
+    # _LABEL_TYPE_CODES[LabelType.WITH_GAPS] == 1
+    return 1 if 1 in supported else supported[0]
+
+
 def supports_label_rfid(rfid: RfidClass | None) -> bool:
     return rfid in (RfidClass.LABEL, RfidClass.LABEL_RIBBON)
 

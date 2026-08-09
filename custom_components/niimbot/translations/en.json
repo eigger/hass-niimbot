@@ -65,7 +65,7 @@
                 },
                 "label_type": {
                     "name": "Label Type",
-                    "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). Default: 1."
+                    "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). Default: model's primary paper type."
                 },
                 "copies": {
                     "name": "Copies",

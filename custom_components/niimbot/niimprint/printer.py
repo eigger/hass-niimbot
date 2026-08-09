@@ -12,7 +12,13 @@ from typing import Any, TypeVar
 from bleak import BleakClient, BleakError
 from PIL import Image, ImageOps
 
-from .model import PrinterModel, PrintGeneration, get_printer_meta_by_model
+from .model import (
+    PrintGeneration,
+    PrinterModel,
+    default_label_type_code,
+    get_printer_meta_by_model,
+    get_supported_label_type_codes,
+)
 from .packet import NiimbotPacket
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
@@ -288,7 +294,7 @@ class PrinterClient:
         density: int,
         wait_between_print_lines: float,
         print_line_batch_size: int,
-        label_type: int = 1,
+        label_type: int | None = None,
         copies: int = 1,
     ):
         self._timings = []
@@ -300,6 +306,14 @@ class PrinterClient:
             if copies < 1:
                 raise ValueError(f"copies must be >= 1, got {copies}")
             meta = get_printer_meta_by_model(model)
+            supported_types = get_supported_label_type_codes(meta)
+            if label_type is None:
+                label_type = default_label_type_code(meta)
+            elif label_type not in supported_types:
+                raise ValueError(
+                    f"Label type {label_type} is not supported for printer model {model.name} "
+                    f"(supported label types: {supported_types})"
+                )
             printhead_pixels = meta["printheadPixels"] if meta else None
             density_min = meta.get("densityMin", 1) if meta else 1
             density_max = meta.get("densityMax", 5) if meta else 5

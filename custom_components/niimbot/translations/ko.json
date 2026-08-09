@@ -65,7 +65,7 @@
                 },
                 "label_type": {
                     "name": "라벨 타입",
-                    "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 기본값: 1."
+                    "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 기본값: 프린터 모델의 기본 라벨 타입."
                 },
                 "copies": {
                     "name": "매수",

@@ -15,7 +15,9 @@ from PIL import Image
 from .model import (
     PrinterModel,
     consumable_type_name,
+    default_label_type_code,
     get_printer_meta_by_id,
+    get_supported_label_type_codes,
     material_name,
     rfid_supported_on_firmware,
     supports_calibration,
@@ -731,7 +733,7 @@ class NiimbotDevice:
         density: int,
         wait_between_print_lines: float,
         print_line_batch_size: int,
-        label_type: int = 1,
+        label_type: int | None = None,
         copies: int = 1,
     ) -> dict:
         async with self.lock:
@@ -755,6 +757,17 @@ class NiimbotDevice:
                         _LOGGER.debug("Resolved model during print: %s", self.model)
 
                 meta = self.get_model_meta()
+                # Fallback validation for callers that bypass the service handler (e.g. tests
+                # that drive PrinterClient or NiimbotDevice directly).  The primary validation
+                # path lives in __init__.printservice and runs before BLE is touched.
+                supported_types = get_supported_label_type_codes(meta)
+                if label_type is None:
+                    label_type = default_label_type_code(meta)
+                elif label_type not in supported_types:
+                    raise ValueError(
+                        f"Label type {label_type} is not supported for printer model {self.model} "
+                        f"(supported label types: {supported_types})"
+                    )
                 if (
                     meta
                     and meta.get("printheadPixelsEstimated")
