@@ -112,9 +112,35 @@
                     "on": "읽기 가능",
                     "off": "읽기 불가"
                 }
+            },
+            "ribbon_paper": {
+                "name": "리본 용지",
+                "state": {
+                    "on": "장착됨",
+                    "off": "없음"
+                }
+            },
+            "ribbon_rfid": {
+                "name": "리본 RFID",
+                "state": {
+                    "on": "읽기 가능",
+                    "off": "읽기 불가"
+                }
             }
         },
         "sensor": {
+            "printhead_temperature": {
+                "name": "프린트 헤드 온도"
+            },
+            "wifi_rssi": {
+                "name": "Wi-Fi 신호"
+            },
+            "voltage_state": {
+                "name": "전압 상태"
+            },
+            "lighting_error": {
+                "name": "조명 오류 코드"
+            },
             "last_error": {
                 "name": "최근 오류"
             },

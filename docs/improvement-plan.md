@@ -71,7 +71,7 @@ order — files, exact change, tests, acceptance criteria — in [work-plan.md](
 **[HW]** The material reading is inference until a tag returns a value above 11. Black-mark stock made
 of plain thermal paper settles it — see the test described in rfid.md.
 
-### 2. Advanced2 heartbeat sensors (was 3.3)
+### 2. Advanced2 heartbeat sensors — **Done (T2)** (was 3.3)
 
 `_parse_heartbeat_advanced2` already returns `temperature`, `ribbon_rfidreadstate`, `ribbonstate`,
 `wifi_rssi`, `lighting_error` and `voltage_state`. `update_device` copies four of the ten fields, so

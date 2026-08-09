@@ -116,9 +116,35 @@
           "on": "Readable",
           "off": "Not readable"
         }
+      },
+      "ribbon_paper": {
+        "name": "Ribbon Paper",
+        "state": {
+          "on": "Loaded",
+          "off": "Empty"
+        }
+      },
+      "ribbon_rfid": {
+        "name": "Ribbon RFID",
+        "state": {
+          "on": "Readable",
+          "off": "Not readable"
+        }
       }
     },
     "sensor": {
+      "printhead_temperature": {
+        "name": "Print Head Temperature"
+      },
+      "wifi_rssi": {
+        "name": "WiFi Signal"
+      },
+      "voltage_state": {
+        "name": "Voltage State"
+      },
+      "lighting_error": {
+        "name": "Lighting Error Code"
+      },
       "last_error": {
         "name": "Last Error"
       },
