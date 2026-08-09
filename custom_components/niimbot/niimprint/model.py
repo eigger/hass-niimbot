@@ -944,10 +944,23 @@ _DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3, False)
 
 
 def supports_calibration(meta: PrinterModelMeta | None) -> bool:
-    """Return True if printer model supports label positioning / roll feed calibration."""
+    """Return True if model supports LabelPositioningCalibration (0x8E)."""
     if meta is None:
         return False
     return meta.get("isSupportCalibration", False)
+
+
+def supports_height_calibration(meta: PrinterModelMeta | None) -> bool:
+    """Return True if CalibrateHeight (0x59) is likely supported.
+
+    Vendor ``isSupportCalibration`` covers label-position calibration (0x8E). B1 and
+    other gap-label printers advertise that flag but NAK 0x59. Gate height/roll-feed
+    calibration on Continuous paper support as well.
+    """
+    if not supports_calibration(meta):
+        return False
+    paper_types = meta.get("paperTypes") or []
+    return LabelType.CONTINUOUS in paper_types
 
 
 _LABEL_TYPE_NAMES = {

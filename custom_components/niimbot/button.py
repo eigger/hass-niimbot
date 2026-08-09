@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import DOMAIN
-from .niimprint import BLEData, NiimbotDevice
+from .niimprint import BLEData, NiimbotDevice, PrinterCommandUnsupported
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,16 +38,32 @@ async def async_setup_entry(
     entities: list[ButtonEntity] = [
         NiimbotCancelPrintButton(coordinator, coordinator.data, device),
         NiimbotPrinterResetButton(coordinator, coordinator.data, device),
+        # Many models (observed: B1) NAK PrintTestPage (0x5A); keep disabled by default.
         NiimbotPrintTestPageButton(coordinator, coordinator.data, device),
     ]
 
     if device.supports_calibration():
-        entities.extend([
-            NiimbotCalibrateLabelPositionButton(coordinator, coordinator.data, device),
-            NiimbotCalibrateHeightButton(coordinator, coordinator.data, device),
-        ])
+        entities.append(
+            NiimbotCalibrateLabelPositionButton(coordinator, coordinator.data, device)
+        )
+    # 0x59 is separate from vendor isSupportCalibration; B1 NAKs it despite the flag.
+    if device.supports_height_calibration():
+        entities.append(
+            NiimbotCalibrateHeightButton(coordinator, coordinator.data, device)
+        )
 
     async_add_entities(entities)
+
+
+def _reraise_action_error(action: str, err: Exception) -> None:
+    """Map protocol errors to a clear HomeAssistantError."""
+    if isinstance(err, HomeAssistantError):
+        raise err
+    if isinstance(err, PrinterCommandUnsupported):
+        raise HomeAssistantError(
+            f"This printer does not support {action}"
+        ) from err
+    raise HomeAssistantError(f"Failed to {action}: {err}") from err
 
 
 class NiimbotBaseButton(
@@ -107,10 +123,8 @@ class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
             ok = await self._device.calibrate_label_position(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected label position calibration")
-        except HomeAssistantError:
-            raise
         except Exception as err:
-            raise HomeAssistantError(f"Failed to calibrate label position: {err}") from err
+            _reraise_action_error("calibrate label position", err)
 
 
 class NiimbotCalibrateHeightButton(NiimbotBaseButton):
@@ -130,10 +144,8 @@ class NiimbotCalibrateHeightButton(NiimbotBaseButton):
             ok = await self._device.calibrate_height(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected roll feed calibration")
-        except HomeAssistantError:
-            raise
         except Exception as err:
-            raise HomeAssistantError(f"Failed to calibrate roll feed: {err}") from err
+            _reraise_action_error("calibrate roll feed", err)
 
 
 class NiimbotCancelPrintButton(NiimbotBaseButton):
@@ -157,10 +169,8 @@ class NiimbotCancelPrintButton(NiimbotBaseButton):
             ok = await self._device.cancel_print(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected cancel print request")
-        except HomeAssistantError:
-            raise
         except Exception as err:
-            raise HomeAssistantError(f"Failed to cancel print: {err}") from err
+            _reraise_action_error("cancel print", err)
 
 
 class NiimbotPrinterResetButton(NiimbotBaseButton):
@@ -183,14 +193,15 @@ class NiimbotPrinterResetButton(NiimbotBaseButton):
             ok = await self._device.printer_reset(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected settings reset")
-        except HomeAssistantError:
-            raise
         except Exception as err:
-            raise HomeAssistantError(f"Failed to reset printer settings: {err}") from err
+            _reraise_action_error("reset printer settings", err)
 
 
 class NiimbotPrintTestPageButton(NiimbotBaseButton):
     """Button to print a test page."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
         self,
@@ -206,7 +217,5 @@ class NiimbotPrintTestPageButton(NiimbotBaseButton):
             ok = await self._device.print_test_page(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected test page print")
-        except HomeAssistantError:
-            raise
         except Exception as err:
-            raise HomeAssistantError(f"Failed to print test page: {err}") from err
+            _reraise_action_error("print test page", err)
