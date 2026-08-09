@@ -11,10 +11,11 @@ Related: [protocol.md](protocol.md) · [device-info.md](device-info.md) · [prin
 - **Model ID** — the value from `PrinterInfo` key 8. Remember the single-byte responses need shifting;
   see [device-info.md](device-info.md#printermodelid-key-8). A model can have several IDs, and some IDs
   are shared by several models, so the ID alone does not uniquely identify hardware.
-- **Density** — the range accepted by `SetDensity` (`0x21`). This integration asserts `1 <= n <= 5`, so
-  the upper range of the 1–15 and 1–20 models is unreachable.
-- **Label types** — the values accepted by `SetLabelType` (`0x23`). This integration always sends
-  `1` (Gap) and asserts `1 <= n <= 3`, so 4, 5, 6, 10 and 11 cannot be sent.
+- **Density** — the range accepted by `SetDensity` (`0x21`). `set_label_density` validates against the
+  model's own range, which is populated from this table.
+- **Label types** — the values accepted by `SetLabelType` (`0x23`). Exposed as the `label_type`
+  parameter of the print service, validated as 1–11; the model's `paperTypes` is not enforced yet, so
+  an unsupported value reaches the printer and comes back as `SetPrintLabelMaterialNoSupport`.
 - **RFID** — tag class; see [rfid.md](rfid.md#1-checking-support-first).
 - **IDs in the 51xxx, 52xxx and 53xxx ranges** are rebadged third-party hardware that speaks a
   different protocol. The commands documented here do not apply to them.
@@ -127,6 +128,10 @@ blank prints.
 | 6656 / 6657 | B4 / B4 Pro |
 | 7168 | K4 |
 | 7424 | A1 Pro |
+
+`printheadPixels` is the one field this table cannot supply, and it is required to add an entry. See
+[app-gap-analysis.md](app-gap-analysis.md#a1-14-model-codes-have-no-entry-in-modelpy) for the px/mm
+ratios measured across the 63 modelled printers and the per-model estimate they give.
 
 Going the other way, `model.py` carries one ID that no longer appears in current model listings:
 `784` (B21_H). `785` (B21_Pro) occupies that slot instead.

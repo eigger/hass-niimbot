@@ -413,6 +413,9 @@ Reverse-engineered reference for the printers' BLE protocol.
 | [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
 | [docs/rfid.md](docs/rfid.md) | Reading consumable info from label / ribbon RFID tags |
 | [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
+| [docs/app-gap-analysis.md](docs/app-gap-analysis.md) | What the official app does that this integration does not, and why some of it is deliberately out of scope |
+| [docs/improvement-plan.md](docs/improvement-plan.md) | Open work, with what shipped in 3.0.0 recorded for context |
+| [docs/work-plan.md](docs/work-plan.md) | Task orders for that open work — files, changes, tests, acceptance criteria |
 
 ---
 

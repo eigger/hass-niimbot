@@ -63,7 +63,14 @@ if hb["rfidreadstate"]:
 field does not exist — just issue `RfidInfo` and treat a null result as "not available".
 
 The Advanced2 heartbeat reports paper and ribbon RFID success separately, which is the only way to
-tell which of the two tags failed. This integration never requests Advanced2.
+tell which of the two tags failed. `heartbeat()` accepts `0xD9` and the parser reads both fields, but
+`ribbon_rfidreadstate` is not carried into an entity yet.
+
+There is a third gate the app applies and this integration does not: RFID reading was shipped by
+firmware update, and the vendor's device database lists the firmware versions on which it does **not**
+work per model (`rfidNotSupportVersions`). See
+[app-gap-analysis.md](app-gap-analysis.md#a4-firmware-version-gated-capabilities-are-ignored) for the
+list. On those units every poll spends a full read timeout on a command that cannot be answered.
 
 ## 2. Commands
 
@@ -74,7 +81,8 @@ tell which of the two tags failed. This integration never requests Advanced2.
 | `0x54` | RfidSuccessTimes | `0x64` | Read success counters |
 | `0x70` | WriteRFID | `0x71` | Write tag contents |
 
-Both info commands send `01` as payload and return the same structure.
+Both info commands send `01` as payload and return the same structure, and both are implemented
+(`get_rfid` / `get_rfid2`, sharing `_parse_rfid_payload`).
 
 ```
 55 55 1A 01 01 1A AA AA
@@ -85,7 +93,7 @@ Both info commands send `01` as payload and return the same structure.
       +----------- cmd = 0x1A (RfidInfo)
 ```
 
-`RfidInfo2`, `RfidSuccessTimes` and `WriteRFID` are **not implemented in this integration.**
+`RfidSuccessTimes` and `WriteRFID` are **not implemented in this integration.**
 
 ## 3. Response layout
 
@@ -111,32 +119,21 @@ be walked sequentially.
 
 ### Two bugs to avoid
 
-**Presence check.** This integration tests `data[0] == 0`, i.e. the first byte of the UUID. Checking
-the payload *length* instead (`len(data) == 1`) is correct — a valid tag whose UUID happens to start
-with a zero byte would otherwise be reported as absent.
+Both were present until 3.0.0 and are fixed in `_parse_rfid_payload`; they are recorded here because
+any reimplementation walks into them.
 
-**Trailing `capacity`.** This integration parses the tail with `struct.unpack(">HHB", data[idx:])`,
-which requires exactly 5 remaining bytes. On a model that appends the optional `capacity` field there
-are 7, and the call raises `struct.error`. The fix is to slice explicitly and treat anything beyond as
-optional:
+**Presence check.** Testing `data[0] == 0` reads the first byte of the UUID, not a presence flag. A
+valid tag whose UUID starts with a zero byte is then reported as absent. Test the payload *length*
+instead (`len(data) <= 1`).
+
+**Trailing `capacity`.** Parsing the tail with `struct.unpack(">HHB", data[idx:])` requires exactly 5
+remaining bytes. On a model that appends the optional `capacity` field there are 7, and the call
+raises `struct.error`. Slice explicitly and treat anything beyond as optional:
 
 ```python
 total_len, used_len, type_ = struct.unpack(">HHB", data[idx:idx + 5])
 idx += 5
 capacity = struct.unpack(">H", data[idx:idx + 2])[0] if len(data) >= idx + 2 else None
-```
-
-Current implementation: [`printer.py`](../custom_components/niimbot/niimprint/printer.py)
-
-```586:593:custom_components/niimbot/niimprint/printer.py
-    async def get_rfid(self):
-        packet = await self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
-        data = packet.data
-
-        if data[0] == 0:
-            return None
-        uuid = data[0:8].hex()
-        idx = 8
 ```
 
 ### Units of `total_len` / `used_len`
@@ -149,14 +146,45 @@ Depends on the consumable:
 `used_len` is written back to the tag by the printer as it prints, which is why
 `WriteRfidFail (0x14)` exists as an error code. A client does not need to maintain the counter itself.
 
-### What `barcode` gets you
+### What `barcode` gets you, and what label size is available offline
 
 `barcode` identifies the label SKU. Mapping it to physical dimensions requires the vendor's product
 catalogue, which lives in their cloud service — **there is no local lookup.**
 
-So locally the useful property is identity, not geometry: the same barcode means the same label. A
-practical pattern is to record the barcode once and let the user associate their own width/height
-with it.
+This is worth stating precisely, because "read the loaded label's size without internet" is the first
+thing anyone wants from an RFID tag:
+
+- **The tag carries no dimensions.** The payload in section 3 is uuid, barcode, serial, `total_len`,
+  `used_len`, `type` and an optional `capacity`. There is no width, height or pitch field, on any
+  model. Nothing is being missed by the parser — the bytes are not there.
+- **The app does not get size from the tag either.** It looks the SKU up against
+  `/labels/:id/consumable-attributes` and caches the result; `labelWidth` / `labelHeight` belong to
+  the cloud label object, not to anything the printer said.
+- **The one offline catalogue the app ships covers C1 only.**
+  `flutter_assets/packages/niimbot_cache_manager/assets/c1_consumableCode.json` holds 35 SKUs of
+  heat-shrink tubing and wire marker sleeve (materials 53 and 54) with `height` and a four-value
+  margin. It is a C1 tube picker, not a general catalogue, and it is keyed by material rather than by
+  SKU.
+
+What *is* available with no network, and is enough for most automations:
+
+| Value | Source | Note |
+| --- | --- | --- |
+| Max print width / length in mm | Vendor device DB, per model | Printer capability, not the loaded roll |
+| Settable label width range | `widthSetStart` / `widthSetEnd` | Same |
+| Per-material print margins | `blindZone`, per model + paper type | `left\|right\|top\|bottom` in mm |
+| Printable area | `PrinterInfo` key 15 | Already the Print Area sensor; layout unconfirmed |
+| Labels remaining / used / total | RFID tag | Quantity, not geometry |
+| Material and label type | RFID `type` + `PrinterInfo` key 3 | Section 4 |
+
+So locally the useful property of a roll is identity, not geometry: the same barcode means the same
+label. A practical pattern is to record the barcode once and let the user associate their own
+width/height with it — that mapping then works offline forever and survives roll swaps.
+
+One unconfirmed lead worth testing on hardware: if `capacity` is a roll *length* while `total_len` is
+a label *count*, then `capacity / total_len` is the label pitch, which would give the height of a
+die-cut label with no lookup at all. Both fields are already parsed and exposed as attributes on the
+Labels Remaining sensor, so this can be checked against a roll of known size without writing any code.
 
 ## 4. Consumable type code (`type`)
 
@@ -180,12 +208,25 @@ NIIMBOT ecosystem that also starts at 1 and shares several low values (1 = gener
 paper, 5 = transparent PET). For ordinary gap and transparent labels the two readings coincide, which
 is why the ambiguity has not been settled.
 
-A way to tell them apart on real hardware: load black-mark stock made of plain thermal synthetic
-paper. Under the label-type reading the tag reports `2`; under the material reading it reports `1`.
-Comparing against `PrinterInfo` key 3 (the label type the printer itself reports) on the same stock
-resolves it.
+**The material reading is the more likely one.** The app's own device database
+(`assets/DevicesModule_en.json` in NIIMBOT 6.6.5) models every consumable as a *material* containing
+one or more *label types* — the label-type codes are children of the material code, not the same
+field. The bundled C1 catalogue (`c1_consumableCode.json`) is then keyed by material code, using `53`
+and `54` as its two top-level keys, which are heat-shrink tubing and wire marker sleeve in the table
+below. That is the enumeration the vendor indexes consumables by.
 
-Material enumeration, for reference:
+It is still inference: no tag observed by this project has returned a value above 11, which is where
+the two readings would visibly diverge. The decisive test on real hardware is to load black-mark stock
+made of plain thermal synthetic paper. Under the label-type reading the tag reports `2`; under the
+material reading it reports `1`. Comparing against `PrinterInfo` key 3 (the label type the printer
+itself reports) on the same stock resolves it.
+
+Meanwhile `model.py:consumable_type_name()` maps the byte through the 1–11 label-type table only, so
+anything in the table below that is not also a label type renders as `Unknown(n)` — material 19
+(transparent thermal) is the common case — and codes 2, 3, 4, 6, 10 and 11 render as the *wrong*
+label type. Wiring this table in is the cheapest correctness win available.
+
+Material enumeration:
 
 | Code | Material | Print method |
 | --- | --- | --- |
@@ -249,18 +290,20 @@ Subset of [protocol.md section 5](protocol.md#5-print-error-codes-0xdb).
 
 ## 6. Using this in the integration
 
-`get_rfid()` exists but **is not wired to any entity.** The only RFID-derived entity today is the
-`rfidreadstate` binary sensor from the heartbeat (`binary_sensor.py`).
+Built as of 3.0.0, for both the label tag (`0x1A`) and the ribbon tag (`0x1C`):
 
-Worth building:
+- Labels / Ribbon Remaining (`total_len - used_len`), Used, Total and Usage percentage
+- Label SKU, Consumable Type, Tag UUID, with `serial` and `capacity` as attributes
+- Roll change detection — a changed `uuid` fires `niimbot_roll_changed`
+- Entities are created from the model's RFID class, so an RFID-less model creates none of them
 
-- **Remaining labels sensor** — `total_len - used_len`, which is directly actionable for reorder alerts
-- **Usage percentage** — `used_len / total_len * 100`
-- **Label type attribute** — `type` resolved through section 4
-- **Roll change detection** — `uuid` changing means the stock was swapped
-- **Pre-print validation** — refuse the print service when nothing is left
+Still open:
 
-Things that will bite:
+- `type` is rendered through the label-type table rather than the material table (section 4)
+- No pre-print validation — the print service does not refuse when the roll is spent
+- No firmware gate, so models on an RFID-incapable firmware still pay a timeout per poll (section 1)
+
+Things that will bite anyone reimplementing this:
 
 - On a model without RFID, `get_rfid()` returns `None` or times out. Gate on the model's RFID class
   first.
@@ -271,8 +314,9 @@ Things that will bite:
 
 ## 7. Unconfirmed
 
-- Whether `type` is a label type or a material code (section 4)
+- Whether `type` is a label type or a material code (section 4) — evidence now favours material
 - Scale factor of `total_len` / `used_len` for continuous, ribbon and tubing stock
 - Payload of `RfidSuccessTimes` (`0x54`) and `WriteRFID` (`0x70`)
-- Meaning of the optional `capacity` field versus `total_len`
+- Meaning of the optional `capacity` field versus `total_len` — if it is a length, it yields the label
+  pitch (section 3)
 - Mapping from `barcode` to physical label dimensions, which is a cloud-side lookup

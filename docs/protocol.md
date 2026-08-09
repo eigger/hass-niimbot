@@ -181,7 +181,7 @@ sent before the page was started — not only for physical faults.
 | --- | --- | --- | --- | --- |
 | `0xC1` | Connect | `0xC2` | `01` | Needs the `0x03` prefix (section 2). **(not implemented here)** |
 | `0x40` | PrinterInfo | `0x40+key` | `u8` key | 15 keys, see [device-info.md](device-info.md) |
-| `0xA5` | PrinterStatusData | `0xB5` | `01` | Colour support and protocol version. **(not implemented here)** |
+| `0xA5` | PrinterStatusData | `0xB5` | `01` | Colour support and protocol version |
 | `0xDC` | Heartbeat | `0xDD` `0xDE` `0xDF` `0xD9` | `u8` type | Live status |
 | `0xA3` | PrintStatus | `0xB3` | `01` | Page and progress |
 | `0x05` | PrinterLog | `0x06` | `01` | **(not implemented here)** |
@@ -198,7 +198,7 @@ sent before the page was started — not only for physical faults.
 | Request | Name | Response | Payload | Notes |
 | --- | --- | --- | --- | --- |
 | `0x1A` | RfidInfo | `0x1B` | `01` | Label/paper tag |
-| `0x1C` | RfidInfo2 | `0x1D` | `01` | Ribbon tag. **(not implemented here)** |
+| `0x1C` | RfidInfo2 | `0x1D` | `01` | Ribbon tag |
 | `0x54` | RfidSuccessTimes | `0x64` | `01` | Tag read success counters. **(not implemented here)** |
 | `0x70` | WriteRFID | `0x71` | tag data | **(not implemented here)** |
 

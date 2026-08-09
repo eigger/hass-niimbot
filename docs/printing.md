@@ -96,7 +96,7 @@ indices — the coordinates of the black pixels.
 so a sender must count first and fall back to `0x85`.
 
 Worth implementing for barcode and thin-line artwork, where most rows are nearly empty.
-**(not implemented here)** — this integration always sends `0x85`.
+Implemented in `PrinterClient.set_bitmap_row_indexed`, with the count check and the `0x85` fallback.
 
 ### `PrinterCheckLine` (`0x86`)
 
@@ -108,7 +108,7 @@ Worth implementing for barcode and thin-line artwork, where most rows are nearly
 
 A mid-transfer checkpoint, sent every 200 rows, answered with `0xD3`. It lets the sender confirm the
 printer is keeping up instead of discovering an overflow at the end of the page.
-**(not implemented here)**
+Implemented in `PrinterClient.check_line`.
 
 ## 3. Page setup
 
@@ -214,7 +214,9 @@ Three approaches exist, in decreasing order of reliability.
 ### Page index notifications (`0xE0`)
 
 The printer emits `0xE0` unsolicited as each page completes, with a `u16` page number. Waiting for
-`page == totalPages` is the most direct signal and needs no polling. **(not implemented here)**
+`page == totalPages` is the most direct signal and needs no polling. Implemented in
+`PrinterClient.wait_print_complete`, which drains `0xE0` first and keeps the `0xA3` poll below as the
+fallback for models that never emit it.
 
 ### Polling `PrintStatus` (`0xA3`)
 
@@ -257,17 +259,17 @@ This integration exposes two knobs:
 Lower `wait_between_print_lines` and raise `print_line_batch_size` for speed; do the opposite if pages
 come out with missing bands.
 
-Two protocol-level optimisations are available but unused here: `PrintEmptyRow` batching is already
-implemented, while `PrintBitmapRowIndexed` (section 2) would cut most of the traffic for sparse
-artwork.
+`PrintEmptyRow` batching, identical-row coalescing through `repeats` and `PrintBitmapRowIndexed`
+(section 2) are all in use, so the remaining per-page cost is dominated by round-trips rather than by
+bytes.
 
 ## 7. Known limitations of this integration
 
-- `SetLabelType` is always `1` (WithGaps), and the setter asserts `1 <= n <= 3`. Continuous,
-  transparent, tag, black-mark-gap and heat-shrink stock cannot be selected.
-- `SetDensity` asserts `1 <= n <= 5`, so models supporting 1–15 or 1–20 cannot use their upper range.
-- The bitmap counter bytes assume a 96-pixel print head (section 2).
-- `PrintBitmapRowIndexed`, `PrinterCheckLine`, `CancelPrint` and the 2-byte and 13-byte page-size
-  variants are unimplemented.
-- Multi-page jobs are not used: every print declares one page and one copy.
-- Colour printing is unsupported. `pageColor` is always `0`.
+- `SetLabelType` is a print-service parameter validated as 1–11, but it is not checked against the
+  model's own `paperTypes`, so an unsupported value is rejected by the printer instead of locally.
+- `CancelPrint` (`0xDA`) and the 2-byte and 13-byte page-size variants are unimplemented.
+- Colour and greyscale printing are unsupported. `pageColor` is always `0` and rendering is 1-bit,
+  even on models whose Colour Support sensor reports otherwise.
+- Print margins are ignored. The vendor publishes a per-model, per-paper-type `blindZone`, and
+  rendering edge to edge can clip near the leading edge on black-mark stock.
+- Flow control is static. Per-write latency is measured but not used to adapt the batch size.
