@@ -38,6 +38,7 @@ from .const import (
     ImageAndBLEData,
 )
 from .niimprint import BLEData, NiimbotDevice, PrinterError
+from .niimprint.model import default_label_type_code, get_supported_label_type_codes
 from .render import render_image
 
 PLATFORMS: list[Platform] = [
@@ -190,6 +191,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if service.data.get("preview"):
             return {"image": image_data}
 
+        # Validate label_type locally before opening a BLE connection.
+        # niimbot.get_model_meta() is populated by the coordinator update cycle and
+        # is therefore available without BLE.  If the model is not yet known the
+        # check is skipped; the fallback inside NiimbotDevice.print_image covers that.
+        requested_label_type = (
+            int(service.data["label_type"]) if "label_type" in service.data else None
+        )
+        model_meta = niimbot.get_model_meta()
+        if requested_label_type is not None and model_meta is not None:
+            supported_types = get_supported_label_type_codes(model_meta)
+            if requested_label_type not in supported_types:
+                raise ServiceValidationError(
+                    f"Label type {requested_label_type} is not supported for this printer "
+                    f"(supported label types: {supported_types})"
+                )
+
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
             raise HomeAssistantError(
@@ -212,9 +229,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 print_line_batch_size=int(service.data["print_line_batch_size"])
                 if "print_line_batch_size" in service.data
                 else confirm_every_nth_print_line,
-                label_type=int(service.data["label_type"])
-                if "label_type" in service.data
-                else None,
+                label_type=requested_label_type,
                 copies=int(service.data["copies"]) if "copies" in service.data else 1,
             )
             # Push post-print RFID / heartbeat updates into entities immediately.

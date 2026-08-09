@@ -13,8 +13,9 @@ from bleak import BleakClient, BleakError
 from PIL import Image, ImageOps
 
 from .model import (
-    PrinterModel,
     PrintGeneration,
+    PrinterModel,
+    default_label_type_code,
     get_printer_meta_by_model,
     get_supported_label_type_codes,
 )
@@ -307,7 +308,7 @@ class PrinterClient:
             meta = get_printer_meta_by_model(model)
             supported_types = get_supported_label_type_codes(meta)
             if label_type is None:
-                label_type = supported_types[0]
+                label_type = default_label_type_code(meta)
             elif label_type not in supported_types:
                 raise ValueError(
                     f"Label type {label_type} is not supported for printer model {model.name} "

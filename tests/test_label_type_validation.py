@@ -8,6 +8,7 @@ from PIL import Image
 
 from custom_components.niimbot.niimprint.model import (
     PrinterModel,
+    default_label_type_code,
     get_printer_meta_by_id,
     get_supported_label_type_codes,
 )
@@ -24,6 +25,20 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def _make_v4_responses():
+    """Minimal V4 print sequence responses."""
+    return [
+        NiimbotPacket(49, b"\x01"),   # set_label_density
+        NiimbotPacket(51, b"\x01"),   # set_label_type
+        NiimbotPacket(2, b"\x01"),    # start_print_v4
+        NiimbotPacket(4, b"\x01"),    # start_page_print
+        NiimbotPacket(20, b"\x01"),   # set_page_size
+        NiimbotPacket(228, b"\x01"),  # end_page_print
+        NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
+        NiimbotPacket(244, b"\x01"),  # end_print
+    ]
+
+
 def test_get_supported_label_type_codes():
     meta_b1 = get_printer_meta_by_id(4096)
     assert get_supported_label_type_codes(meta_b1) == [1, 2, 5]
@@ -37,7 +52,35 @@ def test_get_supported_label_type_codes():
     meta_a1_pro = get_printer_meta_by_id(7424)
     assert get_supported_label_type_codes(meta_a1_pro) == [4, 3]
 
-    assert get_supported_label_type_codes(None) == [1, 2, 3, 4, 5, 6, 10, 11]
+    # Unknown model: every known code is returned (never reject what the printer may accept)
+    fallback = get_supported_label_type_codes(None)
+    assert 1 in fallback
+    assert 6 in fallback
+
+
+def test_default_label_type_code_prefers_with_gaps():
+    # B1 supports [1, 2, 5] — default must be 1 (WithGaps)
+    meta_b1 = get_printer_meta_by_id(4096)
+    assert default_label_type_code(meta_b1) == 1
+
+    # A8 supports [2, 1, 3] (Black, WithGaps, Continuous) — default must still be 1
+    meta_a8 = get_printer_meta_by_id(256)
+    assert default_label_type_code(meta_a8) == 1
+
+    # P1 supports [6] only — no WithGaps, so first entry (6) is used
+    meta_p1 = get_printer_meta_by_id(1024)
+    assert default_label_type_code(meta_p1) == 6
+
+    # C1 supports [3] only — no WithGaps, so first entry (3) is used
+    meta_c1 = get_printer_meta_by_id(5120)
+    assert default_label_type_code(meta_c1) == 3
+
+    # A1_PRO supports [4, 3] — no WithGaps, so first entry (4) is used
+    meta_a1_pro = get_printer_meta_by_id(7424)
+    assert default_label_type_code(meta_a1_pro) == 4
+
+    # Unknown model fallback: WithGaps (1) is in the full list, so 1 is returned
+    assert default_label_type_code(None) == 1
 
 
 def test_print_image_rejects_unsupported_label_type():
@@ -60,24 +103,13 @@ def test_print_image_rejects_unsupported_label_type():
     run(_test())
 
 
-def test_print_image_defaults_to_model_primary_paper_type():
+def test_print_image_defaults_p1_to_pvc_tag():
+    """P1 supports only PvcTag (6); omitting label_type must send 0x06."""
     async def _test():
-        # Setup responses for P1 (V4, primary paperType = 6 PvcTag)
-        responses = [
-            NiimbotPacket(49, b"\x01"),   # set_label_density (33 + 16 = 49)
-            NiimbotPacket(51, b"\x01"),   # set_label_type (35 + 16 = 51)
-            NiimbotPacket(2, b"\x01"),    # start_print_v4 (1 + 1 = 2)
-            NiimbotPacket(4, b"\x01"),    # start_page_print (3 + 1 = 4)
-            NiimbotPacket(20, b"\x01"),   # set_page_size (19 + 1 = 20)
-            NiimbotPacket(228, b"\x01"),  # end_page_print (227 + 1 = 228)
-            NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
-            NiimbotPacket(244, b"\x01"),  # end_print (243 + 1 = 244)
-        ]
-        transport = FakeTransport(responses)
+        transport = FakeTransport(_make_v4_responses())
         client = PrinterClient(transport=transport)
         img = Image.new("1", (96, 10))
 
-        # Pass label_type=None so it defaults to P1's primary paper type (6)
         await client.print_image(
             model=PrinterModel.P1,
             image=img,
@@ -91,5 +123,30 @@ def test_print_image_defaults_to_model_primary_paper_type():
             p for p in transport.written_packets if p.type == RequestCodeEnum.SET_LABEL_TYPE
         )
         assert set_label_pkt.data == b"\x06"
+
+    run(_test())
+
+
+def test_print_image_defaults_b1_to_with_gaps():
+    """B1 supports [1, 2, 5]; omitting label_type must keep sending 0x01 (WithGaps) — no regression."""
+    async def _test():
+        transport = FakeTransport(_make_v4_responses())
+        client = PrinterClient(transport=transport)
+        img = Image.new("1", (96, 10))
+
+        await client.print_image(
+            model=PrinterModel.B1,
+            image=img,
+            density=3,
+            wait_between_print_lines=0,
+            print_line_batch_size=1,
+            label_type=None,
+        )
+
+        set_label_pkt = next(
+            p for p in transport.written_packets if p.type == RequestCodeEnum.SET_LABEL_TYPE
+        )
+        # Must still be 1 (WithGaps), same as the hardcoded default that existed before T7
+        assert set_label_pkt.data == b"\x01"
 
     run(_test())
