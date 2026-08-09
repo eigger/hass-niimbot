@@ -176,26 +176,34 @@ def test_get_caches_negative_result_without_retry(monkeypatch):
         lookup = _lookup_with(monkeypatch, session, store)
 
         assert await lookup.get("00000000000000") is None
+        assert lookup.last_result_definitive is True
         assert session.calls == ["00000000000000"]
 
         # Still no match, still within the recheck window: no second call.
         assert await lookup.get("00000000000000") is None
+        assert lookup.last_result_definitive is True
         assert session.calls == ["00000000000000"]
 
     run(_test())
 
 
-def test_get_returns_none_on_non_200(monkeypatch):
+def test_get_returns_none_on_non_200_without_caching(monkeypatch):
     async def _test():
         store = FakeStore()
 
         def responder(barcode):
-            return FakeResponse(400, {"code": 400, "message": "bad request"})
+            return FakeResponse(500, {"code": 500, "message": "系统异常"})
 
         session = FakeSession(responder)
         lookup = _lookup_with(monkeypatch, session, store)
 
         assert await lookup.get("02282280") is None
+        assert lookup.last_result_definitive is False
+        assert store.saved == []
+
+        # Transient failures must be retryable on the next poll.
+        assert await lookup.get("02282280") is None
+        assert session.calls == ["02282280", "02282280"]
 
     run(_test())
 
@@ -208,6 +216,8 @@ def test_get_returns_none_on_client_error(monkeypatch):
 
         # Must not raise — a network failure degrades to "no info", never an error.
         assert await lookup.get("02282280") is None
+        assert lookup.last_result_definitive is False
+        assert store.saved == []
 
     run(_test())
 
@@ -219,6 +229,7 @@ def test_get_returns_none_on_timeout(monkeypatch):
         lookup = _lookup_with(monkeypatch, session, store)
 
         assert await lookup.get("02282280") is None
+        assert lookup.last_result_definitive is False
 
     run(_test())
 
@@ -234,6 +245,9 @@ def test_get_returns_none_on_malformed_body(monkeypatch):
         lookup = _lookup_with(monkeypatch, session, store)
 
         assert await lookup.get("02282280") is None
+        # 200 with a non-dict body: treat as non-definitive (do not cache).
+        assert lookup.last_result_definitive is False
+        assert store.saved == []
 
     run(_test())
 

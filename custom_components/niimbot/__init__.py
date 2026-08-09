@@ -130,12 +130,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Resolve a label barcode via the cloud catalogue and push the result.
 
         Runs as a background task so a slow or failed lookup never delays or
-        fails the coordinator poll. Every failure mode (disabled, timeout,
-        non-200, unknown barcode) leaves entities exactly as they are today.
+        fails the coordinator poll. Transient failures (timeout / non-200) leave
+        the dedup marker clear so the next poll can retry; definitive misses and
+        matches suppress further lookups for that barcode.
         """
         assert cloud_lookup is not None
+        # Claim the barcode while the request is in flight to avoid parallel
+        # duplicate fetches from overlapping coordinator polls.
         niimbot._cloud_lookup_barcode = barcode
         info = await cloud_lookup.get(barcode)
+        if not cloud_lookup.last_result_definitive:
+            if niimbot._cloud_lookup_barcode == barcode:
+                niimbot._cloud_lookup_barcode = None
+            return
         new_attrs = {"barcode": barcode, **info} if info else {}
         if new_attrs != niimbot._cloud_label_attrs:
             niimbot._cloud_label_attrs = new_attrs
