@@ -670,6 +670,16 @@ class NiimbotDevice:
                         self.ble_data.devicetype = device_type
                         _LOGGER.debug("Resolved model during print: %s", self.model)
 
+                meta = self.get_model_meta()
+                if meta and meta.get("printheadPixelsEstimated"):
+                    _LOGGER.warning(
+                        "Printer model %s (%s) uses an estimated printheadPixels value (%d px). "
+                        "Please report whether output alignment and scaling are correct.",
+                        self.model,
+                        self.ble_data.devicetype,
+                        meta["printheadPixels"],
+                    )
+
                 try:
                     printer_model = PrinterModel(self.model)
                 except (ValueError, TypeError):

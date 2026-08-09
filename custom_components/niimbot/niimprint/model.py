@@ -89,6 +89,20 @@ class PrinterModel(Enum):
     B11 = "B11"
     B50 = "B50"
     ET10 = "ET10"
+    H1 = "H1"
+    B1_SE = "B1_SE"
+    H1S = "H1S"
+    EP2M_H = "EP2M_H"
+    K3_ITD = "K3_ITD"
+    C1 = "C1"
+    EP1C = "EP1C"
+    K2 = "K2"
+    M3 = "M3"
+    EP3M = "EP3M"
+    B4 = "B4"
+    B4_PRO = "B4_PRO"
+    K4 = "K4"
+    A1_PRO = "A1_PRO"
 
 class PrinterModelMeta(TypedDict):
     model: PrinterModel
@@ -101,6 +115,7 @@ class PrinterModelMeta(TypedDict):
     densityMin: NotRequired[int]
     densityMax: NotRequired[int]
     densityDefault: NotRequired[int]
+    printheadPixelsEstimated: NotRequired[bool]
 
 modelsLibrary: List[PrinterModelMeta] = [
     {
@@ -606,7 +621,134 @@ modelsLibrary: List[PrinterModelMeta] = [
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 1600,
         "paperTypes": [LabelType.CONTINUOUS],
-    }
+    },
+    {
+        "model": PrinterModel.H1,
+        "id": [3840],
+        "dpi": 203,
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 96,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.B1_SE,
+        "id": [4098],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 384,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.H1S,
+        "id": [4352],
+        "dpi": 203,
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 96,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.EP2M_H,
+        "id": [4610],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 591,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.K3_ITD,
+        "id": [4868],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 656,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.C1,
+        "id": [5120],
+        "dpi": 300,
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 178,
+        "paperTypes": [LabelType.CONTINUOUS],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.EP1C,
+        "id": [5121],
+        "dpi": 300,
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 178,
+        "paperTypes": [LabelType.CONTINUOUS],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.K2,
+        "id": [6144],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 480,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.M3,
+        "id": [6400],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 851,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.EP3M,
+        "id": [6402],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 851,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.B4,
+        "id": [6656],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 832,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.B4_PRO,
+        "id": [6657],
+        "dpi": 300,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 1248,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.K4,
+        "id": [7168],
+        "dpi": 203,
+        "printDirection": PrintDirection.TOP,
+        "printheadPixels": 656,
+        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.TRANSPARENT],
+        "printheadPixelsEstimated": True,
+    },
+    {
+        "model": PrinterModel.A1_PRO,
+        "id": [7424],
+        "dpi": 300,
+        # Print direction 270 in vendor DB; modelled as LEFT for now.
+        "printDirection": PrintDirection.LEFT,
+        "printheadPixels": 178,
+        "paperTypes": [LabelType.PERFORATED, LabelType.CONTINUOUS],
+        "printheadPixelsEstimated": True,
+    },
 ]
 
 # Density / RFID capabilities keyed by printer model ID (from devices.md).
@@ -654,18 +796,32 @@ _CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int]] = {
     3584: (RfidClass.LABEL_RIBBON, 1, 3, 2),
     3585: (RfidClass.LABEL_RIBBON, 1, 3, 2),
     3586: (RfidClass.LABEL_RIBBON, 1, 3, 2),
+    3840: (RfidClass.LABEL, 1, 3, 2),
     4096: (RfidClass.LABEL, 1, 5, 3),
     4097: (RfidClass.LABEL, 1, 5, 3),
+    4098: (RfidClass.LABEL, 1, 5, 3),
+    4352: (RfidClass.LABEL, 1, 3, 2),
     4608: (RfidClass.LABEL_RIBBON, 1, 5, 3),
     4609: (RfidClass.LABEL_RIBBON, 1, 5, 3),
+    4610: (RfidClass.LABEL_RIBBON, 1, 5, 3),
     4864: (RfidClass.LABEL, 1, 5, 3),
     4865: (RfidClass.LABEL, 1, 5, 3),
     4866: (RfidClass.LABEL, 1, 5, 3),
     4867: (RfidClass.LABEL, 1, 5, 3),
+    4868: (RfidClass.LABEL, 1, 5, 3),
+    5120: (RfidClass.RIBBON, 1, 5, 3),
+    5121: (RfidClass.RIBBON, 1, 5, 3),
     5376: (RfidClass.NONE, 3, 3, 3),
     5632: (RfidClass.LABEL, 1, 5, 3),
+    6144: (RfidClass.LABEL, 1, 5, 3),
+    6400: (RfidClass.LABEL_RIBBON, 1, 5, 3),
+    6402: (RfidClass.LABEL_RIBBON, 1, 5, 3),
+    6656: (RfidClass.LABEL, 1, 5, 3),
+    6657: (RfidClass.LABEL, 1, 5, 3),
     6912: (RfidClass.LABEL, 1, 5, 3),
     6913: (RfidClass.LABEL, 1, 5, 3),
+    7168: (RfidClass.LABEL, 1, 15, 7),
+    7424: (RfidClass.NONE, 1, 5, 3),
     51457: (RfidClass.NONE, 6, 15, 10),
     51458: (RfidClass.NONE, 6, 15, 10),
     51460: (RfidClass.NONE, 6, 15, 10),
