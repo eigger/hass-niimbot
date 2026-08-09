@@ -11,7 +11,7 @@ from bleak import BleakClient, BleakError
 from typing import Any, Callable, TypeVar
 from asyncio import Event, wait_for, sleep
 from .packet import NiimbotPacket
-from .model import PrinterModel, get_printer_meta_by_model
+from .model import PrinterModel, PrintGeneration, get_printer_meta_by_model
 
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
@@ -302,14 +302,32 @@ class PrinterClient:
                 density_max=density_max,
                 copies=copies,
             )
-            if model in (PrinterModel.UNKNOWN, PrinterModel.D11, PrinterModel.D11S):
-                return await self.print_image_d11_v1(**kwargs)
-            elif model in (PrinterModel.B21S, PrinterModel.B21S_C2B, PrinterModel.D110):
+            generation = meta.get("generation") if meta else None
+
+            if generation is None:
+                status_data = await self.get_printer_status_data()
+                proto_ver = status_data.get("protocol_version") if status_data else None
+
+                if proto_ver is not None and proto_ver >= 5:
+                    generation = PrintGeneration.V5
+                else:
+                    generation = PrintGeneration.V4
+
+                _LOGGER.warning(
+                    "Unknown printer model %r (protocol_version=%s); defaulting to %s sequence",
+                    model,
+                    proto_ver,
+                    generation.value,
+                )
+
+            if generation == PrintGeneration.OLD_D11:
+                return await self.print_image_old_d11(**kwargs)
+            elif generation == PrintGeneration.D110:
                 return await self.print_image_d110(**kwargs)
-            elif model in (PrinterModel.D11_H, PrinterModel.D11_PRO, PrinterModel.B21_PRO, PrinterModel.D110_M, PrinterModel.B2_PRO):
-                return await self.print_image_d110m_v4(**kwargs)
+            elif generation == PrintGeneration.V5:
+                return await self.print_image_v5(**kwargs)
             else:
-                return await self.print_image_b1(**kwargs)
+                return await self.print_image_v4(**kwargs)
         finally:
             avg = (sum(self._timings) / len(self._timings)) if self._timings else 0.0
             _LOGGER.debug(
@@ -318,7 +336,7 @@ class PrinterClient:
                 avg,
             )
 
-    async def print_image_d11_v1(
+    async def print_image_old_d11(
         self,
         image: Image.Image,
         density,
@@ -331,7 +349,7 @@ class PrinterClient:
         copies: int = 1,
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
-        _LOGGER.debug("print_image_d11_v1: %s", locals())
+        _LOGGER.debug("print_image_old_d11: %s", locals())
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
         await self.start_print()
@@ -349,7 +367,7 @@ class PrinterClient:
         await self.wait_print_complete(copies=copies)
         await self.end_print()
 
-    async def print_image_b1(
+    async def print_image_v4(
         self,
         image: Image.Image,
         density,
@@ -361,7 +379,7 @@ class PrinterClient:
         density_max: int = 5,
         copies: int = 1,
     ):
-        _LOGGER.debug("print_image_b1: %s", locals())
+        _LOGGER.debug("print_image_v4: %s", locals())
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
         await self.start_print_v4(total_pages=1)
@@ -406,7 +424,7 @@ class PrinterClient:
         await self.wait_print_complete(copies=copies)
         await self.end_print()
 
-    async def print_image_d110m_v4(
+    async def print_image_v5(
         self,
         image: Image.Image,
         density,
@@ -418,7 +436,7 @@ class PrinterClient:
         density_max: int = 5,
         copies: int = 1,
     ):
-        _LOGGER.debug("print_image_d110m_v4: %s", locals())
+        _LOGGER.debug("print_image_v5: %s", locals())
         if not await self.set_label_density(density, density_min, density_max):
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(label_type):
