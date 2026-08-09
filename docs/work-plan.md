@@ -242,7 +242,7 @@ measured.
 
 ---
 
-## T4 — Select the print sequence from capability, not a model tuple
+## T4 — Select the print sequence from capability, not a model tuple [COMPLETED]
 
 **Goal.** An unrecognised printer should pick a sane sequence instead of the oldest one.
 

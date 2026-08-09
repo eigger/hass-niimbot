@@ -1,6 +1,12 @@
 from enum import Enum
 from typing import List, NotRequired, TypedDict, Union
 
+class PrintGeneration(Enum):
+    OLD_D11 = "OLD_D11"
+    D110 = "D110"
+    V4 = "V4"
+    V5 = "V5"
+
 class PrintDirection(Enum):
     TOP = "top"
     LEFT = "left"
@@ -111,6 +117,7 @@ class PrinterModelMeta(TypedDict):
     printDirection: PrintDirection
     printheadPixels: int
     paperTypes: List[LabelType]
+    generation: PrintGeneration
     rfid: NotRequired[RfidClass]
     densityMin: NotRequired[int]
     densityMax: NotRequired[int]
@@ -120,6 +127,7 @@ class PrinterModelMeta(TypedDict):
 modelsLibrary: List[PrinterModelMeta] = [
     {
         "model": PrinterModel.B3S_P,
+        "generation": PrintGeneration.V4,
         "id": [272],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -128,6 +136,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.T2S,
+        "generation": PrintGeneration.V4,
         "id": [53250],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -136,6 +145,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.N1,
+        "generation": PrintGeneration.V4,
         "id": [3586],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -144,6 +154,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.TP2M_H,
+        "generation": PrintGeneration.V4,
         "id": [4609],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -152,6 +163,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B31,
+        "generation": PrintGeneration.V4,
         "id": [5632],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -160,6 +172,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21_PRO,
+        "generation": PrintGeneration.V5,
         "id": [785],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -168,6 +181,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B2_PRO,
+        "generation": PrintGeneration.V5,
         "id": [6912],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -176,6 +190,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B2,
+        "generation": PrintGeneration.V4,
         "id": [6913],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -184,6 +199,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B18S,
+        "generation": PrintGeneration.V4,
         "id": [3585],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -192,6 +208,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D11_H,
+        "generation": PrintGeneration.V5,
         "id": [528],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -200,6 +217,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21_H,
+        "generation": PrintGeneration.V4,
         "id": [784],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -208,6 +226,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.HI_D110,
+        "generation": PrintGeneration.V4,
         "id": [2305],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -216,6 +235,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D110_M,
+        "generation": PrintGeneration.V5,
         "id": [2320],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -224,6 +244,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.M2_H,
+        "generation": PrintGeneration.V4,
         "id": [4608],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -232,6 +253,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A20,
+        "generation": PrintGeneration.V4,
         "id": [2817],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -240,6 +262,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.MP3K_W,
+        "generation": PrintGeneration.V4,
         "id": [4867],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -248,6 +271,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A203,
+        "generation": PrintGeneration.V4,
         "id": [2818],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -256,6 +280,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.MP3K,
+        "generation": PrintGeneration.V4,
         "id": [4866],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -264,6 +289,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.K3_W,
+        "generation": PrintGeneration.V4,
         "id": [4865],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -272,6 +298,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.K3,
+        "generation": PrintGeneration.V4,
         "id": [4864],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -280,6 +307,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.BETTY,
+        "generation": PrintGeneration.V4,
         "id": [2561],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -288,6 +316,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.T8S,
+        "generation": PrintGeneration.V4,
         "id": [2053],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -296,6 +325,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21S,
+        "generation": PrintGeneration.D110,
         "id": [777],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -304,6 +334,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21_L2B,
+        "generation": PrintGeneration.V4,
         "id": [769],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -312,6 +343,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D11S,
+        "generation": PrintGeneration.OLD_D11,
         "id": [514],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -320,6 +352,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A63,
+        "generation": PrintGeneration.V4,
         "id": [2054],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -328,6 +361,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.FUST,
+        "generation": PrintGeneration.V4,
         "id": [513],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -336,6 +370,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.P1,
+        "generation": PrintGeneration.V4,
         "id": [1024],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -344,6 +379,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.P18,
+        "generation": PrintGeneration.V4,
         "id": [1026],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -352,6 +388,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.S6,
+        "generation": PrintGeneration.V4,
         "id": [257, 258, 259, 260, 261, 262],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -360,6 +397,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21S_C2B,
+        "generation": PrintGeneration.D110,
         "id": [776],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -368,6 +406,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.P1S,
+        "generation": PrintGeneration.V4,
         "id": [1025],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -376,6 +415,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B1,
+        "generation": PrintGeneration.V4,
         "id": [4096],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -384,6 +424,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B1_PRO,
+        "generation": PrintGeneration.V4,
         "id": [4097],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -392,6 +433,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A8,
+        "generation": PrintGeneration.V4,
         "id": [256],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -400,6 +442,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21_C2B,
+        "generation": PrintGeneration.V4,
         "id": [771, 775],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -408,6 +451,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.Z401,
+        "generation": PrintGeneration.V4,
         "id": [2051],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -416,6 +460,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B16,
+        "generation": PrintGeneration.V4,
         "id": [1792],
         "dpi": 203,
         # Print direction 270 in vendor DB; modelled as LEFT for now.
@@ -425,6 +470,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B32R,
+        "generation": PrintGeneration.V4,
         "id": [2050],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -433,6 +479,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B32,
+        "generation": PrintGeneration.V4,
         "id": [2049],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -441,6 +488,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.S3,
+        "generation": PrintGeneration.V4,
         "id": [51460],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -449,6 +497,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.JC_M90,
+        "generation": PrintGeneration.V4,
         "id": [51461],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -457,6 +506,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.JCB3S,
+        "generation": PrintGeneration.V4,
         "id": [256],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -465,6 +515,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B203,
+        "generation": PrintGeneration.V4,
         "id": [2816],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -473,6 +524,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.S1,
+        "generation": PrintGeneration.V4,
         "id": [51458],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -481,6 +533,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D110,
+        "generation": PrintGeneration.D110,
         "id": [2304, 2305],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -489,6 +542,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21,
+        "generation": PrintGeneration.V4,
         "id": [768],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -497,6 +551,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D101,
+        "generation": PrintGeneration.V4,
         "id": [2560],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -505,6 +560,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.HI_NB_D11,
+        "generation": PrintGeneration.V4,
         "id": [512],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -513,6 +569,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A8_P,
+        "generation": PrintGeneration.V4,
         "id": [273],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -521,6 +578,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.S6_P,
+        "generation": PrintGeneration.V4,
         "id": [274],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -529,6 +587,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.T6,
+        "generation": PrintGeneration.V4,
         "id": [51715],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -537,6 +596,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B50W,
+        "generation": PrintGeneration.V4,
         "id": [51714],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -545,6 +605,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.T7,
+        "generation": PrintGeneration.V4,
         "id": [51717],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -553,6 +614,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.T8,
+        "generation": PrintGeneration.V4,
         "id": [51718],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -561,6 +623,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B3S,
+        "generation": PrintGeneration.V4,
         "id": [256, 260, 262],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -569,6 +632,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B3,
+        "generation": PrintGeneration.V4,
         "id": [52993],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -577,6 +641,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B18,
+        "generation": PrintGeneration.V4,
         "id": [3584],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -585,6 +650,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D11,
+        "generation": PrintGeneration.OLD_D11,
         "id": [512],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -593,6 +659,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.D11_PRO,
+        "generation": PrintGeneration.V5,
         "id": [531],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -601,6 +668,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B11,
+        "generation": PrintGeneration.V4,
         "id": [51457],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -609,6 +677,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B50,
+        "generation": PrintGeneration.V4,
         "id": [51713],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -617,6 +686,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.ET10,
+        "generation": PrintGeneration.V4,
         "id": [5376],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -625,6 +695,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.H1,
+        "generation": PrintGeneration.V4,
         "id": [3840],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -634,6 +705,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B1_SE,
+        "generation": PrintGeneration.V4,
         "id": [4098],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -643,6 +715,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.H1S,
+        "generation": PrintGeneration.V4,
         "id": [4352],
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
@@ -652,6 +725,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.EP2M_H,
+        "generation": PrintGeneration.V4,
         "id": [4610],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -661,6 +735,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.K3_ITD,
+        "generation": PrintGeneration.V4,
         "id": [4868],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -670,6 +745,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.C1,
+        "generation": PrintGeneration.V4,
         "id": [5120],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -679,6 +755,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.EP1C,
+        "generation": PrintGeneration.V4,
         "id": [5121],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
@@ -688,6 +765,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.K2,
+        "generation": PrintGeneration.V4,
         "id": [6144],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -697,6 +775,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.M3,
+        "generation": PrintGeneration.V4,
         "id": [6400],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -706,6 +785,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.EP3M,
+        "generation": PrintGeneration.V4,
         "id": [6402],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -715,6 +795,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B4,
+        "generation": PrintGeneration.V4,
         "id": [6656],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -724,6 +805,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B4_PRO,
+        "generation": PrintGeneration.V4,
         "id": [6657],
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
@@ -733,6 +815,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.K4,
+        "generation": PrintGeneration.V4,
         "id": [7168],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
@@ -742,6 +825,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.A1_PRO,
+        "generation": PrintGeneration.V4,
         "id": [7424],
         "dpi": 300,
         # Print direction 270 in vendor DB; modelled as LEFT for now.
