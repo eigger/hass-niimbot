@@ -90,7 +90,7 @@ Entities are created dynamically only when the Advanced2 payload provides the va
 
 All 14 model IDs (3840, 4098, 4352, 4610, 4868, 5120, 5121, 6144, 6400, 6402, 6656, 6657, 7168, 7424) added to `PrinterModel`, `modelsLibrary`, and `_CAPABILITIES_BY_ID`. `printheadPixels` uses estimated values from same-series siblings and DPI pixel ratios, flagged with `printheadPixelsEstimated: True` with warning logging on print jobs. **[HW]** per model; A1 Pro print direction 270 is modelled as LEFT.
 
-### 4. Choose the print sequence from capability, not a model list (5.2)
+### 4. Choose the print sequence from capability, not a model list — **Done (T4)** (was 5.2)
 
 `print_image` dispatches on hardcoded model tuples, so every new model needs a code change in the
 right branch and an unlisted model falls through to `print_image_b1` — or, for `UNKNOWN`, to the

@@ -389,7 +389,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     {
         "model": PrinterModel.S6,
         "generation": PrintGeneration.V4,
-        "id": [257, 258, 259, 260, 261, 262],
+        "id": [257, 258, 259, 261],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 576,
@@ -1056,6 +1056,7 @@ def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
 
 
 def get_printer_meta_by_id(printer_id: int) -> Union[PrinterModelMeta, None]:
+    """Look up printer metadata by model ID. First matching model entry in modelsLibrary wins."""
     for model in modelsLibrary:
         if printer_id in model["id"]:
             return _enrich_meta(model)

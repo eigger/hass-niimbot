@@ -57,7 +57,7 @@ def _build_standard_responses():
         NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT (0x03 + 1 = 4)
         NiimbotPacket(20, b"\x01"),   # SET_DIMENSION (0x13 + 1 = 20)
         NiimbotPacket(22, b"\x01"),   # SET_QUANTITY (0x15 + 1 = 22)
-        NiimbotPacket(134, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED (0x83 + 1 = 134)
+        NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED (0x83 + 1 = 132)
         NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT (0xE3 + 1 = 228)
         NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)), # Page index 1 complete
         NiimbotPacket(244, b"\x01"),  # END_PRINT (0xF3 + 1 = 244)
@@ -88,6 +88,45 @@ def test_print_sequence_old_d11():
     run(_test())
 
 
+def test_print_sequence_d110():
+    async def _test():
+        responses = [
+            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),    # START_PRINT (1 byte b"\x01")
+            NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT
+            NiimbotPacket(20, b"\x01"),   # SET_DIMENSION
+            NiimbotPacket(22, b"\x01"),   # SET_QUANTITY
+            NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
+            NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
+            NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
+            NiimbotPacket(244, b"\x01"),  # END_PRINT
+        ]
+        transport = FakeTransport(responses)
+        client = PrinterClient(transport=transport)
+        img = Image.new("1", (96, 10))
+
+        await client.print_image(
+            PrinterModel.D110,
+            img,
+            density=3,
+            wait_between_print_lines=0,
+            print_line_batch_size=1,
+        )
+
+        sent_types = [p.type for p in transport.written_packets]
+        assert RequestCodeEnum.START_PRINT in sent_types
+        # D110 sends 1-byte START_PRINT, SET_QUANTITY, but NOT ALLOW_PRINT_CLEAR
+        assert RequestCodeEnum.ALLOW_PRINT_CLEAR not in sent_types
+        assert RequestCodeEnum.SET_QUANTITY in sent_types
+        start_print_pkt = next(
+            p for p in transport.written_packets if p.type == RequestCodeEnum.START_PRINT
+        )
+        assert len(start_print_pkt.data) == 1
+
+    run(_test())
+
+
 def test_print_sequence_v4():
     async def _test():
         responses = [
@@ -96,7 +135,7 @@ def test_print_sequence_v4():
             NiimbotPacket(2, b"\x01"),    # START_PRINT (v4)
             NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT
             NiimbotPacket(20, b"\x01"),   # SET_DIMENSION
-            NiimbotPacket(134, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
+            NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
             NiimbotPacket(244, b"\x01"),  # END_PRINT

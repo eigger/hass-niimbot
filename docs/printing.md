@@ -160,7 +160,7 @@ label in and back out without imaging it, with the page counter not advancing.
 
 ### Old D11 generation
 
-Models: D11, D11S, and anything unrecognised.
+Models: D11, D11S.
 
 ```
 SetDensity → SetLabelType → PrintStart(1b) → PrintClear
@@ -183,7 +183,7 @@ SetDensity → SetLabelType → PrintStart(1b)
 
 ### V4 generation
 
-Models: B1, B1 Pro, B21, B3S — everything not matched by another branch.
+Models: B1, B1 Pro, B21, B3S, etc. — default fallback for unrecognised models (unless protocol version >= 5).
 
 ```
 SetDensity → SetLabelType → PrintStart(7b)

@@ -305,25 +305,20 @@ class PrinterClient:
             generation = meta.get("generation") if meta else None
 
             if generation is None:
-                proto_ver = None
-                try:
-                    status_data = await self.get_printer_status_data()
-                    if status_data:
-                        proto_ver = status_data.get("protocol_version")
-                except Exception as err:
-                    _LOGGER.debug("Failed to read PrinterStatusData for fallback: %s", err)
+                status_data = await self.get_printer_status_data()
+                proto_ver = status_data.get("protocol_version") if status_data else None
 
                 if proto_ver is not None and proto_ver >= 5:
                     generation = PrintGeneration.V5
-                elif proto_ver is not None and proto_ver in (3, 4):
-                    generation = PrintGeneration.V4
                 else:
                     generation = PrintGeneration.V4
-                    _LOGGER.warning(
-                        "Unknown printer model %r (protocol_version=%s); defaulting to PrintGeneration.V4 sequence",
-                        model,
-                        proto_ver,
-                    )
+
+                _LOGGER.warning(
+                    "Unknown printer model %r (protocol_version=%s); defaulting to %s sequence",
+                    model,
+                    proto_ver,
+                    generation.value,
+                )
 
             if generation == PrintGeneration.OLD_D11:
                 return await self.print_image_old_d11(**kwargs)
