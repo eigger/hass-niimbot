@@ -291,7 +291,7 @@ change. Verify by asserting against captured packets, not by inspection.
 
 ---
 
-## T5 — Skip RFID reads on firmware that cannot do RFID
+## T5 — Skip RFID reads on firmware that cannot do RFID [Done]
 
 **Goal.** Remove a guaranteed per-poll timeout on affected units.
 

@@ -108,7 +108,7 @@ renamed in the same change:
 | `print_image_b1` | V4 (`start_print_v4` + 6-byte `SetPageSize`) |
 | `print_image_d110m_v4` | V5 / 9-byte (`start_print_9b` + 9-byte `SetPageSize`) |
 
-### 5. Gate RFID reads on firmware version
+### 5. Gate RFID reads on firmware version — **Done (T5)**
 
 The vendor table lists, per model, the firmware versions on which RFID reading does not work
 ([app-gap-analysis.md §A4](app-gap-analysis.md#a4-firmware-version-gated-capabilities-are-ignored)).
