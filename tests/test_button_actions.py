@@ -9,6 +9,7 @@ from custom_components.niimbot.niimprint.model import (
     get_printer_meta_by_id,
     supports_calibration,
     supports_height_calibration,
+    supports_label_position_calibration,
     supports_print_test_page,
 )
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
@@ -22,10 +23,11 @@ def run(coro):
 
 
 def test_supports_calibration_helper():
-    # B1 (4096): label-position calibration yes; height (0x59) no Continuous paper
+    # B1 (4096): vendor calibration yes, but HA hides 0x8E (long feed) and 0x5A (NAK)
     meta_b1 = get_printer_meta_by_id(4096)
     assert meta_b1 is not None
     assert supports_calibration(meta_b1) is True
+    assert supports_label_position_calibration(meta_b1) is False
     assert supports_height_calibration(meta_b1) is False
     assert supports_print_test_page(meta_b1) is False
 
@@ -33,18 +35,21 @@ def test_supports_calibration_helper():
     meta_d110 = get_printer_meta_by_id(2304)
     assert meta_d110 is not None
     assert supports_calibration(meta_d110) is False
+    assert supports_label_position_calibration(meta_d110) is False
     assert supports_height_calibration(meta_d110) is False
     assert supports_print_test_page(meta_d110) is True
 
-    # B3 (52993): Continuous + calibration → height calibration gated on
+    # B3 (52993): Continuous + calibration → height and paper calibration exposed
     meta_b3 = get_printer_meta_by_id(52993)
     assert meta_b3 is not None
     assert supports_calibration(meta_b3) is True
+    assert supports_label_position_calibration(meta_b3) is True
     assert supports_height_calibration(meta_b3) is True
     assert supports_print_test_page(meta_b3) is True
 
     # None meta returns False
     assert supports_calibration(None) is False
+    assert supports_label_position_calibration(None) is False
     assert supports_height_calibration(None) is False
     assert supports_print_test_page(None) is False
 
@@ -57,6 +62,38 @@ def test_calibrate_label_position_command():
         assert res is True
         assert len(transport.written_packets) == 1
         assert transport.written_packets[0].type == RequestCodeEnum.LABEL_POSITIONING_CALIBRATION
+
+    run(_test())
+
+
+def test_device_paper_calibration_sets_label_type_first():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        device.ble_data.labeltype = 2
+        transport = FakeTransport(
+            [
+                NiimbotPacket(51, b"\x01"),  # set_label_type → 0x23+16
+                NiimbotPacket(143, b"\x01"),  # calibrate → 0x8F
+            ]
+        )
+        client = PrinterClient(transport=transport)
+
+        async def _ensure(_ble):
+            return client
+
+        async def _release():
+            return None
+
+        device._ensure_printer = _ensure  # type: ignore[method-assign]
+        device._release_printer = _release  # type: ignore[method-assign]
+
+        assert await device.calibrate_label_position("aa:bb:cc:dd:ee:ff") is True
+        assert transport.written_packets[0].type == RequestCodeEnum.SET_LABEL_TYPE
+        assert transport.written_packets[0].data == b"\x02"
+        assert (
+            transport.written_packets[1].type
+            == RequestCodeEnum.LABEL_POSITIONING_CALIBRATION
+        )
 
     run(_test())
 

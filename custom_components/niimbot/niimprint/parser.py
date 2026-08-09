@@ -22,6 +22,7 @@ from .model import (
     rfid_supported_on_firmware,
     supports_calibration,
     supports_height_calibration,
+    supports_label_position_calibration,
     supports_label_rfid,
     supports_print_test_page,
     supports_ribbon_rfid,
@@ -188,6 +189,12 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_calibration(meta)
+
+    def supports_label_position_calibration(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_label_position_calibration(meta)
 
     def supports_height_calibration(self) -> bool:
         meta = self.get_model_meta()
@@ -530,10 +537,15 @@ class NiimbotDevice:
             return self.ble_data
 
     async def calibrate_label_position(self, ble_device: BLEDevice) -> bool:
-        """Calibrate label positioning offset (0x8E)."""
+        """Calibrate paper gap/mark sensors (0x8E), after setting label type."""
         async with self.lock:
             printer = await self._ensure_printer(ble_device)
             try:
+                label_type = self.ble_data.labeltype
+                if label_type is None:
+                    label_type = default_label_type_code(self.get_model_meta())
+                if not await printer.set_label_type(int(label_type)):
+                    return False
                 return await printer.calibrate_label_position()
             finally:
                 await self._release_printer()

@@ -45,7 +45,8 @@ async def async_setup_entry(
             NiimbotPrintTestPageButton(coordinator, coordinator.data, device)
         )
 
-    if device.supports_calibration():
+    # B1-class ACKs 0x8E but feeds ~15 cm; hide there. Other models: paper calibration.
+    if device.supports_label_position_calibration():
         entities.append(
             NiimbotCalibrateLabelPositionButton(coordinator, coordinator.data, device)
         )
@@ -110,7 +111,10 @@ class NiimbotBaseButton(
 
 
 class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
-    """Button to calibrate label positioning offset."""
+    """Button to run paper/gap sensor calibration (may feed several labels)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
         self,
@@ -125,9 +129,9 @@ class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
         try:
             ok = await self._device.calibrate_label_position(ble_dev)
             if not ok:
-                raise HomeAssistantError("Printer rejected label position calibration")
+                raise HomeAssistantError("Printer rejected paper calibration")
         except Exception as err:
-            _reraise_action_error("calibrate label position", err)
+            _reraise_action_error("paper calibration", err)
 
 
 class NiimbotCalibrateHeightButton(NiimbotBaseButton):

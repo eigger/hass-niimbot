@@ -944,7 +944,7 @@ _DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3, False)
 
 
 def supports_calibration(meta: PrinterModelMeta | None) -> bool:
-    """Return True if model supports LabelPositioningCalibration (0x8E)."""
+    """Return True if vendor marks the model as supporting paper calibration (0x8E)."""
     if meta is None:
         return False
     return meta.get("isSupportCalibration", False)
@@ -963,8 +963,9 @@ def supports_height_calibration(meta: PrinterModelMeta | None) -> bool:
     return LabelType.CONTINUOUS in paper_types
 
 
-# Observed to NAK PrintTestPage (0x5A). No vendor capability flag exists.
-_PRINT_TEST_PAGE_UNSUPPORTED = frozenset(
+# B1-class: PrintTestPage (0x5A) NAKs; LabelPositioningCalibration (0x8E) ACKs but
+# feeds ~15 cm of paper (unsuitable as a casual HA button).
+_B1_FAMILY = frozenset(
     {
         PrinterModel.B1,
         PrinterModel.B1_PRO,
@@ -973,11 +974,18 @@ _PRINT_TEST_PAGE_UNSUPPORTED = frozenset(
 )
 
 
+def supports_label_position_calibration(meta: PrinterModelMeta | None) -> bool:
+    """Return True if Paper Calibration (0x8E) should be exposed as a button."""
+    if not supports_calibration(meta):
+        return False
+    return meta.get("model") not in _B1_FAMILY
+
+
 def supports_print_test_page(meta: PrinterModelMeta | None) -> bool:
     """Return False for models known to reject PrintTestPage (0x5A)."""
     if meta is None:
         return False
-    return meta.get("model") not in _PRINT_TEST_PAGE_UNSUPPORTED
+    return meta.get("model") not in _B1_FAMILY
 
 
 _LABEL_TYPE_NAMES = {
