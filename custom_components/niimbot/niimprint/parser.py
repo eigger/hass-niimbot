@@ -21,6 +21,7 @@ from .model import (
     material_name,
     rfid_supported_on_firmware,
     supports_calibration,
+    supports_height_calibration,
     supports_label_rfid,
     supports_ribbon_rfid,
 )
@@ -183,6 +184,12 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_calibration(meta)
+
+    def supports_height_calibration(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_height_calibration(meta)
 
     def _apply_heartbeat(self, heartbeat: dict) -> None:
         """Apply heartbeat data to sensors."""

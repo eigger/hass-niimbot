@@ -43,10 +43,14 @@ async def async_setup_entry(
     ]
 
     if device.supports_calibration():
-        entities.extend([
-            NiimbotCalibrateLabelPositionButton(coordinator, coordinator.data, device),
-            NiimbotCalibrateHeightButton(coordinator, coordinator.data, device),
-        ])
+        entities.append(
+            NiimbotCalibrateLabelPositionButton(coordinator, coordinator.data, device)
+        )
+    # 0x59 is separate from vendor isSupportCalibration; B1 NAKs it despite the flag.
+    if device.supports_height_calibration():
+        entities.append(
+            NiimbotCalibrateHeightButton(coordinator, coordinator.data, device)
+        )
 
     async_add_entities(entities)
 
