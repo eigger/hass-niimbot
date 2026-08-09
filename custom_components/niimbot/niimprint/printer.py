@@ -1,6 +1,5 @@
 import abc
 import enum
-import itertools
 import logging
 import math
 import struct
@@ -33,6 +32,12 @@ CHECK_LINE_INTERVAL = 200
 PAGE_INDEX_CMD = 0xE0
 PRINTER_CHECK_LINE_RESP = 0xD3
 PRINTER_STATUS_DATA_RESP = 0xB5
+
+# Adaptive flow control — tune batch size based on observed write latency.
+# Only the batch size is adapted; wait_between_print_lines is user-controlled and left alone.
+ADAPTIVE_FAST_THRESHOLD = 0.012  # s — expand batch if EMA below this
+ADAPTIVE_SLOW_THRESHOLD = 0.030  # s — shrink batch if EMA above this
+ADAPTIVE_EMA_ALPHA = 0.2         # smoothing factor (higher = more reactive)
 
 
 class BleakCharacteristicMissing(BleakError):
@@ -270,6 +275,8 @@ class PrinterClient:
             raise ValueError("client or transport is required")
         self._packetbuf = bytearray()
         self._timings: list[float] = []
+        # Exponential moving average of per-write latency (seconds), used for adaptive flow control.
+        self._ema_latency: float = 0.0
         # Cached heartbeat request payload that previously succeeded (b"\x01" or b"\x04").
         self._heartbeat_payload: bytes | None = heartbeat_payload
         self.on_progress: Callable[[dict], None] | None = None
@@ -298,6 +305,7 @@ class PrinterClient:
         copies: int = 1,
     ):
         self._timings = []
+        self._ema_latency = 0.0
         self._last_page_index = 0
         self.cancel_requested = False
         _LOGGER.debug("Printing on printer model %s", model)
@@ -358,12 +366,19 @@ class PrinterClient:
             _LOGGER.info("Print job cancelled: %s", err)
             return {"status": "cancelled"}
         finally:
-            avg = (sum(self._timings) / len(self._timings)) if self._timings else 0.0
-            _LOGGER.debug(
-                "Print of page took %.2f seconds, average per line sent %.4f",
-                time.time() - start,
-                avg,
-            )
+            if self._timings:
+                avg = sum(self._timings) / len(self._timings)
+                _LOGGER.debug(
+                    "Print of page took %.2f s; per-row write: avg=%.4f min=%.4f max=%.4f ema=%.4f (%d rows)",
+                    time.time() - start,
+                    avg,
+                    min(self._timings),
+                    max(self._timings),
+                    self._ema_latency,
+                    len(self._timings),
+                )
+            else:
+                _LOGGER.debug("Print of page took %.2f s (no row timings)", time.time() - start)
 
     async def print_image_old_d11(
         self,
@@ -527,9 +542,11 @@ class PrinterClient:
         printhead_pixels: int | None = None,
     ):
         _LOGGER.debug("Set image")
-        print_line_batch_size = max(print_line_batch_size, 1)
-        # Block every Nth send to prevent BT congestion.
-        blocking_send = itertools.cycle([False] * (print_line_batch_size - 1) + [True])
+        configured_batch = max(print_line_batch_size, 1)
+        # Adaptive batch size: starts at 1 (conservative) and grows/shrinks based on observed
+        # write latency. Never exceeds the user-configured ceiling (configured_batch).
+        current_batch = 1
+        rows_since_block = 0
         img = ImageOps.invert(image.convert("L")).convert("1")
         # Fall back to legacy 96px counters when printhead size is unknown.
         head_pixels = printhead_pixels or 96
@@ -540,6 +557,32 @@ class PrinterClient:
         pending_bytes: bytes | None = None
         pending_repeats = 0
 
+        async def _needs_block() -> bool:
+            """Return True if the next row send should request a BLE ACK.
+
+            Increments the row counter and, on a blocking send, updates the
+            EMA latency and adapts the batch size for subsequent rows.
+            The batch size never exceeds the user-configured ceiling.
+            """
+            nonlocal current_batch, rows_since_block
+            rows_since_block += 1
+            if rows_since_block < current_batch:
+                return False
+            rows_since_block = 0
+            # Update EMA and adapt batch size after each blocking write completes.
+            # The actual timing is appended by set_empty_row / set_bitmap_row* after we return,
+            # so we read the last recorded timing (from the previous blocking send).
+            if self._timings:
+                self._ema_latency = (
+                    ADAPTIVE_EMA_ALPHA * self._timings[-1]
+                    + (1 - ADAPTIVE_EMA_ALPHA) * self._ema_latency
+                )
+                if self._ema_latency < ADAPTIVE_FAST_THRESHOLD:
+                    current_batch = min(current_batch + 1, configured_batch)
+                elif self._ema_latency > ADAPTIVE_SLOW_THRESHOLD:
+                    current_batch = max(current_batch - 1, 1)
+            return True
+
         async def flush_empty() -> None:
             nonlocal empty_row, empty_row_count
             while empty_row_count > 0:
@@ -547,7 +590,7 @@ class PrinterClient:
                 await self.set_empty_row(
                     empty_row,
                     empty_rows_to_print,
-                    response=next(blocking_send),
+                    response=await _needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
                 empty_row += empty_rows_to_print
@@ -565,7 +608,7 @@ class PrinterClient:
                 await self.set_bitmap_row_indexed(
                     header,
                     payload,
-                    response=next(blocking_send),
+                    response=await _needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
             else:
@@ -573,7 +616,7 @@ class PrinterClient:
                 await self.set_bitmap_row(
                     header,
                     pending_bytes,
-                    response=next(blocking_send),
+                    response=await _needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
             pending_y = None

@@ -137,7 +137,7 @@ not the protocol. **[HW]** each — they move paper.
 value reaches the printer and returns `SetPrintLabelMaterialNoSupport`. Validate locally and default
 to the model's first entry rather than a hardcoded `1`.
 
-### 8. Adaptive flow control (rest of 4.6)
+### 8. Adaptive flow control (rest of 4.6) — **Done (T8)**
 
 Defaults are now 10 ms and confirm-every-16. The second half — measuring per-write latency from
 `PrinterClient._timings` and adapting the batch size during the page, backing off when latency rises —
