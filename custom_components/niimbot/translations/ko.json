@@ -185,6 +185,9 @@
             "label_sku": {
                 "name": "라벨 SKU"
             },
+            "cloud_label_info": {
+                "name": "온라인 라벨 정보"
+            },
             "consumable_type": {
                 "name": "소모품 재질"
             },

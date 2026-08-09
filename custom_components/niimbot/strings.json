@@ -193,6 +193,9 @@
       "label_sku": {
         "name": "Label SKU"
       },
+      "cloud_label_info": {
+        "name": "Cloud Label Info"
+      },
       "consumable_type": {
         "name": "Consumable Material"
       },

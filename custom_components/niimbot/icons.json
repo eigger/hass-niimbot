@@ -21,6 +21,11 @@
             "print_test_page": {
                 "default": "mdi:printer-eye"
             }
+        },
+        "sensor": {
+            "cloud_label_info": {
+                "default": "mdi:cloud-search-outline"
+            }
         }
     }
 }

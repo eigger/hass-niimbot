@@ -11,16 +11,18 @@ app decompile:
 
     POST https://print.niimbot.com/api/template/getCloudTemplateByOneCode
     Headers: Content-Type: application/json, niimbot-user-agent: <must contain
-             "AppVersionName">
+             "AppVersionName/<semver>"> — a non-numeric AppVersionName value
+             (e.g. "hass-niimbot") returns HTTP 500; too-low versions return 400.
     Body:    {"oneCode": "<barcode>"}
     Found:   200, body["data"] present with "width"/"height" (mm) and a "names" list
              of {languageCode, languageName, name}; not every language is populated.
     Unknown: 200, body has no "data" key at all (not a 404).
 
-The niimbot-user-agent header is a client-identification requirement, not a login —
-this integration truthfully identifies itself rather than impersonating the official
-app. This is an undocumented endpoint and may change or disappear without notice;
-every failure mode here must degrade to "no extra info", never to a broken entity.
+The niimbot-user-agent header is a client-identification requirement, not a login.
+``Client/hass-niimbot`` identifies this integration; ``AppVersionName`` must still
+be a numeric semver the catalogue accepts. This is an undocumented endpoint and may
+change or disappear without notice; every failure mode here must degrade to "no
+extra info", never to a broken entity.
 """
 
 from __future__ import annotations
@@ -38,9 +40,12 @@ _LOGGER = logging.getLogger(__name__)
 
 _ENDPOINT = "https://print.niimbot.com/api/template/getCloudTemplateByOneCode"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
-_CLIENT_HEADER = "AppVersionName/hass-niimbot"
+# AppVersionName must parse as a high-enough semver or the API returns 400/500.
+_CLIENT_HEADER = "AppVersionName/6.6.5 Client/hass-niimbot"
 
-_STORE_VERSION = 1
+# Bump when the on-disk schema or cache semantics change (e.g. v1 wrongly cached
+# HTTP 500 as a permanent negative hit).
+_STORE_VERSION = 2
 _STORE_KEY = "niimbot_label_cache"
 # Re-check a barcode that returned no match at most this often, in case the
 # catalogue gains an entry for it later. A confirmed match is cached forever.
@@ -78,16 +83,18 @@ def _pick_name(data: dict) -> str | None:
 class LabelCloudLookup:
     """Resolves a label barcode to name/size/preview via the NIIMBOT cloud catalogue.
 
-    Every result is cached to disk per barcode, including "not found", so a given
-    barcode triggers at most one network request per _NEGATIVE_RECHECK_SECONDS
-    window (matches never expire). All failures — timeout, non-200, malformed body,
-    no match — return None; callers must treat that the same as "no info available".
+    Matches and definitive "not found" (HTTP 200, no data) are cached to disk.
+    Transient failures (timeout, non-200, malformed body) are not cached so the
+    next poll can retry. Callers should check ``last_result_definitive`` when
+    ``get`` returns None to decide whether to suppress further lookups.
     """
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
         self._store: Store = Store(hass, _STORE_VERSION, _STORE_KEY)
         self._cache: dict[str, dict] | None = None
+        self.last_result_definitive: bool = False
+        self.last_source: str | None = None  # "cache" | "network"
 
     async def _load_cache(self) -> dict[str, dict]:
         if self._cache is None:
@@ -96,7 +103,10 @@ class LabelCloudLookup:
 
     async def get(self, barcode: str) -> LabelInfo | None:
         """Return label info for a barcode, using the on-disk cache when possible."""
+        self.last_result_definitive = False
+        self.last_source = None
         if not barcode:
+            self.last_result_definitive = True
             return None
 
         cache = await self._load_cache()
@@ -104,11 +114,20 @@ class LabelCloudLookup:
         if entry is not None:
             if entry.get("negative"):
                 if time.time() - entry.get("checked_at", 0) < _NEGATIVE_RECHECK_SECONDS:
+                    self.last_result_definitive = True
+                    self.last_source = "cache"
                     return None
             else:
+                self.last_result_definitive = True
+                self.last_source = "cache"
                 return entry.get("info")
 
-        info = await self._fetch(barcode)
+        info, definitive = await self._fetch(barcode)
+        self.last_result_definitive = definitive
+        self.last_source = "network"
+        if not definitive:
+            return None
+
         cache[barcode] = (
             {"info": dict(info), "checked_at": time.time()}
             if info is not None
@@ -117,7 +136,8 @@ class LabelCloudLookup:
         await self._store.async_save(cache)
         return info
 
-    async def _fetch(self, barcode: str) -> LabelInfo | None:
+    async def _fetch(self, barcode: str) -> tuple[LabelInfo | None, bool]:
+        """Return (info, definitive). definitive is False for retryable failures."""
         session = async_get_clientsession(self._hass)
         try:
             async with session.post(
@@ -130,23 +150,30 @@ class LabelCloudLookup:
                     _LOGGER.debug(
                         "Cloud label lookup for %s: HTTP %s", barcode, resp.status
                     )
-                    return None
+                    return None, False
                 body = await resp.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug("Cloud label lookup for %s failed: %s", barcode, err)
-            return None
+            return None, False
         except ValueError as err:
             _LOGGER.debug("Cloud label lookup for %s: bad response: %s", barcode, err)
-            return None
+            return None, False
 
-        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(body, dict):
+            _LOGGER.debug("Cloud label lookup for %s: bad response: not a dict", barcode)
+            return None, False
+
+        data = body.get("data")
         if not data:
             _LOGGER.debug("Cloud label lookup for %s: no match", barcode)
-            return None
+            return None, True
 
-        return LabelInfo(
-            label_name=_pick_name(data),
-            label_width_mm=data.get("width"),
-            label_height_mm=data.get("height"),
-            preview_url=data.get("previewImage"),
+        return (
+            LabelInfo(
+                label_name=_pick_name(data),
+                label_width_mm=data.get("width"),
+                label_height_mm=data.get("height"),
+                preview_url=data.get("previewImage"),
+            ),
+            True,
         )

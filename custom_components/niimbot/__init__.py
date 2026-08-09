@@ -3,7 +3,7 @@
 import base64
 import io
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.components import bluetooth
@@ -130,16 +130,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Resolve a label barcode via the cloud catalogue and push the result.
 
         Runs as a background task so a slow or failed lookup never delays or
-        fails the coordinator poll. Every failure mode (disabled, timeout,
-        non-200, unknown barcode) leaves entities exactly as they are today.
+        fails the coordinator poll. Transient failures (timeout / non-200) leave
+        the dedup marker clear so the next poll can retry; definitive misses and
+        matches suppress further lookups for that barcode.
         """
         assert cloud_lookup is not None
+        requested_at = datetime.now(timezone.utc).isoformat()
+        # Claim the barcode while the request is in flight to avoid parallel
+        # duplicate fetches from overlapping coordinator polls.
         niimbot._cloud_lookup_barcode = barcode
+        niimbot._cloud_lookup_state = {
+            "status": "pending",
+            "barcode": barcode,
+            "requested_at": requested_at,
+        }
+        coordinator.async_set_updated_data(niimbot.ble_data)
+
         info = await cloud_lookup.get(barcode)
-        new_attrs = {"barcode": barcode, **info} if info else {}
+        if not cloud_lookup.last_result_definitive:
+            if niimbot._cloud_lookup_barcode == barcode:
+                niimbot._cloud_lookup_barcode = None
+            niimbot._cloud_lookup_state = {
+                "status": "error",
+                "barcode": barcode,
+                "requested_at": requested_at,
+                "source": cloud_lookup.last_source,
+            }
+            coordinator.async_set_updated_data(niimbot.ble_data)
+            return
+
+        if info:
+            new_attrs = {"barcode": barcode, **info}
+            status = "found"
+            state = {
+                "status": status,
+                "barcode": barcode,
+                "requested_at": requested_at,
+                "source": cloud_lookup.last_source,
+                **info,
+            }
+        else:
+            new_attrs = {}
+            state = {
+                "status": "not_found",
+                "barcode": barcode,
+                "requested_at": requested_at,
+                "source": cloud_lookup.last_source,
+            }
+
+        niimbot._cloud_lookup_state = state
         if new_attrs != niimbot._cloud_label_attrs:
             niimbot._cloud_label_attrs = new_attrs
-            coordinator.async_set_updated_data(niimbot.ble_data)
+        coordinator.async_set_updated_data(niimbot.ble_data)
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""

@@ -133,6 +133,9 @@ class NiimbotDevice:
         # cloud label lookup is enabled and resolves the current barcode.
         # niimprint stays protocol-only and never makes network calls itself.
         self._cloud_label_attrs: dict = {}
+        # Latest cloud lookup status for the optional cloud_label_info sensor.
+        # Keys: status, barcode, requested_at, source, plus LabelInfo fields when found.
+        self._cloud_lookup_state: dict = {}
         # Barcode the cloud lookup was last attempted for, so __init__.py does
         # not re-trigger a lookup every poll once one has been tried.
         self._cloud_lookup_barcode: str | None = None
