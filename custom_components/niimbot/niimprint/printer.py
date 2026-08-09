@@ -12,8 +12,8 @@ from bleak import BleakClient, BleakError
 from PIL import Image, ImageOps
 
 from .model import (
-    PrintGeneration,
     PrinterModel,
+    PrintGeneration,
     default_label_type_code,
     get_printer_meta_by_model,
     get_supported_label_type_codes,
@@ -33,11 +33,16 @@ PAGE_INDEX_CMD = 0xE0
 PRINTER_CHECK_LINE_RESP = 0xD3
 PRINTER_STATUS_DATA_RESP = 0xB5
 
-# Adaptive flow control — tune batch size based on observed write latency.
+# Adaptive flow control — tune batch size based on observed BLE ACK round-trip latency.
 # Only the batch size is adapted; wait_between_print_lines is user-controlled and left alone.
-ADAPTIVE_FAST_THRESHOLD = 0.012  # s — expand batch if EMA below this
-ADAPTIVE_SLOW_THRESHOLD = 0.030  # s — shrink batch if EMA above this
-ADAPTIVE_EMA_ALPHA = 0.2         # smoothing factor (higher = more reactive)
+# Thresholds are calibrated against pure write-with-response latency (measured before the
+# user-configured inter-row sleep, which is excluded from the signal).
+# Typical BLE write-with-response on a good 4.2+ link: 5–15 ms.
+# FAST_THRESHOLD: below this the link has headroom → widen the batch.
+# SLOW_THRESHOLD: above this ACKs are delayed by congestion → back off.
+ADAPTIVE_FAST_THRESHOLD = 0.012  # s (12 ms)
+ADAPTIVE_SLOW_THRESHOLD = 0.030  # s (30 ms)
+ADAPTIVE_EMA_ALPHA = 0.2         # EMA smoothing factor (higher = more reactive)
 
 
 class BleakCharacteristicMissing(BleakError):
@@ -557,11 +562,13 @@ class PrinterClient:
         pending_bytes: bytes | None = None
         pending_repeats = 0
 
-        async def _needs_block() -> bool:
+        def _needs_block() -> bool:
             """Return True if the next row send should request a BLE ACK.
 
-            Increments the row counter and, on a blocking send, updates the
-            EMA latency and adapts the batch size for subsequent rows.
+            Increments the row counter and, on a blocking turn, updates the EMA
+            from the most recent blocking write timing and adapts the batch size.
+            Multiplicative growth (doubling) reaches the configured ceiling fast;
+            additive shrink keeps back-off stable under sustained congestion.
             The batch size never exceeds the user-configured ceiling.
             """
             nonlocal current_batch, rows_since_block
@@ -569,17 +576,18 @@ class PrinterClient:
             if rows_since_block < current_batch:
                 return False
             rows_since_block = 0
-            # Update EMA and adapt batch size after each blocking write completes.
-            # The actual timing is appended by set_empty_row / set_bitmap_row* after we return,
-            # so we read the last recorded timing (from the previous blocking send).
+            # _timings only contains blocking-write RTTs (response=True writes).
+            # Read the latest one to update EMA for the *next* batch decision.
             if self._timings:
                 self._ema_latency = (
                     ADAPTIVE_EMA_ALPHA * self._timings[-1]
                     + (1 - ADAPTIVE_EMA_ALPHA) * self._ema_latency
                 )
                 if self._ema_latency < ADAPTIVE_FAST_THRESHOLD:
-                    current_batch = min(current_batch + 1, configured_batch)
+                    # Fast link: double the batch (reaches ceiling in log2(N) steps).
+                    current_batch = min(current_batch * 2, configured_batch)
                 elif self._ema_latency > ADAPTIVE_SLOW_THRESHOLD:
+                    # Congestion: reduce by 1 (conservative to avoid oscillation).
                     current_batch = max(current_batch - 1, 1)
             return True
 
@@ -590,7 +598,7 @@ class PrinterClient:
                 await self.set_empty_row(
                     empty_row,
                     empty_rows_to_print,
-                    response=await _needs_block(),
+                    response=_needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
                 empty_row += empty_rows_to_print
@@ -608,7 +616,7 @@ class PrinterClient:
                 await self.set_bitmap_row_indexed(
                     header,
                     payload,
-                    response=await _needs_block(),
+                    response=_needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
             else:
@@ -616,7 +624,7 @@ class PrinterClient:
                 await self.set_bitmap_row(
                     header,
                     pending_bytes,
-                    response=await _needs_block(),
+                    response=_needs_block(),
                     wait_between_print_lines=wait_between_print_lines,
                 )
             pending_y = None
@@ -696,8 +704,12 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
+        # Record write-only latency before the user-configured inter-row sleep so the
+        # adaptive EMA reflects actual BLE ACK round-trip time, not pacing delay.
+        # Only blocking writes (response=True) request an L2CAP ACK and carry RTT signal.
+        if response:
+            self._timings.append(time.time() - start)
         await self._pace_after_row(wait_between_print_lines)
-        self._timings.append(time.time() - start)
 
     async def set_bitmap_row(
         self,
@@ -710,8 +722,9 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
+        if response:
+            self._timings.append(time.time() - start)
         await self._pace_after_row(wait_between_print_lines)
-        self._timings.append(time.time() - start)
 
     async def set_bitmap_row_indexed(
         self,
@@ -724,8 +737,9 @@ class PrinterClient:
         self._log_buffer("send", packet.to_bytes())
         start = time.time()
         await self._send(packet, response)
+        if response:
+            self._timings.append(time.time() - start)
         await self._pace_after_row(wait_between_print_lines)
-        self._timings.append(time.time() - start)
 
     async def _recv(self, timeout: float = 30.0):
         packets = []
