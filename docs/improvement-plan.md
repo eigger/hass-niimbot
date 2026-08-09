@@ -64,15 +64,9 @@ happened to contain.
 Ordered by value per unit of risk. The first two need no hardware. Each item has a corresponding task
 order — files, exact change, tests, acceptance criteria — in [work-plan.md](work-plan.md).
 
-### 1. Material codes for `type` — [rfid.md §4](rfid.md#4-consumable-type-code-type)
+### 1. Material codes for `type` — **Done (T1)** — [rfid.md §4](rfid.md#4-consumable-type-code-type)
 
-`consumable_type_name()` maps the RFID `type` byte through the 1–11 label-type table. The evidence now
-favours it being a *material* code from a 37-value enumeration, so transparent thermal stock (19)
-renders as `Unknown(19)` and six low codes render as the wrong label type. The full table is in
-[rfid.md](rfid.md#4-consumable-type-code-type).
-
-Keep both readings: report the material name for `type`, and leave `PrinterInfo` key 3 as the
-authoritative label type, which is what the `labeltype` sensor already shows.
+`material_name()` maps the RFID `type` byte through the 37-value material enumeration for `consumable_type` and `ribbon_type` sensors. `PrinterInfo` key 3 remains the authoritative `labeltype`.
 
 **[HW]** The material reading is inference until a tag returns a value above 11. Black-mark stock made
 of plain thermal paper settles it — see the test described in rfid.md.

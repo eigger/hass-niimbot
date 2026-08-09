@@ -155,6 +155,9 @@
       "label_sku": {
         "name": "Label SKU"
       },
+      "consumable_type": {
+        "name": "Consumable Material"
+      },
       "tag_uuid": {
         "name": "Tag UUID"
       },
@@ -174,7 +177,7 @@
         "name": "Ribbon SKU"
       },
       "ribbon_type": {
-        "name": "Ribbon Type"
+        "name": "Ribbon Material"
       },
       "ribbon_tag_uuid": {
         "name": "Ribbon Tag UUID"

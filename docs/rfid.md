@@ -221,10 +221,10 @@ made of plain thermal synthetic paper. Under the label-type reading the tag repo
 material reading it reports `1`. Comparing against `PrinterInfo` key 3 (the label type the printer
 itself reports) on the same stock resolves it.
 
-Meanwhile `model.py:consumable_type_name()` maps the byte through the 1–11 label-type table only, so
-anything in the table below that is not also a label type renders as `Unknown(n)` — material 19
-(transparent thermal) is the common case — and codes 2, 3, 4, 6, 10 and 11 render as the *wrong*
-label type. Wiring this table in is the cheapest correctness win available.
+Previously `model.py:consumable_type_name()` mapped the byte through the 1–11 label-type table only,
+so materials such as transparent thermal (19) rendered as `Unknown(19)`. From Task T1,
+`model.py:material_name()` maps the byte through the material table below to present
+`consumable_type` and `ribbon_type` sensors, while `PrinterInfo` key 3 remains the authoritative `labeltype`.
 
 Material enumeration:
 
@@ -299,7 +299,7 @@ Built as of 3.0.0, for both the label tag (`0x1A`) and the ribbon tag (`0x1C`):
 
 Still open:
 
-- `type` is rendered through the label-type table rather than the material table (section 4)
+- `type` is rendered through the material table (Task T1)
 - No pre-print validation — the print service does not refuse when the roll is spent
 - No firmware gate, so models on an RFID-incapable firmware still pay a timeout per poll (section 1)
 

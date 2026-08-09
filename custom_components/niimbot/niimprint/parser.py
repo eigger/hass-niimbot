@@ -16,6 +16,7 @@ from .model import (
     PrinterModel,
     consumable_type_name,
     get_printer_meta_by_id,
+    material_name,
     supports_label_rfid,
     supports_ribbon_rfid,
 )
@@ -181,11 +182,9 @@ class NiimbotDevice:
         self.ble_data.sensors["consumable_usage"] = usage
         self.ble_data.sensors["label_sku"] = info.get("barcode")
         self.ble_data.sensors["tag_uuid"] = info.get("uuid")
-        # Prefer the loaded tag's type over PrinterInfo LabelType — same code space.
         type_code = info.get("type")
         if type_code is not None:
-            self.ble_data.labeltype = int(type_code)
-            self.ble_data.sensors["labeltype"] = consumable_type_name(type_code)
+            self.ble_data.sensors["consumable_type"] = material_name(type_code)
         self._rfid_attrs = {
             "serial": info.get("serial"),
             "capacity": info.get("capacity"),
@@ -231,7 +230,7 @@ class NiimbotDevice:
         self.ble_data.sensors["ribbon_total"] = total
         self.ble_data.sensors["ribbon_usage"] = usage
         self.ble_data.sensors["ribbon_sku"] = info.get("barcode")
-        self.ble_data.sensors["ribbon_type"] = consumable_type_name(info.get("type"))
+        self.ble_data.sensors["ribbon_type"] = material_name(info.get("type"))
         self.ble_data.sensors["ribbon_tag_uuid"] = info.get("uuid")
         self._ribbon_rfid_attrs = {
             "serial": info.get("serial"),

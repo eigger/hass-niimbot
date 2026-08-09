@@ -710,6 +710,53 @@ def consumable_type_name(type_code: int | None) -> str | None:
     return _LABEL_TYPE_NAMES.get(type_code, f"Unknown({type_code})")
 
 
+_MATERIAL_NAMES: dict[int, str] = {
+    1: "Thermal synthetic paper, general",
+    2: "Tag / nameplate",
+    3: "PP synthetic paper",
+    4: "Thermal card stock",
+    5: "Transparent PET",
+    6: "Coated paper",
+    7: "Coated card stock",
+    8: "Matte silver PET",
+    9: "White PET",
+    10: "White PVC",
+    11: "Triple-resistant thermal paper",
+    12: "PP card stock",
+    13: "Transparent PE",
+    14: "White PE",
+    15: "Pearlescent synthetic paper",
+    18: "Matte black PET",
+    19: "Transparent thermal",
+    21: "Hot stamping foil",
+    22: "Transparent PP, cable wrap",
+    23: "White cryogenic",
+    28: "Thermal synthetic paper, red imaging",
+    29: "Thermal synthetic paper, red/black",
+    31: "Thermal synthetic paper, low temperature",
+    35: "PET card stock",
+    37: "Satin ribbon",
+    53: "Heat-shrink tubing",
+    54: "Wire marker sleeve",
+    55: "Transparent PP, general",
+    64: "Thermal synthetic paper, thick",
+    65: "Thermal synthetic paper, writable",
+    67: "PP synthetic paper, writable",
+    70: "Thermal synthetic paper, greyscale",
+    80: "Thermal synthetic paper, red/black, thick",
+    93: "Matte white PET",
+    103: "Transparent PVC, electrostatic cling",
+    110: "Thermal synthetic paper, flexible",
+    129: "PVC tag",
+}
+
+
+def material_name(type_code: int | None) -> str | None:
+    if type_code is None:
+        return None
+    return _MATERIAL_NAMES.get(type_code, f"Unknown({type_code})")
+
+
 # PrinterInfo AutoShutdownTime is an index, not minutes (model-dependent).
 # Option values are stable translation keys (see entity.select.auto_shutdown.state).
 AUTO_SHUTDOWN_OPTIONS: dict[int, str] = {
