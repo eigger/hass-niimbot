@@ -352,7 +352,7 @@ modelsLibrary: List[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.S6,
-        "id": [261],
+        "id": [257, 258, 259, 260, 261, 262],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 576,
@@ -371,7 +371,7 @@ modelsLibrary: List[PrinterModelMeta] = [
         "id": [1025],
         "dpi": 300,
         "printDirection": PrintDirection.LEFT,
-        "printheadPixels": 662,
+        "printheadPixels": 697,
         "paperTypes": [LabelType.PVC_TAG],
     },
     {
@@ -418,6 +418,7 @@ modelsLibrary: List[PrinterModelMeta] = [
         "model": PrinterModel.B16,
         "id": [1792],
         "dpi": 203,
+        # Print direction 270 in vendor DB; modelled as LEFT for now.
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 96,
         "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT],

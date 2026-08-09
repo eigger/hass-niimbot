@@ -26,12 +26,9 @@ Command IDs quoted below come from [protocol.md](protocol.md), not from this dec
 
 ## A. Gaps
 
-### A1. 14 model codes have no entry in `model.py`
+### A1. 14 model codes added to `model.py` — **Resolved (T3)**
 
-`get_printer_meta_by_id()` returns `None` for these, so `PrinterModel.UNKNOWN` is used, and
-`print_image()` routes `UNKNOWN` to `print_image_d11_v1` — the oldest sequence, wrong for every model
-here. Three of them (5120, 3840, 4352) are already listed in `INVERTED_LID_MODELS`, so the codebase
-half-knows about hardware it cannot print on.
+Previously `get_printer_meta_by_id()` returned `None` for these 14 model IDs. In Task T3, all 14 model codes were added to `PrinterModel`, `modelsLibrary`, and `_CAPABILITIES_BY_ID` with estimated `printheadPixels` values:
 
 | Code | Model | DPI | Dir | Width mm | Max len | Paper types | RFID | Density | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
