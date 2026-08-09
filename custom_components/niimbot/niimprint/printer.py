@@ -5,14 +5,15 @@ import logging
 import math
 import struct
 import time
+from asyncio import Event, sleep, wait_for
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-from PIL import Image, ImageOps
 from bleak import BleakClient, BleakError
-from typing import Any, Callable, TypeVar
-from asyncio import Event, wait_for, sleep
-from .packet import NiimbotPacket
-from .model import PrinterModel, PrintGeneration, get_printer_meta_by_model
+from PIL import Image, ImageOps
 
+from .model import PrinterModel, PrintGeneration, get_printer_meta_by_model
+from .packet import NiimbotPacket
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
@@ -80,6 +81,11 @@ class RequestCodeEnum(enum.IntEnum):
     PRINT_CLEAR = 32  # 0x20
     SET_SOUND = 88  # 0x58
     SET_AUTO_SHUTDOWN_TIME = 39  # 0x27
+    LABEL_POSITIONING_CALIBRATION = 142  # 0x8E
+    CALIBRATE_HEIGHT = 89  # 0x59
+    CANCEL_PRINT = 218  # 0xDA
+    PRINTER_RESET = 40  # 0x28
+    PRINT_TEST_PAGE = 90  # 0x5A
 
 
 class SoundEnum(enum.IntEnum):
@@ -148,6 +154,10 @@ class PrinterTimeout(RuntimeError):
 
 class PrinterCommandUnsupported(RuntimeError):
     """Raised when the printer replies with packet type 0x00 (unsupported)."""
+
+
+class PrinterJobCancelled(RuntimeError):
+    """Raised when a print job is cancelled in-flight by user request."""
 
 
 # Heartbeat response command IDs (not derived as reqcode + 1 for Advanced2).
@@ -259,6 +269,7 @@ class PrinterClient:
         self.on_progress: Callable[[dict], None] | None = None
         # Latest unsolicited 0xE0 page index (0 = none seen this job).
         self._last_page_index: int = 0
+        self.cancel_requested: bool = False
 
     @property
     def heartbeat_payload(self) -> bytes | None:
@@ -282,6 +293,7 @@ class PrinterClient:
     ):
         self._timings = []
         self._last_page_index = 0
+        self.cancel_requested = False
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
@@ -328,6 +340,9 @@ class PrinterClient:
                 return await self.print_image_v5(**kwargs)
             else:
                 return await self.print_image_v4(**kwargs)
+        except PrinterJobCancelled as err:
+            _LOGGER.info("Print job cancelled: %s", err)
+            return {"status": "cancelled"}
         finally:
             avg = (sum(self._timings) / len(self._timings)) if self._timings else 0.0
             _LOGGER.debug(
@@ -498,8 +513,7 @@ class PrinterClient:
         printhead_pixels: int | None = None,
     ):
         _LOGGER.debug("Set image")
-        if print_line_batch_size < 1:
-            print_line_batch_size = 1
+        print_line_batch_size = max(print_line_batch_size, 1)
         # Block every Nth send to prevent BT congestion.
         blocking_send = itertools.cycle([False] * (print_line_batch_size - 1) + [True])
         img = ImageOps.invert(image.convert("L")).convert("1")
@@ -561,6 +575,11 @@ class PrinterClient:
             await self.check_line(y)
 
         for y in range(img.height):
+            if self.cancel_requested:
+                _LOGGER.info("Print job cancelled by request")
+                await self.cancel_print()
+                self.cancel_requested = False
+                raise PrinterJobCancelled("Print job cancelled by request")
             line_data = [img.getpixel((x, y)) for x in range(img.width)]
             line_data_bytes = "".join("0" if pix == 0 else "1" for pix in line_data)
             line_data_ints = int(line_data_bytes, 2).to_bytes(
@@ -1236,3 +1255,48 @@ class PrinterClient:
                 break
             await sleep(poll_interval)
         return status
+
+    async def calibrate_label_position(self) -> bool:
+        """Send LabelPositioningCalibration (0x8E). Returns True if printer responds 0x8F with data[0] == 1."""
+        packet = await self._transceive(
+            RequestCodeEnum.LABEL_POSITIONING_CALIBRATION,
+            b"\x01",
+            respoffset=1,
+        )
+        return len(packet.data) > 0 and packet.data[0] == 1
+
+    async def calibrate_height(self) -> bool:
+        """Send CalibrateHeight (0x59). Returns True if printer responds 0x69 with data[0] == 1."""
+        packet = await self._transceive(
+            RequestCodeEnum.CALIBRATE_HEIGHT,
+            b"\x01",
+            respoffset=16,
+        )
+        return len(packet.data) > 0 and packet.data[0] == 1
+
+    async def cancel_print(self) -> bool:
+        """Send CancelPrint (0xDA). Returns True if printer responds 0xD0."""
+        await self._transceive(
+            RequestCodeEnum.CANCEL_PRINT,
+            b"\x01",
+            resp_codes={208},
+        )
+        return True
+
+    async def printer_reset(self) -> bool:
+        """Send PrinterReset (0x28). Returns True if printer responds 0x38 with data[0] == 1."""
+        packet = await self._transceive(
+            RequestCodeEnum.PRINTER_RESET,
+            b"\x01",
+            respoffset=16,
+        )
+        return len(packet.data) > 0 and packet.data[0] == 1
+
+    async def print_test_page(self) -> bool:
+        """Send PrintTestPage (0x5A). Returns True if printer responds 0x6A with data[0] == 1."""
+        packet = await self._transceive(
+            RequestCodeEnum.PRINT_TEST_PAGE,
+            b"\x01",
+            respoffset=16,
+        )
+        return len(packet.data) > 0 and packet.data[0] == 1

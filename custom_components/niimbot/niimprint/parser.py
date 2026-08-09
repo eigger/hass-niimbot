@@ -18,6 +18,7 @@ from .model import (
     get_printer_meta_by_id,
     material_name,
     rfid_supported_on_firmware,
+    supports_calibration,
     supports_label_rfid,
     supports_ribbon_rfid,
 )
@@ -167,6 +168,12 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_ribbon_rfid(meta.get("rfid"))
+
+    def supports_calibration(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_calibration(meta)
 
     def _apply_heartbeat(self, heartbeat: dict) -> None:
         """Apply heartbeat data to sensors."""
@@ -496,6 +503,54 @@ class NiimbotDevice:
                 await self._release_printer()
             return self.ble_data
 
+    async def calibrate_label_position(self, ble_device: BLEDevice) -> bool:
+        """Calibrate label positioning offset (0x8E)."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                return await printer.calibrate_label_position()
+            finally:
+                await self._release_printer()
+
+    async def calibrate_height(self, ble_device: BLEDevice) -> bool:
+        """Calibrate roll feed height (0x59)."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                return await printer.calibrate_height()
+            finally:
+                await self._release_printer()
+
+    async def cancel_print(self, ble_device: BLEDevice) -> bool:
+        """Cancel print job (0xDA). Signal in-flight job if running, or send command directly."""
+        if self._is_printing and self._printer is not None:
+            self._printer.cancel_requested = True
+            return True
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                return await printer.cancel_print()
+            finally:
+                await self._release_printer()
+
+    async def printer_reset(self, ble_device: BLEDevice) -> bool:
+        """Reset printer NVRAM settings (0x28)."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                return await printer.printer_reset()
+            finally:
+                await self._release_printer()
+
+    async def print_test_page(self, ble_device: BLEDevice) -> bool:
+        """Print test page (0x5A)."""
+        async with self.lock:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                return await printer.print_test_page()
+            finally:
+                await self._release_printer()
+
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
         async with self.lock:
@@ -722,7 +777,7 @@ class NiimbotDevice:
                         "Unknown printer model %r, falling back to UNKNOWN", self.model
                     )
 
-                await printer.print_image(
+                result = await printer.print_image(
                     printer_model,
                     image,
                     density,
@@ -735,6 +790,13 @@ class NiimbotDevice:
                 self._record_error(err)
                 raise
             else:
+                if isinstance(result, dict) and result.get("status") == "cancelled":
+                    _LOGGER.info("Print job was cancelled; skipping 100%% progress mark")
+                    return {
+                        "status": "cancelled",
+                        "duration": self.print_duration,
+                        "copies": copies,
+                    }
                 # Only mark 100% on a clean finish; leave the last reported
                 # value (and last_error) alone when the job failed.
                 if self.print_progress < 100:

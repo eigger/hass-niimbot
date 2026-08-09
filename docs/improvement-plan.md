@@ -116,7 +116,7 @@ The vendor table lists, per model, the firmware versions on which RFID reading d
 On an affected unit every poll currently spends a full read timeout on a command that cannot be
 answered.
 
-### 6. Printer actions still missing
+### 6. Printer actions still missing — **Done (T6)**
 
 All are single commands with a documented response; the work is the entity and the confirmation flow,
 not the protocol. **[HW]** each — they move paper.

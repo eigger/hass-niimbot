@@ -235,6 +235,23 @@
             "last_label_made": {
                 "name": "최근 라벨"
             }
+        },
+        "button": {
+            "calibrate_label_position": {
+                "name": "라벨 위치 보정"
+            },
+            "calibrate_roll_feed": {
+                "name": "롤 피드 보정"
+            },
+            "cancel_print": {
+                "name": "인쇄 취소"
+            },
+            "reset_printer_settings": {
+                "name": "프린터 설정 초기화"
+            },
+            "print_test_page": {
+                "name": "테스트 페이지 인쇄"
+            }
         }
     }
 }

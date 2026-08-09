@@ -239,6 +239,23 @@
       "last_label_made": {
         "name": "Last Label Made"
       }
+    },
+    "button": {
+      "calibrate_label_position": {
+        "name": "Calibrate Label Position"
+      },
+      "calibrate_roll_feed": {
+        "name": "Calibrate Roll Feed"
+      },
+      "cancel_print": {
+        "name": "Cancel Print"
+      },
+      "reset_printer_settings": {
+        "name": "Reset Printer Settings"
+      },
+      "print_test_page": {
+        "name": "Print Test Page"
+      }
     }
   }
 }
