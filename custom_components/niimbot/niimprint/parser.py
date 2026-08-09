@@ -141,6 +141,7 @@ class NiimbotDevice:
         self.print_page_feed_progress: int = 0
         self._print_progress_started = False
         self.heartbeat_variant: str | None = None
+        self._warned_estimated_models: set[str] = set()
         super().__init__()
 
     def get_model_meta(self):
@@ -669,6 +670,21 @@ class NiimbotDevice:
                         self.ble_data.model = self.model
                         self.ble_data.devicetype = device_type
                         _LOGGER.debug("Resolved model during print: %s", self.model)
+
+                meta = self.get_model_meta()
+                if (
+                    meta
+                    and meta.get("printheadPixelsEstimated")
+                    and self.model not in self._warned_estimated_models
+                ):
+                    self._warned_estimated_models.add(self.model)
+                    _LOGGER.warning(
+                        "Printer model %s (%s) uses an estimated printheadPixels value (%d px). "
+                        "Please report whether output alignment and scaling are correct.",
+                        self.model,
+                        self.ble_data.devicetype,
+                        meta["printheadPixels"],
+                    )
 
                 try:
                     printer_model = PrinterModel(self.model)

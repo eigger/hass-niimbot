@@ -86,17 +86,9 @@ of plain thermal paper settles it — see the test described in rfid.md.
 
 Entities are created dynamically only when the Advanced2 payload provides the value, leaving protocol-v1/v2 hardware unaffected. **[HW]** all six — no Advanced2 device has been observed by this project.
 
-### 3. The 14 missing model IDs (5.1)
+### 3. The 14 missing model IDs — **Done (T3)** (was 5.1)
 
-Listed with their full capability rows in
-[app-gap-analysis.md §A1](app-gap-analysis.md#a1-14-model-codes-have-no-entry-in-modelpy) and in
-[devices.md](devices.md#models-missing-from-modelpy). They resolve to `UNKNOWN`, which routes to the
-old D11 sequence — wrong for every one of them.
-
-Everything except `printheadPixels` comes from the vendor table. For that field, the measured px/mm
-ratios (7.68–8.00 at 203 dpi, 11.34–11.87 at 300 dpi) plus the closest same-series sibling give a
-starting value. **[HW]** per model, and note A1 Pro and B16 both declare print direction 270, which
-`PrintDirection` cannot express.
+All 14 model IDs (3840, 4098, 4352, 4610, 4868, 5120, 5121, 6144, 6400, 6402, 6656, 6657, 7168, 7424) added to `PrinterModel`, `modelsLibrary`, and `_CAPABILITIES_BY_ID`. `printheadPixels` uses estimated values from same-series siblings and DPI pixel ratios, flagged with `printheadPixelsEstimated: True` with warning logging on print jobs. **[HW]** per model; A1 Pro print direction 270 is modelled as LEFT.
 
 ### 4. Choose the print sequence from capability, not a model list (5.2)
 

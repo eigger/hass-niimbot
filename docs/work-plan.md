@@ -180,7 +180,7 @@ and scale are guesses.
 
 ---
 
-## T3 — Add the 14 missing model IDs
+## T3 — Add the 14 missing model IDs [Done]
 
 **Goal.** Stop routing new hardware to the oldest print sequence.
 

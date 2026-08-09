@@ -109,29 +109,7 @@ Print width is given in millimetres, but the real per-row pixel limit is `printh
 
 ## Models missing from `model.py`
 
-`modelsLibrary` in `niimprint/model.py` does not cover these IDs, so they resolve to `UNKNOWN`.
-`UNKNOWN` is routed to the old D11 print sequence
-([printing.md](printing.md#old-d11-generation)), which is wrong for all of them — expect failed or
-blank prints.
-
-| Model ID | Model |
-| --- | --- |
-| 257, 258, 259 | S6 (only 261 is registered) |
-| 3840 | H1 |
-| 4098 | B1 SE |
-| 4352 | H1S |
-| 4610 | EP2M_H |
-| 4868 | K3_ITD |
-| 5120 / 5121 | C1 / EP1C |
-| 6144 | K2 |
-| 6400 / 6402 | M3 / EP3M |
-| 6656 / 6657 | B4 / B4 Pro |
-| 7168 | K4 |
-| 7424 | A1 Pro |
-
-`printheadPixels` is the one field this table cannot supply, and it is required to add an entry. See
-[app-gap-analysis.md](app-gap-analysis.md#a1-14-model-codes-have-no-entry-in-modelpy) for the px/mm
-ratios measured across the 63 modelled printers and the per-model estimate they give.
+*All model codes from the vendor capability table (including S6 variants 257, 258, 259 and the 14 missing model IDs) have been added to `modelsLibrary` in `niimprint/model.py` as of Task T3.*
 
 Going the other way, `model.py` carries one ID that no longer appears in current model listings:
 `784` (B21_H). `785` (B21_Pro) occupies that slot instead.
