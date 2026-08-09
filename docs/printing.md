@@ -265,11 +265,10 @@ bytes.
 
 ## 7. Known limitations of this integration
 
-- `SetLabelType` is a print-service parameter validated as 1–11, but it is not checked against the
-  model's own `paperTypes`, so an unsupported value is rejected by the printer instead of locally.
-- `CancelPrint` (`0xDA`) and the 2-byte and 13-byte page-size variants are unimplemented.
+- `SetLabelType` is validated against the model's `paperTypes` before the job starts.
 - Colour and greyscale printing are unsupported. `pageColor` is always `0` and rendering is 1-bit,
   even on models whose Colour Support sensor reports otherwise.
 - Print margins are ignored. The vendor publishes a per-model, per-paper-type `blindZone`, and
   rendering edge to edge can clip near the leading edge on black-mark stock.
-- Flow control is static. Per-write latency is measured but not used to adapt the batch size.
+- The 2-byte and 13-byte `SetPageSize` variants are unused (4 / 6 / 9-byte forms cover current
+  generations).

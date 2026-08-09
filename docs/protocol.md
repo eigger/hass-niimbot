@@ -161,7 +161,7 @@ sent before the page was started — not only for physical faults.
 | `0x86` | PrinterCheckLine | `0xD3` | `u16` line + `01` | Mid-transfer checkpoint, every 200 rows |
 | `0xE3` | PageEnd | `0xE4` | `01` | |
 | `0xF3` | PrintEnd | `0xF4` | `01` | `data[0] == 0` means refused |
-| `0xDA` | CancelPrint | `0xD0` | `01` | **(not implemented here)** |
+| `0xDA` | CancelPrint | `0xD0` | `01` | Cancel Print button |
 
 ### 4.2 Settings
 
@@ -170,10 +170,10 @@ sent before the page was started — not only for physical faults.
 | `0x21` | SetDensity | `0x31` | `u8` | Range is per model, see [devices.md](devices.md) |
 | `0x23` | SetLabelType | `0x33` | `u8` | Label type, section 6 |
 | `0x27` | SetAutoShutdownTime | `0x37` | `u8` 1–4 | Auto Shutdown select entity |
-| `0x28` | PrinterReset | `0x38` | `01` | Resets settings such as sound. **(not implemented here)** |
+| `0x28` | PrinterReset | `0x38` | `01` | Resets settings such as sound. Reset Printer Settings button |
 | `0x58` | SoundSettings | `0x68` | `category`, `item`, `value` | Connection Sound switch (get/set) |
-| `0x59` | CalibrateHeight | `0x69` | `01` | **(not implemented here)** |
-| `0x8E` | LabelPositioningCalibration | `0x8F` | `u8` | Feeds ~15 cm on B1 for values 1–2. **(not implemented here)** |
+| `0x59` | CalibrateHeight | `0x69` | `01` | Calibrate Roll Feed button |
+| `0x8E` | LabelPositioningCalibration | `0x8F` | `u8` | Feeds ~15 cm on B1 for values 1–2. Calibrate Label Offset button |
 
 ### 4.3 Information
 
@@ -191,7 +191,7 @@ sent before the page was started — not only for physical faults.
 | `0x0D` | GetPrintQuality | `0x0D` | `01` | Request and response share an ID. **(not implemented here)** |
 | `0x12` | GetCurrentTimeFormat | `0x11` | `01` | **(not implemented here)** |
 | `0xAF` | PrinterConfig | `0xBF` | `01` | **(not implemented here)** |
-| `0x5A` | PrintTestPage | `0x6A` | `01` | **(not implemented here)** |
+| `0x5A` | PrintTestPage | `0x6A` | `01` | Print Test Page button |
 
 ### 4.4 RFID
 

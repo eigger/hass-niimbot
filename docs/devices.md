@@ -14,8 +14,8 @@ Related: [protocol.md](protocol.md) · [device-info.md](device-info.md) · [prin
 - **Density** — the range accepted by `SetDensity` (`0x21`). `set_label_density` validates against the
   model's own range, which is populated from this table.
 - **Label types** — the values accepted by `SetLabelType` (`0x23`). Exposed as the `label_type`
-  parameter of the print service, validated as 1–11; the model's `paperTypes` is not enforced yet, so
-  an unsupported value reaches the printer and comes back as `SetPrintLabelMaterialNoSupport`.
+  parameter of the print service and validated against the model's `paperTypes` before the job
+  starts (unsupported values raise locally instead of reaching the printer).
 - **RFID** — tag class; see [rfid.md](rfid.md#1-checking-support-first).
 - **IDs in the 51xxx, 52xxx and 53xxx ranges** are rebadged third-party hardware that speaks a
   different protocol. The commands documented here do not apply to them.

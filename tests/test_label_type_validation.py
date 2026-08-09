@@ -52,6 +52,19 @@ def test_get_supported_label_type_codes():
     meta_a1_pro = get_printer_meta_by_id(7424)
     assert get_supported_label_type_codes(meta_a1_pro) == [4, 3]
 
+    # N1 / B18 / B18S must include Continuous (3) — vendor DB includes it; T7
+    # rejects unsupported codes locally, so a missing entry is a user-visible
+    # regression.
+    for model_id in (3584, 3585, 3586):
+        codes = get_supported_label_type_codes(get_printer_meta_by_id(model_id))
+        assert 3 in codes, f"model {model_id} missing Continuous"
+
+    # B2 / B2 Pro must not advertise Continuous (vendor DB has Gap/Black/Transparent only).
+    for model_id in (6912, 6913):
+        codes = get_supported_label_type_codes(get_printer_meta_by_id(model_id))
+        assert 3 not in codes, f"model {model_id} should not list Continuous"
+        assert codes == [1, 2, 5]
+
     # Unknown model: every known code is returned (never reject what the printer may accept)
     fallback = get_supported_label_type_codes(None)
     assert 1 in fallback
