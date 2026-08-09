@@ -918,7 +918,7 @@ _CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int, bool]] = {
     51715: (RfidClass.NONE, 6, 15, 10, False),
     51717: (RfidClass.NONE, 6, 15, 10, False),
     51718: (RfidClass.NONE, 6, 15, 10, False),
-    52993: (RfidClass.NONE, 1, 5, 3, False),
+    52993: (RfidClass.NONE, 1, 5, 3, True),
     53250: (RfidClass.NONE, 1, 20, 15, False),
 }
 

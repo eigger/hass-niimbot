@@ -10,6 +10,7 @@ from custom_components.niimbot.niimprint.model import (
     supports_calibration,
 )
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
+from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterClient, RequestCodeEnum
 from tests.fake_transport import FakeTransport
 
@@ -28,6 +29,11 @@ def test_supports_calibration_helper():
     meta_d110 = get_printer_meta_by_id(2304)
     assert meta_d110 is not None
     assert supports_calibration(meta_d110) is False
+
+    # B3 (52993) supports calibration
+    meta_b3 = get_printer_meta_by_id(52993)
+    assert meta_b3 is not None
+    assert supports_calibration(meta_b3) is True
 
     # None meta returns False
     assert supports_calibration(None) is False
@@ -107,12 +113,19 @@ def test_in_flight_print_cancellation():
         transport = FakeTransport(responses)
         client = PrinterClient(transport=transport)
 
+        orig_write = transport.write
+
+        async def _write_with_cancel(packet_bytes, response=True):
+            await orig_write(packet_bytes, response=response)
+            # When page size command (0x13 / 19) is written, trigger cancel_requested
+            if len(packet_bytes) >= 3 and packet_bytes[2] == RequestCodeEnum.SET_DIMENSION:
+                client.cancel_requested = True
+
+        transport.write = _write_with_cancel
+
         img = Image.new("1", (96, 20), color=0)
 
-        # Trigger cancel_requested before line printing begins
-        client.cancel_requested = True
-
-        await client.print_image(
+        res = await client.print_image(
             model=PrinterModel.B1,
             image=img,
             density=3,
@@ -120,8 +133,26 @@ def test_in_flight_print_cancellation():
             print_line_batch_size=1,
         )
 
+        assert isinstance(res, dict)
+        assert res.get("status") == "cancelled"
         written_types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.CANCEL_PRINT in written_types
         assert client.cancel_requested is False
+
+    run(_test())
+
+
+def test_niimbot_device_cancel_print_in_flight():
+    async def _test():
+        device = NiimbotDevice("11:22:33:44:55:66")
+        transport = FakeTransport([])
+        client = PrinterClient(transport=transport)
+        device._printer = client
+        device._is_printing = True
+
+        # Calling cancel_print on NiimbotDevice during print job sets cancel_requested on _printer
+        res = await device.cancel_print("11:22:33:44:55:66")
+        assert res is True
+        assert client.cancel_requested is True
 
     run(_test())

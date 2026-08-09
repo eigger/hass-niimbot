@@ -523,8 +523,8 @@ class NiimbotDevice:
 
     async def cancel_print(self, ble_device: BLEDevice) -> bool:
         """Cancel print job (0xDA). Signal in-flight job if running, or send command directly."""
-        if self._is_printing and self._printer_client is not None:
-            self._printer_client.cancel_requested = True
+        if self._is_printing and self._printer is not None:
+            self._printer.cancel_requested = True
             return True
         async with self.lock:
             printer = await self._ensure_printer(ble_device)
@@ -777,7 +777,7 @@ class NiimbotDevice:
                         "Unknown printer model %r, falling back to UNKNOWN", self.model
                     )
 
-                await printer.print_image(
+                result = await printer.print_image(
                     printer_model,
                     image,
                     density,
@@ -790,6 +790,13 @@ class NiimbotDevice:
                 self._record_error(err)
                 raise
             else:
+                if isinstance(result, dict) and result.get("status") == "cancelled":
+                    _LOGGER.info("Print job was cancelled; skipping 100%% progress mark")
+                    return {
+                        "status": "cancelled",
+                        "duration": self.print_duration,
+                        "copies": copies,
+                    }
                 # Only mark 100% on a clean finish; leave the last reported
                 # value (and last_error) alone when the job failed.
                 if self.print_progress < 100:

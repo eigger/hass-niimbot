@@ -93,8 +93,6 @@ class NiimbotBaseButton(
 class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
     """Button to calibrate label positioning offset."""
 
-    _attr_icon = "mdi:format-vertical-align-center"
-
     def __init__(
         self,
         coordinator: DataUpdateCoordinator[BLEData],
@@ -109,14 +107,14 @@ class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
             ok = await self._device.calibrate_label_position(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected label position calibration")
+        except HomeAssistantError:
+            raise
         except Exception as err:
             raise HomeAssistantError(f"Failed to calibrate label position: {err}") from err
 
 
 class NiimbotCalibrateHeightButton(NiimbotBaseButton):
     """Button to calibrate roll feed height."""
-
-    _attr_icon = "mdi:ruler"
 
     def __init__(
         self,
@@ -132,14 +130,14 @@ class NiimbotCalibrateHeightButton(NiimbotBaseButton):
             ok = await self._device.calibrate_height(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected roll feed calibration")
+        except HomeAssistantError:
+            raise
         except Exception as err:
             raise HomeAssistantError(f"Failed to calibrate roll feed: {err}") from err
 
 
 class NiimbotCancelPrintButton(NiimbotBaseButton):
     """Button to cancel an in-flight print job."""
-
-    _attr_icon = "mdi:cancel"
 
     def __init__(
         self,
@@ -149,12 +147,18 @@ class NiimbotCancelPrintButton(NiimbotBaseButton):
     ) -> None:
         super().__init__(coordinator, ble_data, device, "cancel_print")
 
+    @property
+    def available(self) -> bool:
+        return super().available and self._device.is_printing
+
     async def async_press(self) -> None:
         ble_dev = self._get_ble_device()
         try:
             ok = await self._device.cancel_print(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected cancel print request")
+        except HomeAssistantError:
+            raise
         except Exception as err:
             raise HomeAssistantError(f"Failed to cancel print: {err}") from err
 
@@ -162,8 +166,8 @@ class NiimbotCancelPrintButton(NiimbotBaseButton):
 class NiimbotPrinterResetButton(NiimbotBaseButton):
     """Button to reset printer settings."""
 
-    _attr_icon = "mdi:restart"
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
         self,
@@ -179,14 +183,14 @@ class NiimbotPrinterResetButton(NiimbotBaseButton):
             ok = await self._device.printer_reset(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected settings reset")
+        except HomeAssistantError:
+            raise
         except Exception as err:
             raise HomeAssistantError(f"Failed to reset printer settings: {err}") from err
 
 
 class NiimbotPrintTestPageButton(NiimbotBaseButton):
     """Button to print a test page."""
-
-    _attr_icon = "mdi:printer-eye"
 
     def __init__(
         self,
@@ -202,5 +206,7 @@ class NiimbotPrintTestPageButton(NiimbotBaseButton):
             ok = await self._device.print_test_page(ble_dev)
             if not ok:
                 raise HomeAssistantError("Printer rejected test page print")
+        except HomeAssistantError:
+            raise
         except Exception as err:
             raise HomeAssistantError(f"Failed to print test page: {err}") from err
