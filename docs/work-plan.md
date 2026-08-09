@@ -388,7 +388,7 @@ so in the PR rather than silently changing it.
 
 ---
 
-## T8 — Adaptive flow control
+## T8 — Adaptive flow control [Done]
 
 **Goal.** Stop paying a fixed per-row cost that the link does not need.
 
