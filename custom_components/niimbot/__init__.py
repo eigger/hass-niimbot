@@ -3,13 +3,13 @@
 import base64
 import io
 import logging
-
 from datetime import timedelta
-from .niimprint import NiimbotDevice, BLEData, PrinterError
-from .render import render_image
+
+from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.components import bluetooth
+from homeassistant.components.image import Image
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
@@ -23,23 +23,22 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from bleak_retry_connector import close_stale_connections_by_address
-from homeassistant.const import CONF_SCAN_INTERVAL
-from homeassistant.components.image import Image
 
 from .const import (
-    CONF_USE_SOUND,
-    CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
     CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
+    CONF_USE_SOUND,
+    CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
     DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DEFAULT_KEEP_CONNECTION,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DOMAIN,
     EMPTY_PNG,
     ImageAndBLEData,
 )
+from .niimprint import BLEData, NiimbotDevice, PrinterError
+from .render import render_image
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -215,7 +214,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 else confirm_every_nth_print_line,
                 label_type=int(service.data["label_type"])
                 if "label_type" in service.data
-                else 1,
+                else None,
                 copies=int(service.data["copies"]) if "copies" in service.data else 1,
             )
             # Push post-print RFID / heartbeat updates into entities immediately.

@@ -131,7 +131,7 @@ not the protocol. **[HW]** each — they move paper.
 | `0x07` PrinterConfig2 | service | Carries set-time; clock drift affects date elements |
 | `0x40` key 14 PrintMode | sensor | Pairs with the material table in item 1 |
 
-### 7. Enforce `paperTypes` (rest of 5.3)
+### 7. Enforce `paperTypes` (rest of 5.3) — **Done (T7)**
 
 `label_type` is validated as 1–11 but not against the model's own `paperTypes`, so an unsupported
 value reaches the printer and returns `SetPrintLabelMaterialNoSupport`. Validate locally and default

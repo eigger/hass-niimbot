@@ -55,7 +55,6 @@ print:
           step: 1
     label_type:
       required: false
-      default: 1
       selector:
         number:
           min: 1

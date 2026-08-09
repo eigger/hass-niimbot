@@ -1041,6 +1041,13 @@ def label_type_code(label_type: LabelType) -> int:
     return _LABEL_TYPE_CODES[label_type]
 
 
+def get_supported_label_type_codes(meta: PrinterModelMeta | None) -> list[int]:
+    """Return the list of integer label type codes supported by the printer model."""
+    if meta is None or "paperTypes" not in meta or not meta["paperTypes"]:
+        return [1, 2, 3, 4, 5, 6, 10, 11]
+    return [label_type_code(t) for t in meta["paperTypes"]]
+
+
 def supports_label_rfid(rfid: RfidClass | None) -> bool:
     return rfid in (RfidClass.LABEL, RfidClass.LABEL_RIBBON)
 

@@ -362,7 +362,7 @@ the PR that it is unverified.
 
 ---
 
-## T7 — Validate `label_type` against the model's paper types
+## T7 — Validate `label_type` against the model's paper types [Done]
 
 **Goal.** Reject an unsupported label type locally instead of letting the printer reject it.
 
