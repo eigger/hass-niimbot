@@ -38,9 +38,12 @@ async def async_setup_entry(
     entities: list[ButtonEntity] = [
         NiimbotCancelPrintButton(coordinator, coordinator.data, device),
         NiimbotPrinterResetButton(coordinator, coordinator.data, device),
-        # Many models (observed: B1) NAK PrintTestPage (0x5A); keep disabled by default.
-        NiimbotPrintTestPageButton(coordinator, coordinator.data, device),
     ]
+
+    if device.supports_print_test_page():
+        entities.append(
+            NiimbotPrintTestPageButton(coordinator, coordinator.data, device)
+        )
 
     if device.supports_calibration():
         entities.append(

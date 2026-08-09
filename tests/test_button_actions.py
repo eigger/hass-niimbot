@@ -9,6 +9,7 @@ from custom_components.niimbot.niimprint.model import (
     get_printer_meta_by_id,
     supports_calibration,
     supports_height_calibration,
+    supports_print_test_page,
 )
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
@@ -26,22 +27,26 @@ def test_supports_calibration_helper():
     assert meta_b1 is not None
     assert supports_calibration(meta_b1) is True
     assert supports_height_calibration(meta_b1) is False
+    assert supports_print_test_page(meta_b1) is False
 
-    # D110 (2304) does not support calibration
+    # D110 (2304) does not support calibration; PrintTestPage not denylisted
     meta_d110 = get_printer_meta_by_id(2304)
     assert meta_d110 is not None
     assert supports_calibration(meta_d110) is False
     assert supports_height_calibration(meta_d110) is False
+    assert supports_print_test_page(meta_d110) is True
 
     # B3 (52993): Continuous + calibration → height calibration gated on
     meta_b3 = get_printer_meta_by_id(52993)
     assert meta_b3 is not None
     assert supports_calibration(meta_b3) is True
     assert supports_height_calibration(meta_b3) is True
+    assert supports_print_test_page(meta_b3) is True
 
     # None meta returns False
     assert supports_calibration(None) is False
     assert supports_height_calibration(None) is False
+    assert supports_print_test_page(None) is False
 
 
 def test_calibrate_label_position_command():
