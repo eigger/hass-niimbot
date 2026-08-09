@@ -23,6 +23,7 @@ from .model import (
     supports_calibration,
     supports_height_calibration,
     supports_label_rfid,
+    supports_print_test_page,
     supports_ribbon_rfid,
 )
 from .printer import InfoEnum, PrinterClient, PrinterError, PrinterTimeout, SoundEnum
@@ -193,6 +194,12 @@ class NiimbotDevice:
         if meta is None:
             return False
         return supports_height_calibration(meta)
+
+    def supports_print_test_page(self) -> bool:
+        meta = self.get_model_meta()
+        if meta is None:
+            return False
+        return supports_print_test_page(meta)
 
     def _apply_heartbeat(self, heartbeat: dict) -> None:
         """Apply heartbeat data to sensors."""

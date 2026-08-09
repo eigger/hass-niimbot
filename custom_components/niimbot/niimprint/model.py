@@ -963,6 +963,23 @@ def supports_height_calibration(meta: PrinterModelMeta | None) -> bool:
     return LabelType.CONTINUOUS in paper_types
 
 
+# Observed to NAK PrintTestPage (0x5A). No vendor capability flag exists.
+_PRINT_TEST_PAGE_UNSUPPORTED = frozenset(
+    {
+        PrinterModel.B1,
+        PrinterModel.B1_PRO,
+        PrinterModel.B1_SE,
+    }
+)
+
+
+def supports_print_test_page(meta: PrinterModelMeta | None) -> bool:
+    """Return False for models known to reject PrintTestPage (0x5A)."""
+    if meta is None:
+        return False
+    return meta.get("model") not in _PRINT_TEST_PAGE_UNSUPPORTED
+
+
 _LABEL_TYPE_NAMES = {
     1: "WithGaps",
     2: "Black",
