@@ -249,7 +249,7 @@
         },
         "button": {
             "calibrate_label_position": {
-                "name": "Calibrate Label Position"
+                "name": "Paper Calibration"
             },
             "calibrate_roll_feed": {
                 "name": "Calibrate Roll Feed"

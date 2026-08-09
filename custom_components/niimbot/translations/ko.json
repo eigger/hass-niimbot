@@ -249,7 +249,7 @@
         },
         "button": {
             "calibrate_label_position": {
-                "name": "라벨 위치 보정"
+                "name": "용지 캘리브레이션"
             },
             "calibrate_roll_feed": {
                 "name": "롤 피드 보정"
