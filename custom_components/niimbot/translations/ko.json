@@ -254,9 +254,6 @@
             "calibrate_roll_feed": {
                 "name": "롤 피드 보정"
             },
-            "cancel_print": {
-                "name": "인쇄 취소"
-            },
             "reset_printer_settings": {
                 "name": "프린터 설정 초기화"
             },

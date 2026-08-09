@@ -262,9 +262,6 @@
       "calibrate_roll_feed": {
         "name": "Calibrate Roll Feed"
       },
-      "cancel_print": {
-        "name": "Cancel Print"
-      },
       "reset_printer_settings": {
         "name": "Reset Printer Settings"
       },
