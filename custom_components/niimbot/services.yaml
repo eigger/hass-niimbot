@@ -30,7 +30,6 @@ print:
     width:
       required: false
       example: 400
-      default: 400
       selector:
         number:
           min: 10
@@ -39,7 +38,6 @@ print:
     height:
       required: false
       example: 240
-      default: 240
       selector:
         number:
           min: 10

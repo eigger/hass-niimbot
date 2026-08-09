@@ -268,9 +268,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     @callback
     # callback for the draw custom service
     async def printservice(service: ServiceCall) -> ServiceResponse:
+        cloud = niimbot._cloud_label_attrs or {}
+        render_defaults: dict = {}
+        if cloud.get("print_width_px") is not None:
+            render_defaults["width"] = int(cloud["print_width_px"])
+        if cloud.get("print_height_px") is not None:
+            render_defaults["height"] = int(cloud["print_height_px"])
+
         try:
             image = await hass.async_add_executor_job(
-                render_image, entry.entry_id, service, hass
+                render_image, entry.entry_id, service, hass, render_defaults
             )
         except Exception as e:
             raise ServiceValidationError("Failed to create image: %s" % e) from e
@@ -292,9 +299,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # niimbot.get_model_meta() is populated by the coordinator update cycle and
         # is therefore available without BLE.  If the model is not yet known the
         # check is skipped; the fallback inside NiimbotDevice.print_image covers that.
-        requested_label_type = (
-            int(service.data["label_type"]) if "label_type" in service.data else None
-        )
+        if "label_type" in service.data:
+            requested_label_type = int(service.data["label_type"])
+        elif cloud.get("paper_type") is not None:
+            requested_label_type = int(cloud["paper_type"])
+        else:
+            requested_label_type = None
         model_meta = niimbot.get_model_meta()
         if requested_label_type is not None and model_meta is not None:
             supported_types = get_supported_label_type_codes(model_meta)
