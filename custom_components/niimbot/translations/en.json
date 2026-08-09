@@ -18,9 +18,13 @@
                     "scan_interval": "Scan Interval",
                     "wait_between_each_print_line": "Wait time between print lines",
                     "confirm_every_nth_print_line": "How often to confirm reception of print lines",
-                    "keep_connection": "Keep BLE Connection"
+                    "keep_connection": "Keep BLE Connection",
+                    "use_cloud_label_info": "Fetch Label Info Online"
                 },
-                "description": "Choose a device to set up"
+                "description": "Choose a device to set up",
+                "data_description": {
+                    "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
+                }
             }
         }
     },
@@ -32,9 +36,13 @@
                     "scan_interval": "Scan Interval",
                     "wait_between_each_print_line": "Wait time between print lines",
                     "confirm_every_nth_print_line": "How often to confirm reception of print lines",
-                    "keep_connection": "Keep BLE Connection"
+                    "keep_connection": "Keep BLE Connection",
+                    "use_cloud_label_info": "Fetch Label Info Online"
                 },
-                "description": "Change options for your device"
+                "description": "Change options for your device",
+                "data_description": {
+                    "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
+                }
             }
         }
     },

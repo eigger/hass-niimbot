@@ -128,6 +128,13 @@ class NiimbotDevice:
         self._last_ribbon_uuid: str | None = None
         self._rfid_attrs: dict = {}
         self._ribbon_rfid_attrs: dict = {}
+        # Populated by the integration layer (__init__.py) when the optional
+        # cloud label lookup is enabled and resolves the current barcode.
+        # niimprint stays protocol-only and never makes network calls itself.
+        self._cloud_label_attrs: dict = {}
+        # Barcode the cloud lookup was last attempted for, so __init__.py does
+        # not re-trigger a lookup every poll once one has been tried.
+        self._cloud_lookup_barcode: str | None = None
         self._info_battery_bucket: int | None = None
         self._info_loaded = False
         self.last_error: str | None = None

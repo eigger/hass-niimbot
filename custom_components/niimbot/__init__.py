@@ -24,14 +24,17 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .cloud import LabelCloudLookup
 from .const import (
     CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
+    CONF_USE_CLOUD_LABEL_INFO,
     CONF_USE_SOUND,
     CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
     DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DEFAULT_KEEP_CONNECTION,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_USE_CLOUD_LABEL_INFO,
     DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DOMAIN,
     EMPTY_PNG,
@@ -98,6 +101,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.data.get(CONF_KEEP_CONNECTION, DEFAULT_KEEP_CONNECTION),
         )
     )
+    use_cloud_label_info = bool(
+        entry.options.get(
+            CONF_USE_CLOUD_LABEL_INFO,
+            entry.data.get(CONF_USE_CLOUD_LABEL_INFO, DEFAULT_USE_CLOUD_LABEL_INFO),
+        )
+    )
+    # None when the option is off, so no cloud-related object exists at all and
+    # no code path below can reach the network.
+    cloud_lookup = LabelCloudLookup(hass) if use_cloud_label_info else None
     assert address is not None
     await close_stale_connections_by_address(address)
 
@@ -113,6 +125,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         keep_connection=keep_connection,
         connection_sound_seed=connection_sound_seed,
     )
+
+    async def _refresh_cloud_label_info(barcode: str) -> None:
+        """Resolve a label barcode via the cloud catalogue and push the result.
+
+        Runs as a background task so a slow or failed lookup never delays or
+        fails the coordinator poll. Every failure mode (disabled, timeout,
+        non-200, unknown barcode) leaves entities exactly as they are today.
+        """
+        assert cloud_lookup is not None
+        niimbot._cloud_lookup_barcode = barcode
+        info = await cloud_lookup.get(barcode)
+        new_attrs = {"barcode": barcode, **info} if info else {}
+        if new_attrs != niimbot._cloud_label_attrs:
+            niimbot._cloud_label_attrs = new_attrs
+            coordinator.async_set_updated_data(niimbot.ble_data)
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
@@ -132,6 +159,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for event in niimbot.pending_events:
                 hass.bus.async_fire(event["event_type"], event["data"])
             niimbot.pending_events.clear()
+
+        # Fires on the roll-change poll and on the first poll after startup;
+        # a no-op on every later poll for the same barcode (see dedup above).
+        if cloud_lookup is not None:
+            barcode = data.sensors.get("label_sku")
+            if barcode and barcode != niimbot._cloud_lookup_barcode:
+                hass.async_create_task(_refresh_cloud_label_info(barcode))
 
         return data
 

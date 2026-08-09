@@ -44,6 +44,8 @@ sys.modules["homeassistant.helpers"] = MagicMock()
 sys.modules["homeassistant.helpers.device_registry"] = MagicMock()
 sys.modules["homeassistant.helpers.update_coordinator"] = MagicMock()
 sys.modules["homeassistant.helpers.debounce"] = MagicMock()
+sys.modules["homeassistant.helpers.storage"] = MagicMock()
+sys.modules["homeassistant.helpers.aiohttp_client"] = MagicMock()
 sys.modules["homeassistant.util"] = MagicMock()
 sys.modules["homeassistant.util.dt"] = MagicMock()
 
@@ -57,6 +59,23 @@ sys.modules["bleak_retry_connector"] = MagicMock()
 # Mock propcache
 sys.modules["propcache"] = MagicMock()
 sys.modules["propcache.api"] = MagicMock()
+
+# Mock aiohttp (a Home Assistant core dependency, not one this integration
+# declares itself). Real exception/config classes, not MagicMock instances,
+# so `except (aiohttp.ClientError, TimeoutError)` and `ClientTimeout(total=…)`
+# in cloud.py behave correctly under test.
+class MockClientError(Exception):
+    """Stub for aiohttp.ClientError."""
+
+class MockClientTimeout:
+    """Stub for aiohttp.ClientTimeout."""
+    def __init__(self, total=None):
+        self.total = total
+
+ha_aiohttp = MagicMock()
+ha_aiohttp.ClientError = MockClientError
+ha_aiohttp.ClientTimeout = MockClientTimeout
+sys.modules["aiohttp"] = ha_aiohttp
 
 # Only mock imagespec when it is not installed. CI installs it via
 # requirements.txt; an unconditional MagicMock breaks test_render.py.

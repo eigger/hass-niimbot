@@ -413,82 +413,88 @@ cadence differs. Report measured before/after timings for one real label in the 
 
 ---
 
-## T9 — Optional online label lookup
+## T9 — Optional online label lookup [Done]
 
 **Goal.** Let users who want it resolve a label SKU to its name, size and preview image, without
 making the integration depend on a cloud service.
 
-**Read first.** [app-gap-analysis.md §B](app-gap-analysis.md#b-cloud-label-lookup-as-an-opt-in). Two
-facts shape this task: the RFID tag carries **no** dimensions on any model, so this is the only route
-to label geometry; and T1 delivers the material name offline, which is most of what users actually ask
-for. If T1 has landed and nobody has asked for size since, consider whether this task is still wanted.
+### T9.0 — Verification gate — result
 
-### T9.0 — Verification gate, do this before writing any code
+The endpoint originally guessed from the app binary (`/labels/:id/consumable-attributes`, behind
+`Authorization: Bearer …`) was **not** the one actually probed. Live traffic capture found the real
+one, and it was tested directly:
 
-The endpoints below were found in the app binary. The app sends `Authorization: Bearer …` and sits
-behind `/oauth/*` login. **Whether any endpoint answers unauthenticated has not been tested.**
+```
+POST https://print.niimbot.com/api/template/getCloudTemplateByOneCode
+Content-Type: application/json
+niimbot-user-agent: AppVersionName/hass-niimbot-3.0.0
 
-Make **one** unauthenticated `GET` to `https://print.niimbot.com/labels/{id}/consumable-attributes`
-with a known SKU and record the status and body. Then stop and report:
-
-- **If it answers with usable data** — continue to T9.1.
-- **If it requires authentication** — stop. Do not add a username/password or token field to the
-  config flow, do not scrape a token out of the app, do not proxy through a third party. Close the
-  task with the finding recorded here and in the gap analysis. Asking Home Assistant users for their
-  NIIMBOT credentials to display a label name is not a trade this integration makes.
-
-Do not run the probe from within Home Assistant, do not loop it, and do not test with more than a
-couple of SKUs.
-
-### T9.1 — Implementation, only if T9.0 passed
-
-**Files.** New `custom_components/niimbot/cloud.py`; `const.py`; `config_flow.py` (`OPTIONS_SCHEMA`);
-`custom_components/niimbot/niimprint/parser.py` or a thin layer above it; `sensor.py`; translations.
-
-**Option.**
-
-```python
-# const.py
-CONF_USE_CLOUD_LABEL_INFO = "use_cloud_label_info"
-DEFAULT_USE_CLOUD_LABEL_INFO = False
+{"oneCode": "<barcode>"}
 ```
 
-Add it to `OPTIONS_SCHEMA` in `config_flow.py` as a plain `bool`. Because that schema is shared, it
-appears in the initial config flow, the bluetooth-confirm step and the options flow at once, which is
-what we want. Existing entries keep the default and stay fully offline.
+No `Authorization` header, no cookie, no account login. The only gate is `niimbot-user-agent`, checked
+by the server for the substring `AppVersionName` — an honestly-labelled client identifier passes; this
+is not a login wall and was not treated as one, or bypassed as one. Two verified barcodes returned real
+`width`/`height`/`name` data; an unknown barcode returned HTTP 200 with no `data` key (not a 404).
+Full details and the reasoning for why this doesn't count as "requires authentication" under the
+original gate are in
+[app-gap-analysis.md §B](app-gap-analysis.md#b-cloud-label-lookup-as-an-opt-in--done-t9).
 
-**Behaviour.**
+Proceeded to T9.1.
 
-- Default **off**. Nothing may reach the network unless the user turned it on.
-- **Never block the coordinator.** The lookup does not run inside `update_device`. Trigger it from the
-  roll-change path — `EVENT_ROLL_CHANGED` already fires when the tag UUID changes — and on the first
-  poll after startup if the current SKU is not cached.
-- **Cache per SKU on disk** with `homeassistant.helpers.storage.Store`, version 1, key
-  `niimbot_label_cache`. A SKU that has been resolved once must never be fetched again. Cache negative
-  results too, with a retry-after, so an unknown SKU does not retry every restart.
-- **One attempt, 10 s total timeout, no retry loop.** Use
-  `homeassistant.helpers.aiohttp_client.async_get_clientsession(hass)`.
-- **Results go on attributes of the existing `label_sku` sensor** — `label_name`, `label_width_mm`,
-  `label_height_mm`, `preview_url`. Do not create entities that exist only when the option is on;
-  that makes the two configurations diverge and breaks dashboards when the option is toggled.
-- **Failure is a debug log line.** No entity goes unavailable, no repair issue, no user-visible error.
-  The integration must work exactly as it does today when the lookup fails.
-- **Nothing but the SKU leaves the machine.** No serial number, no UUID, no MAC, no HA instance id.
+### T9.1 — Implementation — result
 
-**Strings.** The option's description in all three translation files must state plainly that enabling
-it sends the loaded label's product code to a NIIMBOT server. Users choosing this integration for a
-local-only setup are entitled to know before they tick the box, not after.
+**Files.** `custom_components/niimbot/cloud.py` (new); `const.py`; `config_flow.py`
+(`OPTIONS_SCHEMA`); `sensor.py`; `__init__.py`; `niimprint/parser.py`; `strings.json`;
+`translations/en.json`; `translations/ko.json`; `tests/test_cloud_lookup.py` (new);
+`tests/conftest.py`.
 
-**Tests.** Lookup disabled → no HTTP call, with the session mocked to fail if touched. Enabled with a
-cached SKU → no HTTP call. Enabled with an uncached SKU → one call, attributes populated. Timeout and
-non-200 → attributes absent, no exception, entity still available.
+**Option.** `CONF_USE_CLOUD_LABEL_INFO` / `DEFAULT_USE_CLOUD_LABEL_INFO = False`, in `OPTIONS_SCHEMA`
+as a plain `bool` — appears in the initial config flow and the options flow. Existing entries keep the
+default and stay fully offline.
 
-**Acceptance.** With the option off, the integration's network behaviour is byte-identical to 3.0.0.
-With it on, a known roll gains name and size attributes, and pulling the network cable changes nothing
-except that those attributes stop updating.
+**Behaviour, as built.**
 
-**Out of scope.** Template/product catalogue sync, the shop endpoints, print statistics upload,
-account login, and anything under `/oauth/*`.
+- Default **off**. When off, `LabelCloudLookup` is never constructed in `__init__.py` — no cloud
+  object exists at all, not just "unused".
+- **Never blocks the coordinator.** `_async_update_method` schedules the lookup as a background task
+  (`hass.async_create_task`) after returning poll data, rather than awaiting it inline. Triggered when
+  the current `sensors["label_sku"]` differs from the last barcode a lookup was attempted for — this
+  covers both a roll change and the first poll after startup with one check, rather than parsing
+  `EVENT_ROLL_CHANGED` specifically.
+- **Cached per barcode** via `homeassistant.helpers.storage.Store` (version 1, key
+  `niimbot_label_cache`). A resolved barcode is never re-fetched; a "not found" result is cached too
+  and re-checked at most weekly.
+- **One attempt, 10 s timeout**, via `homeassistant.helpers.aiohttp_client.async_get_clientsession`.
+- **Results land as attributes on the existing `label_sku` sensor** — `label_name`, `label_width_mm`,
+  `label_height_mm`, `preview_url` — via `NiimbotDevice._cloud_label_attrs`, read by
+  `NiimbotRfidSensor.extra_state_attributes`. No new entities. A barcode change that resolves to
+  nothing clears the previous barcode's attributes rather than leaving them stale.
+- **Every failure degrades silently**: timeout, non-200, malformed body and "no match" all return
+  `None` from `LabelCloudLookup.get()` and log at debug level. Verified by test, not just by
+  inspection.
+- **Only the barcode leaves the machine.** No serial number, tag UUID, MAC or HA instance id in the
+  request.
+- `niimprint/` stays protocol-only — `cloud.py` and the trigger logic live in the integration layer
+  (`__init__.py`), not in `parser.py`.
+
+**Strings.** All three translation files state that enabling the option sends the loaded label's
+product code to a NIIMBOT server, via a `data_description` entry alongside the option's label.
+
+**Tests.** `tests/test_cloud_lookup.py`, 12 cases against a faked `Store` and a faked
+`aiohttp.ClientSession` (no real network or Home Assistant install): name-picking with partial
+language coverage, empty barcode, fetch-then-cache-hit, negative-result caching, non-200, `ClientError`,
+`TimeoutError`, malformed body, and a pre-seeded cache never touching the network. `tests/conftest.py`
+gained real (not `MagicMock`) `aiohttp.ClientError` / `aiohttp.ClientTimeout` stubs, since the
+`except (aiohttp.ClientError, TimeoutError)` clause in `cloud.py` needs genuine exception classes to
+match against — a `MagicMock` there would raise `TypeError` on first use.
+
+**Acceptance.** With the option off, `LabelCloudLookup` is never instantiated — network behaviour is
+identical to before this task. With it on, a resolved barcode gains attributes on `label_sku`, and any
+failure — offline, endpoint gone, malformed response — leaves the sensor exactly as it was.
+
+**Out of scope, unchanged.** Template/product catalogue sync, the shop endpoints, print statistics
+upload, account login.
 
 ---
 
