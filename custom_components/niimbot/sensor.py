@@ -523,18 +523,7 @@ class NiimbotCloudLabelInfoSensor(NiimbotSensor):
         state = self._device._cloud_lookup_state
         if not state:
             return None
-        attrs = {
-            "status": state.get("status"),
-            "barcode": state.get("barcode"),
-            "requested_at": state.get("requested_at"),
-            "source": state.get("source"),
-            "error": state.get("error"),
-            "label_name": state.get("label_name"),
-            "label_width_mm": state.get("label_width_mm"),
-            "label_height_mm": state.get("label_height_mm"),
-            "preview_url": state.get("preview_url"),
-        }
-        return {key: value for key, value in attrs.items() if value is not None}
+        return {key: value for key, value in state.items() if value is not None}
 
 
 class NiimbotRibbonRfidSensor(NiimbotSensor):

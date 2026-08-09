@@ -42,17 +42,40 @@ def _make_context(hass, *, default_font, palette):
     )
 
 
-def render_image(entity_id, service, hass):
+def render_image(entity_id, service, hass, defaults: dict | None = None):
+    """Render a label image from the print service payload.
+
+    ``defaults`` supplies width/height/rotate when the service call omits them
+    (typically from a successful cloud label lookup).
+    """
+    defaults = defaults or {}
     try:
+        width = (
+            service.data["width"]
+            if "width" in service.data
+            else defaults.get("width", 400)
+        )
+        height = (
+            service.data["height"]
+            if "height" in service.data
+            else defaults.get("height", 240)
+        )
+        rotate = (
+            service.data["rotate"]
+            if "rotate" in service.data
+            else defaults.get("rotate", 0)
+        )
         return render(
             payload=service.data.get("payload", ""),
-            width=service.data.get("width", 400),
-            height=service.data.get("height", 240),
-            rotate=service.data.get("rotate", 0),
-            rotate_mode="image",    # label printer: variable size, drawing rotates
+            width=width,
+            height=height,
+            rotate=rotate,
+            rotate_mode="image",  # label printer: variable size, drawing rotates
             background=service.data.get("background", "white"),
             dither=False,
-            context=_make_context(hass, default_font="ppb.ttf", palette=["black", "white"]),
+            context=_make_context(
+                hass, default_font="ppb.ttf", palette=["black", "white"]
+            ),
         )
     except RenderError as err:
         raise HomeAssistantError(str(err)) from err

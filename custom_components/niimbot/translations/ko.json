@@ -61,11 +61,11 @@
                 },
                 "width": {
                     "name": "너비",
-                    "description": "라벨 너비입니다."
+                    "description": "라벨 너비(픽셀). 생략 시 온라인 라벨 정보가 있으면 카탈로그 인쇄 크기를 사용합니다."
                 },
                 "height": {
                     "name": "높이",
-                    "description": "라벨 높이입니다."
+                    "description": "라벨 높이(픽셀). 생략 시 온라인 라벨 정보가 있으면 카탈로그 인쇄 크기를 사용합니다."
                 },
                 "density": {
                     "name": "농도",
@@ -73,7 +73,7 @@
                 },
                 "label_type": {
                     "name": "라벨 타입",
-                    "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 기본값: 프린터 모델의 기본 라벨 타입."
+                    "description": "라벨 타입 코드 (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). 생략 시 온라인 카탈로그 용지 타입이 있으면 그것을, 없으면 모델 기본 타입을 사용합니다."
                 },
                 "copies": {
                     "name": "매수",

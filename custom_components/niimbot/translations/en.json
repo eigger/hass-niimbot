@@ -61,11 +61,11 @@
                 },
                 "width": {
                     "name": "Width",
-                    "description": "Width of the label."
+                    "description": "Label width in pixels. When omitted and Fetch Label Info Online has resolved the loaded roll, uses the catalogue print size."
                 },
                 "height": {
                     "name": "Height",
-                    "description": "Height of the label."
+                    "description": "Label height in pixels. When omitted and Fetch Label Info Online has resolved the loaded roll, uses the catalogue print size."
                 },
                 "density": {
                     "name": "Density",
@@ -73,7 +73,7 @@
                 },
                 "label_type": {
                     "name": "Label Type",
-                    "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). Default: model's primary paper type."
+                    "description": "Label type code (1=Gap, 2=Black, 3=Continuous, 4=Perforated, 5=Transparent, 6=PvcTag, 10=BlackMarkGap, 11=HeatShrinkTube). When omitted, uses the online catalogue paper type if available, otherwise the model's primary paper type."
                 },
                 "copies": {
                     "name": "Copies",

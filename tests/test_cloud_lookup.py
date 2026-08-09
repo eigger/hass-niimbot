@@ -10,7 +10,11 @@ import asyncio
 
 import aiohttp
 
-from custom_components.niimbot.cloud import LabelCloudLookup, _pick_name
+from custom_components.niimbot.cloud import (
+    LabelCloudLookup,
+    _pick_name,
+    parse_label_data,
+)
 
 
 def run(coro):
@@ -96,7 +100,38 @@ SUCCESS_BODY = {
         ],
         "width": 50,
         "height": 30,
+        "paccuracyName": 203,
+        "paperType": 1,
+        "rotate": 0,
         "previewImage": "https://oss-print.niimbot.com/preview.png",
+        "barcode": "6972842748577",
+    },
+    "code": 1,
+}
+
+# Real B1 SKU shape: empty names[], sizes in labelNames, canvas rotated 270°.
+B1_SKU_BODY = {
+    "data": {
+        "id": 154629949,
+        "names": [],
+        "labelNames": [
+            {"languageCode": "zh-cn", "name": "T50*30-230白色"},
+            {"languageCode": "en", "name": "T50*30-230WHITE-NM"},
+            {"languageCode": "ko", "name": "T50*30-230WHITE"},
+        ],
+        "width": 30,
+        "height": 50,
+        "paccuracyName": 203,
+        "paperType": 1,
+        "consumableType": 1,
+        "rotate": 270,
+        "canvasRotate": 90,
+        "margin": [0, 0, 0, 0],
+        "previewImage": "https://oss-print.niimbot.com/preview.png",
+        "thumbnail": "https://oss-print.niimbot.com/thumb.png",
+        "backgroundImage": "https://oss-print.niimbot.com/bg.png",
+        "barcode": "6971501227941",
+        "version": "3.0.0",
     },
     "code": 1,
 }
@@ -128,6 +163,36 @@ def test_pick_name_handles_no_names_at_all():
     assert _pick_name({}) is None
 
 
+def test_pick_name_uses_label_names_when_names_empty():
+    assert _pick_name(B1_SKU_BODY["data"]) == "T50*30-230WHITE-NM"
+
+
+def test_parse_label_data_computes_pixels_and_print_size():
+    info = parse_label_data(SUCCESS_BODY["data"])
+    assert info["label_width_mm"] == 50
+    assert info["label_height_mm"] == 30
+    assert info["dpi"] == 203
+    assert info["label_width_px"] == 400
+    assert info["label_height_px"] == 240
+    assert info["print_width_px"] == 400
+    assert info["print_height_px"] == 240
+    assert info["paper_type"] == 1
+
+
+def test_parse_label_data_swaps_print_size_when_rotated():
+    info = parse_label_data(B1_SKU_BODY["data"])
+    assert info["label_name"] == "T50*30-230WHITE-NM"
+    assert info["label_width_mm"] == 30
+    assert info["label_height_mm"] == 50
+    assert info["label_width_px"] == 240
+    assert info["label_height_px"] == 400
+    # rotate 270 → print bitmap is swapped vs catalogue canvas
+    assert info["print_width_px"] == 400
+    assert info["print_height_px"] == 240
+    assert info["catalog_barcode"] == "6971501227941"
+    assert info["label_names"]["ko"] == "T50*30-230WHITE"
+
+
 def test_get_returns_none_for_empty_barcode():
     async def _test():
         lookup = LabelCloudLookup(hass=object())
@@ -148,12 +213,15 @@ def test_get_fetches_and_caches_on_success(monkeypatch):
         lookup = _lookup_with(monkeypatch, session, store)
 
         info = await lookup.get("6972842748577")
-        assert info == {
-            "label_name": "White 50x30",
-            "label_width_mm": 50,
-            "label_height_mm": 30,
-            "preview_url": "https://oss-print.niimbot.com/preview.png",
-        }
+        assert info["label_name"] == "White 50x30"
+        assert info["label_width_mm"] == 50
+        assert info["label_height_mm"] == 30
+        assert info["label_width_px"] == 400
+        assert info["label_height_px"] == 240
+        assert info["print_width_px"] == 400
+        assert info["print_height_px"] == 240
+        assert info["preview_url"] == "https://oss-print.niimbot.com/preview.png"
+        assert info["dpi"] == 203
         assert session.calls == ["6972842748577"]
         assert lookup.last_source == "network"
 

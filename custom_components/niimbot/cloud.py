@@ -6,23 +6,9 @@ human-readable name and physical size for the loaded roll. When enabled, only th
 loaded label's product barcode is sent to print.niimbot.com — no serial number, tag
 UUID, MAC address or Home Assistant instance identifier.
 
-Endpoint contract verified manually against the live API (2026-08-09), not from the
-app decompile:
-
-    POST https://print.niimbot.com/api/template/getCloudTemplateByOneCode
-    Headers: Content-Type: application/json, niimbot-user-agent: <must contain
-             "AppVersionName/<semver>"> — a non-numeric AppVersionName value
-             (e.g. "hass-niimbot") returns HTTP 500; too-low versions return 400.
-    Body:    {"oneCode": "<barcode>"}
-    Found:   200, body["data"] present with "width"/"height" (mm) and a "names" list
-             of {languageCode, languageName, name}; not every language is populated.
-    Unknown: 200, body has no "data" key at all (not a 404).
-
-The niimbot-user-agent header is a client-identification requirement, not a login.
-``Client/hass-niimbot`` identifies this integration; ``AppVersionName`` must still
-be a numeric semver the catalogue accepts. This is an undocumented endpoint and may
-change or disappear without notice; every failure mode here must degrade to "no
-extra info", never to a broken entity.
+Parsed catalogue fields feed the Cloud Label Info sensor and, when the print
+service omits width/height/label_type, supply defaults (print_*_px after applying
+the catalogue rotate so the bitmap matches the physical label orientation).
 """
 
 from __future__ import annotations
@@ -30,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import TypedDict
+from typing import Any, NotRequired, TypedDict
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -46,41 +32,138 @@ _FETCH_TIMEOUT_SECONDS = 10
 # AppVersionName must parse as a high-enough semver or the API returns 400/500.
 _CLIENT_HEADER = "AppVersionName/6.6.5 Client/hass-niimbot"
 
-# Bump when the on-disk schema or cache semantics change (e.g. v1 wrongly cached
-# HTTP 500 as a permanent negative hit).
-_STORE_VERSION = 2
+# Bump when the on-disk LabelInfo schema changes so stale partial caches re-fetch.
+_STORE_VERSION = 3
 _STORE_KEY = f"{DOMAIN}.label_cache"
-# Re-check a barcode that returned no match at most this often, in case the
-# catalogue gains an entry for it later. A confirmed match is cached forever.
 _NEGATIVE_RECHECK_SECONDS = 7 * 24 * 3600
 
 
 class LabelInfo(TypedDict):
     label_name: str | None
+    catalog_barcode: NotRequired[str | None]
     label_width_mm: float | None
     label_height_mm: float | None
+    label_width_px: NotRequired[int | None]
+    label_height_px: NotRequired[int | None]
+    print_width_px: NotRequired[int | None]
+    print_height_px: NotRequired[int | None]
+    dpi: NotRequired[int | None]
+    paper_type: NotRequired[int | None]
+    consumable_type: NotRequired[int | None]
+    rotate: NotRequired[int | None]
+    canvas_rotate: NotRequired[int | None]
+    margin: NotRequired[list[int] | None]
     preview_url: str | None
+    thumbnail_url: NotRequired[str | None]
+    background_image_url: NotRequired[str | None]
+    content_thumbnail_url: NotRequired[str | None]
+    template_id: NotRequired[int | None]
+    origin_template_id: NotRequired[int | None]
+    version: NotRequired[str | None]
+    commodity_template: NotRequired[bool | None]
+    is_cable: NotRequired[bool | None]
+    cable_direction: NotRequired[int | None]
+    cable_length: NotRequired[float | None]
+    marketing_category_id: NotRequired[int | None]
+    sticky: NotRequired[bool | None]
+    has_vip_res: NotRequired[bool | None]
+    label_names: NotRequired[dict[str, str] | None]
+
+
+def _mm_to_px(mm: Any, dpi: int | None) -> int | None:
+    if mm is None or not dpi:
+        return None
+    try:
+        return max(1, round(float(mm) / 25.4 * int(dpi)))
+    except (TypeError, ValueError):
+        return None
 
 
 def _pick_name(data: dict) -> str | None:
-    """Pick a display name from the per-language list.
+    """Pick a display name from names / labelNames / name.
 
-    Coverage varies by SKU — some entries have every language, some only Chinese.
-    Prefer English, then Korean, then the catalogue's own default name, then
-    whatever is non-empty.
+    Prefer English, then Korean, then any non-empty entry, then ``name``.
     """
-    names = data.get("names") or []
-    by_lang = {
-        entry.get("languageCode"): entry.get("name")
-        for entry in names
-        if entry.get("name")
-    }
+    by_lang: dict[str, str] = {}
+    for entry in list(data.get("names") or []) + list(data.get("labelNames") or []):
+        code = entry.get("languageCode")
+        name = entry.get("name")
+        if code and name:
+            by_lang[code] = name
     for lang in ("en", "ko"):
         if by_lang.get(lang):
             return by_lang[lang]
     if data.get("name"):
         return data["name"]
     return next(iter(by_lang.values()), None)
+
+
+def parse_label_data(data: dict) -> LabelInfo:
+    """Map a catalogue ``data`` object to LabelInfo (no network)."""
+    width_mm = data.get("width")
+    height_mm = data.get("height")
+    dpi_raw = data.get("paccuracyName")
+    try:
+        dpi = int(dpi_raw) if dpi_raw is not None else None
+    except (TypeError, ValueError):
+        dpi = None
+
+    rotate = data.get("rotate")
+    try:
+        rotate_i = int(rotate) if rotate is not None else None
+    except (TypeError, ValueError):
+        rotate_i = None
+
+    width_px = _mm_to_px(width_mm, dpi)
+    height_px = _mm_to_px(height_mm, dpi)
+    # Catalogue canvas may be rotated vs the print bitmap (e.g. 30×50 @ 270 → 400×240).
+    if rotate_i in (90, 270) and width_px is not None and height_px is not None:
+        print_width_px, print_height_px = height_px, width_px
+    else:
+        print_width_px, print_height_px = width_px, height_px
+
+    label_names: dict[str, str] = {}
+    for entry in list(data.get("names") or []) + list(data.get("labelNames") or []):
+        code = entry.get("languageCode")
+        name = entry.get("name")
+        if code and name:
+            label_names[code] = name
+
+    margin = data.get("margin")
+    if margin is not None and not isinstance(margin, list):
+        margin = None
+
+    return LabelInfo(
+        label_name=_pick_name(data),
+        catalog_barcode=data.get("barcode"),
+        label_width_mm=width_mm,
+        label_height_mm=height_mm,
+        label_width_px=width_px,
+        label_height_px=height_px,
+        print_width_px=print_width_px,
+        print_height_px=print_height_px,
+        dpi=dpi,
+        paper_type=data.get("paperType"),
+        consumable_type=data.get("consumableType"),
+        rotate=rotate_i,
+        canvas_rotate=data.get("canvasRotate"),
+        margin=margin,
+        preview_url=data.get("previewImage"),
+        thumbnail_url=data.get("thumbnail"),
+        background_image_url=data.get("backgroundImage"),
+        content_thumbnail_url=data.get("contentThumbnail"),
+        template_id=data.get("id"),
+        origin_template_id=data.get("originTemplateId"),
+        version=data.get("version"),
+        commodity_template=data.get("commodityTemplate"),
+        is_cable=data.get("isCable"),
+        cable_direction=data.get("cableDirection"),
+        cable_length=data.get("cableLength"),
+        marketing_category_id=data.get("marketingCategoryId"),
+        sticky=data.get("sticky"),
+        has_vip_res=data.get("hasVipRes"),
+        label_names=label_names or None,
+    )
 
 
 def _format_error(err: BaseException) -> str:
@@ -92,13 +175,7 @@ def _format_error(err: BaseException) -> str:
 
 
 class LabelCloudLookup:
-    """Resolves a label barcode to name/size/preview via the NIIMBOT cloud catalogue.
-
-    Matches and definitive "not found" (HTTP 200, no data) are cached to disk.
-    Transient failures (timeout, non-200, malformed body) are not cached so the
-    next poll can retry. Callers should check ``last_result_definitive`` when
-    ``get`` returns None to decide whether to suppress further lookups.
-    """
+    """Resolves a label barcode to name/size/preview via the NIIMBOT cloud catalogue."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
@@ -187,7 +264,6 @@ class LabelCloudLookup:
             )
             return None, False
         except (aiohttp.ClientError, OSError) as err:
-            # OSError covers SSLError; str(SSLError) is often empty.
             self.last_error = _format_error(err)
             _LOGGER.warning(
                 "Cloud label lookup for %s failed: %s",
@@ -216,12 +292,4 @@ class LabelCloudLookup:
             _LOGGER.debug("Cloud label lookup for %s: no match", barcode)
             return None, True
 
-        return (
-            LabelInfo(
-                label_name=_pick_name(data),
-                label_width_mm=data.get("width"),
-                label_height_mm=data.get("height"),
-                preview_url=data.get("previewImage"),
-            ),
-            True,
-        )
+        return parse_label_data(data), True
