@@ -140,6 +140,7 @@ class NiimbotDevice:
         self.print_page_print_progress: int = 0
         self.print_page_feed_progress: int = 0
         self._print_progress_started = False
+        self.heartbeat_variant: str | None = None
         super().__init__()
 
     def get_model_meta(self):
@@ -165,10 +166,15 @@ class NiimbotDevice:
 
     def _apply_heartbeat(self, heartbeat: dict) -> None:
         """Apply heartbeat data to sensors."""
+        variant = heartbeat.get("variant")
+        if variant:
+            self.heartbeat_variant = variant
+
         self.ble_data.sensors["closingstate"] = heartbeat.get("closingstate")
         self.ble_data.sensors["paperstate"] = heartbeat.get("paperstate")
         self.ble_data.sensors["rfidreadstate"] = heartbeat.get("rfidreadstate")
 
+        # Advanced2 fields are retained once set (consistent with RFID hold-last-known-value policy)
         for sensor_key, hb_key in (
             ("printhead_temperature", "temperature"),
             ("ribbonstate", "ribbonstate"),

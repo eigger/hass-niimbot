@@ -16,7 +16,6 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATTS,
     EntityCategory,
-    UnitOfTemperature,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
@@ -188,11 +187,8 @@ ADVANCED2_SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
     "printhead_temperature": SensorEntityDescription(
         key="printhead_temperature",
         translation_key="printhead_temperature",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        state_class=SensorStateClass.MEASUREMENT,
-        entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:thermometer",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     "wifi_rssi": SensorEntityDescription(
         key="wifi_rssi",
@@ -352,7 +348,10 @@ async def async_setup_entry(
                 "ribbon_remaining" in created_keys
                 or (meta is not None and not device.supports_ribbon_rfid())
             )
-            if label_done and ribbon_done:
+            adv2_done = all(
+                k in created_keys for k in ADVANCED2_SENSOR_DESCRIPTIONS
+            ) or (device.heartbeat_variant not in (None, "advanced2"))
+            if label_done and ribbon_done and adv2_done:
                 unsub()
 
         unsub = coordinator.async_add_listener(_on_coordinator_update)

@@ -63,8 +63,8 @@ if hb["rfidreadstate"]:
 field does not exist — just issue `RfidInfo` and treat a null result as "not available".
 
 The Advanced2 heartbeat reports paper and ribbon RFID success separately, which is the only way to
-tell which of the two tags failed. `heartbeat()` accepts `0xD9` and the parser reads both fields, but
-`ribbon_rfidreadstate` is not carried into an entity yet.
+tell which of the two tags failed. `heartbeat()` accepts `0xD9` and the parser reads both fields;
+`ribbon_rfidreadstate` is exposed as the Ribbon RFID binary sensor (Task T2).
 
 There is a third gate the app applies and this integration does not: RFID reading was shipped by
 firmware update, and the vendor's device database lists the firmware versions on which it does **not**

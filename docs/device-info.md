@@ -191,9 +191,8 @@ B3S_P, A8_P, S6_P, D11, Fust, D11S, B16, D110, D101, B18, H1, H1S, C1.
 
 ### Advanced2 response (`0xD9`)
 
-Parsed by `PrinterClient._parse_heartbeat_advanced2`, but only lid, paper, RFID-read and battery are
-carried into entities — temperature, ribbon state, WiFi RSSI, voltage and lighting error are computed
-and then dropped. See [app-gap-analysis.md](app-gap-analysis.md#a3-advanced2-heartbeat-fields-are-parsed-and-then-dropped).
+Parsed by `PrinterClient._parse_heartbeat_advanced2`. From Task T2, temperature, ribbon state, WiFi RSSI,
+voltage and lighting error are surfaced as diagnostic sensors and binary sensors when present.
 
 A fixed layout with optional trailing fields, minimum 9 bytes. Much richer than Advanced1 — it is the
 only variant that reports temperature and ribbon state.

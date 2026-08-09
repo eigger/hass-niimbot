@@ -118,7 +118,9 @@ async def async_setup_entry(
                     created_keys.add(description.key)
             if new_entities:
                 async_add_entities(new_entities)
-            if len(created_keys) == len(BINARY_SENSORS):
+            if len(created_keys) == len(BINARY_SENSORS) or (
+                device.heartbeat_variant not in (None, "advanced2")
+            ):
                 unsub()
 
         unsub = coordinator.async_add_listener(_on_coordinator_update)

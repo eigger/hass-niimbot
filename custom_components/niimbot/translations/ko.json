@@ -114,7 +114,7 @@
                 }
             },
             "ribbon_paper": {
-                "name": "리본 용지",
+                "name": "리본 장착",
                 "state": {
                     "on": "장착됨",
                     "off": "없음"

@@ -118,7 +118,7 @@
         }
       },
       "ribbon_paper": {
-        "name": "Ribbon Paper",
+        "name": "Ribbon Loaded",
         "state": {
           "on": "Loaded",
           "off": "Empty"
