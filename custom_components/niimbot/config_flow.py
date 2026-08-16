@@ -93,44 +93,15 @@ class Discovery:
 
 NIIMBOT_NAME_PREFIXES = (
     "A63",
-    "B1",
-    "B2",
-    "B3",
-    "B4",
-    "B11",
-    "B16",
+    "B1-",
+    "B1_",
     "B18",
-    "B203",
+    "B2-",
+    "B2_",
     "B21",
-    "B31",
-    "B32",
-    "B50",
+    "B3S",
     "D11",
-    "D101",
-    "D41",
-    "D61",
-    "DXX",
     "T2S",
-    "T6",
-    "T7",
-    "T8",
-    "H1",
-    "JC",
-    "K2",
-    "K3",
-    "K4",
-    "M2",
-    "M3",
-    "P1",
-    "P18",
-    "S1",
-    "S3",
-    "S6",
-    "A8",
-    "A20",
-    "A203",
-    "C1",
-    "ET10",
     "NIIMBOT",
 )
 
@@ -219,13 +190,11 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             if address in current_addresses or address in self._discovered_devices:
                 continue
 
-            is_nameless = not discovery_info.name or discovery_info.name == address
-            is_niimbot = (
-                is_nameless
+            matched = (
+                NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
                 or _name_looks_like_niimbot(discovery_info.name, address)
-                or NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
             )
-            if is_niimbot:
+            if matched:
                 name = _discovery_display_name(discovery_info)
                 self._discovered_devices[address] = Discovery(name, discovery_info)
 
