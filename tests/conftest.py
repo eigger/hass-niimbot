@@ -6,6 +6,18 @@ from unittest.mock import MagicMock
 # Base class mock supporting subclassing and subscripting (e.g. BaseClass[T])
 class MockBase:
     def __init__(self, *args, **kwargs):
+        pass
+
+    def __init_subclass__(cls, **kwargs):
+        pass
+
+    def __class_getitem__(cls, item):
+        return cls
+
+
+class MockConfigFlow(MockBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.context = {}
 
     def _async_current_ids(self):
@@ -25,12 +37,6 @@ class MockBase:
 
     def _abort_if_unique_id_configured(self):
         pass
-
-    def __init_subclass__(cls, **kwargs):
-        pass
-
-    def __class_getitem__(cls, item):
-        return cls
 
 
 def _make_entity_base(name: str):
@@ -85,8 +91,8 @@ ha_bt_processor.PassiveBluetoothDataProcessor = MockBase
 sys.modules["homeassistant.components.bluetooth.passive_update_processor"] = ha_bt_processor
 
 ha_config_entries = MagicMock()
-ha_config_entries.ConfigFlow = MockBase
-ha_config_entries.OptionsFlowWithReload = MockBase
+ha_config_entries.ConfigFlow = MockConfigFlow
+ha_config_entries.OptionsFlowWithReload = MockConfigFlow
 sys.modules["homeassistant.config_entries"] = ha_config_entries
 
 sys.modules["homeassistant.data_entry_flow"] = MagicMock()
@@ -203,4 +209,3 @@ except ImportError:
     vol_mock.In = lambda values: values
     vol_mock.Schema = lambda schema: schema
     sys.modules["voluptuous"] = vol_mock
-

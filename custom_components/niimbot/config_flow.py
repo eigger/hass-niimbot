@@ -91,6 +91,66 @@ class Discovery:
     discovery_info: BluetoothServiceInfo
 
 
+NIIMBOT_NAME_PREFIXES = (
+    "A63",
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B11",
+    "B16",
+    "B18",
+    "B203",
+    "B21",
+    "B31",
+    "B32",
+    "B50",
+    "D11",
+    "D101",
+    "D41",
+    "D61",
+    "DXX",
+    "T2S",
+    "T6",
+    "T7",
+    "T8",
+    "H1",
+    "JC",
+    "K2",
+    "K3",
+    "K4",
+    "M2",
+    "M3",
+    "P1",
+    "P18",
+    "S1",
+    "S3",
+    "S6",
+    "A8",
+    "A20",
+    "A203",
+    "C1",
+    "ET10",
+    "NIIMBOT",
+)
+
+
+def _name_looks_like_niimbot(name: str | None) -> bool:
+    """Check if the device name begins with a known Niimbot model prefix."""
+    if not name:
+        return False
+    upper = name.upper()
+    return any(upper.startswith(prefix) for prefix in NIIMBOT_NAME_PREFIXES)
+
+
+def _discovery_display_name(discovery_info: BluetoothServiceInfo) -> str:
+    """Return a user-friendly display name for a discovered Bluetooth device."""
+    name = discovery_info.name
+    if not name or name == discovery_info.address:
+        return f"Niimbot ({discovery_info.address})"
+    return name
+
+
 class NiimbotDeviceUpdateError(Exception):
     """Custom error class for device updates."""
 
@@ -114,11 +174,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        name = (
-            discovery_info.advertisement.local_name
-            or discovery_info.device.name
-            or f"Niimbot ({discovery_info.address})"
-        )
+        name = _discovery_display_name(discovery_info)
         self.context["title_placeholders"] = {"name": name}
         self._discovered_device = Discovery(name, discovery_info)
 
@@ -158,23 +214,32 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=discovery.name, data=user_input)
 
         current_addresses = self._async_current_ids()
-        for discovery_info in async_discovered_service_info(self.hass):
+        all_discovered = list(async_discovered_service_info(self.hass))
+
+        # First pass: look for devices matching Niimbot service UUID or known name prefixes
+        for discovery_info in all_discovered:
             address = discovery_info.address
             if address in current_addresses or address in self._discovered_devices:
                 continue
 
-            if NIIMBOT_SERVICE_UUID not in discovery_info.service_uuids:
-                continue
-
-            _LOGGER.debug("Found Niimbot device via service UUID: %s", address)
-            _LOGGER.debug("Niimbot discovery info: %s", discovery_info)
-
-            name = (
-                discovery_info.advertisement.local_name
-                or discovery_info.device.name
-                or f"Niimbot ({address})"
+            matched = (
+                NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
+                or _name_looks_like_niimbot(discovery_info.name)
             )
-            self._discovered_devices[address] = Discovery(name, discovery_info)
+            if matched:
+                _LOGGER.debug("Found Niimbot candidate: %s (%s)", discovery_info.name, address)
+                name = _discovery_display_name(discovery_info)
+                self._discovered_devices[address] = Discovery(name, discovery_info)
+
+        # Fallback: if no devices matched the Niimbot filters, list all available
+        # unconfigured BLE devices so the user can select their printer by MAC address.
+        if not self._discovered_devices:
+            for discovery_info in all_discovered:
+                address = discovery_info.address
+                if address in current_addresses or address in self._discovered_devices:
+                    continue
+                name = _discovery_display_name(discovery_info)
+                self._discovered_devices[address] = Discovery(name, discovery_info)
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
