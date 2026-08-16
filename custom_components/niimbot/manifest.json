@@ -1,37 +1,31 @@
 {
   "bluetooth": [
     {
-      "local_name": "A63-*"
+      "local_name": "A63*"
     },
     {
-      "local_name": "B1-*"
+      "local_name": "B1*"
     },
     {
-      "local_name": "B18-*"
+      "local_name": "B18*"
     },
     {
-      "local_name": "B2-*"
+      "local_name": "B2*"
     },
     {
-      "local_name": "B2_Pro-*"
+      "local_name": "B21*"
     },
     {
-      "local_name": "B2_PRO-*"
+      "local_name": "B3S*"
     },
     {
-      "local_name": "B21-*"
+      "local_name": "D11*"
     },
     {
-      "local_name": "B3S-*"
+      "local_name": "D110*"
     },
     {
-      "local_name": "D11-*"
-    },
-    {
-      "local_name": "D110-*"
-    },
-    {
-      "local_name": "T2S-*"
+      "local_name": "T2S*"
     }
   ],
   "codeowners": [

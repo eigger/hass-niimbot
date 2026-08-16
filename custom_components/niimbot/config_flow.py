@@ -35,6 +35,7 @@ from .const import (
     DEFAULT_KEEP_CONNECTION,
     DEFAULT_USE_CLOUD_LABEL_INFO,
     DOMAIN,
+    NIIMBOT_SERVICE_UUID,
 )
 
 
@@ -101,6 +102,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
+        super().__init__()
         self._discovered_device: Discovery | None = None
         self._discovered_devices: dict[str, Discovery] = {}
 
@@ -112,7 +114,11 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        name = discovery_info.advertisement.local_name
+        name = (
+            discovery_info.advertisement.local_name
+            or discovery_info.device.name
+            or f"Niimbot ({discovery_info.address})"
+        )
         self.context["title_placeholders"] = {"name": name}
         self._discovered_device = Discovery(name, discovery_info)
 
@@ -157,35 +163,17 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             if address in current_addresses or address in self._discovered_devices:
                 continue
 
-            ##
-
-            if discovery_info.advertisement.local_name is None:
+            if NIIMBOT_SERVICE_UUID not in discovery_info.service_uuids:
                 continue
-            # if not (
-            #     discovery_info.advertisement.local_name.startswith("FR:RU")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RE")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GI")
-            #     or discovery_info.advertisement.local_name.startswith("FR:H")
-            #     or discovery_info.advertisement.local_name.startswith("FR:R2")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RD")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GL")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GJ")
-            #     or discovery_info.advertisement.local_name.startswith("FR:I")
-            # ):
-            #     continue
 
-            _LOGGER.debug("Found My Device")
-            _LOGGER.debug("Niimbot0 Discovery address: %s", address)
-            _LOGGER.debug("Niimbot0 Man Data: %s", discovery_info.manufacturer_data)
-            _LOGGER.debug("Niimbot0 advertisement: %s", discovery_info.advertisement)
-            _LOGGER.debug("Niimbot0 device: %s", discovery_info.device)
-            _LOGGER.debug("Niimbot0 service data: %s", discovery_info.service_data)
-            _LOGGER.debug("Niimbot0 service uuids: %s", discovery_info.service_uuids)
-            _LOGGER.debug("Niimbot0 rssi: %s", discovery_info.rssi)
-            _LOGGER.debug(
-                "Niimbot0 advertisement: %s", discovery_info.advertisement.local_name
+            _LOGGER.debug("Found Niimbot device via service UUID: %s", address)
+            _LOGGER.debug("Niimbot discovery info: %s", discovery_info)
+
+            name = (
+                discovery_info.advertisement.local_name
+                or discovery_info.device.name
+                or f"Niimbot ({address})"
             )
-            name = discovery_info.advertisement.local_name
             self._discovered_devices[address] = Discovery(name, discovery_info)
 
         if not self._discovered_devices:
