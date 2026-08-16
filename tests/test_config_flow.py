@@ -6,7 +6,11 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
-from custom_components.niimbot.config_flow import NiimbotConfigFlow, Discovery
+from custom_components.niimbot.config_flow import (
+    NiimbotConfigFlow,
+    Discovery,
+    NIIMBOT_NAME_PREFIXES,
+)
 from custom_components.niimbot.const import (
     CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
@@ -58,6 +62,21 @@ def test_manifest_local_name_matchers_have_no_wildcard_in_first_3_chars():
             assert "*" not in prefix and "[" not in prefix, (
                 f"Invalid matcher '{local_name}': first 3 chars '{prefix}' cannot contain wildcards"
             )
+
+
+def test_name_prefixes_stay_in_sync_with_manifest():
+    """manifest.json의 local_name 매처가 전부 config_flow 프리픽스에 반영돼 있어야 한다."""
+    with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    manifest_prefixes = set()
+    for entry in manifest.get("bluetooth", []):
+        if local_name := entry.get("local_name"):
+            assert local_name.endswith("*"), f"예상치 못한 패턴 형태: {local_name}"
+            manifest_prefixes.add(local_name[:-1])
+
+    missing = manifest_prefixes - set(NIIMBOT_NAME_PREFIXES)
+    assert not missing, f"config_flow 프리픽스에 누락된 모델: {sorted(missing)}"
 
 
 def test_name_looks_like_niimbot_guards_mac_address_and_avoids_false_positives():
