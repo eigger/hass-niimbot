@@ -135,9 +135,9 @@ NIIMBOT_NAME_PREFIXES = (
 )
 
 
-def _name_looks_like_niimbot(name: str | None) -> bool:
+def _name_looks_like_niimbot(name: str | None, address: str | None = None) -> bool:
     """Check if the device name begins with a known Niimbot model prefix."""
-    if not name:
+    if not name or (address and name == address):
         return False
     upper = name.upper()
     return any(upper.startswith(prefix) for prefix in NIIMBOT_NAME_PREFIXES)
@@ -214,30 +214,18 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=discovery.name, data=user_input)
 
         current_addresses = self._async_current_ids()
-        all_discovered = list(async_discovered_service_info(self.hass))
-
-        # First pass: look for devices matching Niimbot service UUID or known name prefixes
-        for discovery_info in all_discovered:
+        for discovery_info in async_discovered_service_info(self.hass):
             address = discovery_info.address
             if address in current_addresses or address in self._discovered_devices:
                 continue
 
-            matched = (
-                NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
-                or _name_looks_like_niimbot(discovery_info.name)
+            is_nameless = not discovery_info.name or discovery_info.name == address
+            is_niimbot = (
+                is_nameless
+                or _name_looks_like_niimbot(discovery_info.name, address)
+                or NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
             )
-            if matched:
-                _LOGGER.debug("Found Niimbot candidate: %s (%s)", discovery_info.name, address)
-                name = _discovery_display_name(discovery_info)
-                self._discovered_devices[address] = Discovery(name, discovery_info)
-
-        # Fallback: if no devices matched the Niimbot filters, list all available
-        # unconfigured BLE devices so the user can select their printer by MAC address.
-        if not self._discovered_devices:
-            for discovery_info in all_discovered:
-                address = discovery_info.address
-                if address in current_addresses or address in self._discovered_devices:
-                    continue
+            if is_niimbot:
                 name = _discovery_display_name(discovery_info)
                 self._discovered_devices[address] = Discovery(name, discovery_info)
 

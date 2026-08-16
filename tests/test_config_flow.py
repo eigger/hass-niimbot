@@ -60,8 +60,26 @@ def test_manifest_local_name_matchers_have_no_wildcard_in_first_3_chars():
             )
 
 
+def test_name_looks_like_niimbot_guards_mac_address():
+    """Test that _name_looks_like_niimbot does not treat MAC addresses starting with B1/C1 as model names."""
+    from custom_components.niimbot.config_flow import _name_looks_like_niimbot
+
+    # MAC address starting with B1 / C1 should NOT match model prefix
+    assert _name_looks_like_niimbot("B1:22:33:44:55:66", "B1:22:33:44:55:66") is False
+    assert _name_looks_like_niimbot("C1:22:33:44:55:66", "C1:22:33:44:55:66") is False
+
+    # Real model names should match
+    assert _name_looks_like_niimbot("B1-123456", "AA:BB:CC:DD:EE:01") is True
+    assert _name_looks_like_niimbot("D11_BF25_BLE", "AA:BB:CC:DD:EE:02") is True
+    assert _name_looks_like_niimbot("d11-test", "AA:BB:CC:DD:EE:03") is True
+
+    # Non-Niimbot device names should not match
+    assert _name_looks_like_niimbot("[TV] Samsung", "11:22:33:44:55:66") is False
+    assert _name_looks_like_niimbot("LYWSD03MMC", "22:33:44:55:66:77") is False
+
+
 def test_async_step_user_filters_by_service_uuid_and_name():
-    """Test that async_step_user prioritises devices matching NIIMBOT_SERVICE_UUID or known prefixes."""
+    """Test that async_step_user includes Niimbot devices and nameless devices while filtering non-Niimbot named devices."""
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
@@ -81,18 +99,23 @@ def test_async_step_user_filters_by_service_uuid_and_name():
             name="B21-123456",
             service_uuids=[],
         )
+        nameless_raw_mac = _make_discovery_info(
+            "AA:BB:CC:DD:EE:04",
+            name=None,
+            service_uuids=[],
+        )
         samsung_tv = _make_discovery_info(
             "11:22:33:44:55:66",
             name="[TV] Samsung",
             service_uuids=["00001800-0000-1000-8000-00805f9b34fb"],
         )
-        random_beacon = _make_discovery_info(
-            "77:88:99:AA:BB:CC",
-            name=None,
+        xiaomi_sensor = _make_discovery_info(
+            "22:33:44:55:66:77",
+            name="LYWSD03MMC",
             service_uuids=[],
         )
 
-        discovered = [d11_clone, nameless_niimbot, b21_printer_no_uuid, samsung_tv, random_beacon]
+        discovered = [d11_clone, nameless_niimbot, b21_printer_no_uuid, nameless_raw_mac, samsung_tv, xiaomi_sensor]
 
         with patch(
             "custom_components.niimbot.config_flow.async_discovered_service_info",
@@ -103,7 +126,7 @@ def test_async_step_user_filters_by_service_uuid_and_name():
         assert result["type"] == "form"
         assert result["step_id"] == "user"
 
-        # The 3 Niimbot-matching devices should be discovered
+        # Niimbot-named devices and nameless devices must be present
         assert "AA:BB:CC:DD:EE:01" in flow._discovered_devices
         assert flow._discovered_devices["AA:BB:CC:DD:EE:01"].name == "D11_BF25_BLE"
 
@@ -113,50 +136,31 @@ def test_async_step_user_filters_by_service_uuid_and_name():
         assert "AA:BB:CC:DD:EE:03" in flow._discovered_devices
         assert flow._discovered_devices["AA:BB:CC:DD:EE:03"].name == "B21-123456"
 
-        # Non-Niimbot devices must be filtered out when candidates match
+        assert "AA:BB:CC:DD:EE:04" in flow._discovered_devices
+        assert flow._discovered_devices["AA:BB:CC:DD:EE:04"].name == "Niimbot (AA:BB:CC:DD:EE:04)"
+
+        # Named non-Niimbot devices must be filtered out
         assert "11:22:33:44:55:66" not in flow._discovered_devices
-        assert "77:88:99:AA:BB:CC" not in flow._discovered_devices
-
-    asyncio.run(_test())
-
-
-def test_async_step_user_fallback_when_no_candidates_matched():
-    """Test fallback to all unconfigured devices when no candidate matches Niimbot filters."""
-    async def _test():
-        flow = NiimbotConfigFlow()
-        flow.hass = MagicMock()
-
-        unknown_raw_device = _make_discovery_info(
-            "99:88:77:66:55:44",
-            name=None,
-            service_uuids=[],
-        )
-
-        with patch(
-            "custom_components.niimbot.config_flow.async_discovered_service_info",
-            return_value=[unknown_raw_device],
-        ), patch.object(flow, "_async_current_ids", return_value=set()):
-            result = await flow.async_step_user()
-
-        assert result["type"] == "form"
-        assert result["step_id"] == "user"
-
-        # Fallback should list the device so user can pick by MAC
-        assert "99:88:77:66:55:44" in flow._discovered_devices
-        assert flow._discovered_devices["99:88:77:66:55:44"].name == "Niimbot (99:88:77:66:55:44)"
+        assert "22:33:44:55:66:77" not in flow._discovered_devices
 
     asyncio.run(_test())
 
 
 def test_async_step_user_no_devices_found():
-    """Test abort when no BLE devices exist at all."""
+    """Test abort when all discovered devices are named non-Niimbot devices."""
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
 
+        samsung_tv = _make_discovery_info(
+            "11:22:33:44:55:66",
+            name="[TV] Samsung",
+            service_uuids=["00001800-0000-1000-8000-00805f9b34fb"],
+        )
+
         with patch(
             "custom_components.niimbot.config_flow.async_discovered_service_info",
-            return_value=[],
+            return_value=[samsung_tv],
         ), patch.object(flow, "_async_current_ids", return_value=set()):
             result = await flow.async_step_user()
 
