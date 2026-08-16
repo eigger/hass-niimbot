@@ -35,6 +35,7 @@ from .const import (
     DEFAULT_KEEP_CONNECTION,
     DEFAULT_USE_CLOUD_LABEL_INFO,
     DOMAIN,
+    NIIMBOT_SERVICE_UUID,
 )
 
 
@@ -90,6 +91,37 @@ class Discovery:
     discovery_info: BluetoothServiceInfo
 
 
+NIIMBOT_NAME_PREFIXES = (
+    "A63",
+    "B1-",
+    "B1_",
+    "B18",
+    "B2-",
+    "B2_",
+    "B21",
+    "B3S",
+    "D11",
+    "T2S",
+    "NIIMBOT",
+)
+
+
+def _name_looks_like_niimbot(name: str | None, address: str | None = None) -> bool:
+    """Check if the device name begins with a known Niimbot model prefix."""
+    if not name or (address and name == address):
+        return False
+    upper = name.upper()
+    return any(upper.startswith(prefix) for prefix in NIIMBOT_NAME_PREFIXES)
+
+
+def _discovery_display_name(discovery_info: BluetoothServiceInfo) -> str:
+    """Return a user-friendly display name for a discovered Bluetooth device."""
+    name = discovery_info.name
+    if not name or name == discovery_info.address:
+        return f"Niimbot ({discovery_info.address})"
+    return name
+
+
 class NiimbotDeviceUpdateError(Exception):
     """Custom error class for device updates."""
 
@@ -101,6 +133,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
+        super().__init__()
         self._discovered_device: Discovery | None = None
         self._discovered_devices: dict[str, Discovery] = {}
 
@@ -112,7 +145,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        name = discovery_info.advertisement.local_name
+        name = _discovery_display_name(discovery_info)
         self.context["title_placeholders"] = {"name": name}
         self._discovered_device = Discovery(name, discovery_info)
 
@@ -157,36 +190,13 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
             if address in current_addresses or address in self._discovered_devices:
                 continue
 
-            ##
-
-            if discovery_info.advertisement.local_name is None:
-                continue
-            # if not (
-            #     discovery_info.advertisement.local_name.startswith("FR:RU")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RE")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GI")
-            #     or discovery_info.advertisement.local_name.startswith("FR:H")
-            #     or discovery_info.advertisement.local_name.startswith("FR:R2")
-            #     or discovery_info.advertisement.local_name.startswith("FR:RD")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GL")
-            #     or discovery_info.advertisement.local_name.startswith("FR:GJ")
-            #     or discovery_info.advertisement.local_name.startswith("FR:I")
-            # ):
-            #     continue
-
-            _LOGGER.debug("Found My Device")
-            _LOGGER.debug("Niimbot0 Discovery address: %s", address)
-            _LOGGER.debug("Niimbot0 Man Data: %s", discovery_info.manufacturer_data)
-            _LOGGER.debug("Niimbot0 advertisement: %s", discovery_info.advertisement)
-            _LOGGER.debug("Niimbot0 device: %s", discovery_info.device)
-            _LOGGER.debug("Niimbot0 service data: %s", discovery_info.service_data)
-            _LOGGER.debug("Niimbot0 service uuids: %s", discovery_info.service_uuids)
-            _LOGGER.debug("Niimbot0 rssi: %s", discovery_info.rssi)
-            _LOGGER.debug(
-                "Niimbot0 advertisement: %s", discovery_info.advertisement.local_name
+            matched = (
+                NIIMBOT_SERVICE_UUID in discovery_info.service_uuids
+                or _name_looks_like_niimbot(discovery_info.name, address)
             )
-            name = discovery_info.advertisement.local_name
-            self._discovered_devices[address] = Discovery(name, discovery_info)
+            if matched:
+                name = _discovery_display_name(discovery_info)
+                self._discovered_devices[address] = Discovery(name, discovery_info)
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")

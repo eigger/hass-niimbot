@@ -8,8 +8,35 @@ class MockBase:
     def __init__(self, *args, **kwargs):
         pass
 
+    def __init_subclass__(cls, **kwargs):
+        pass
+
     def __class_getitem__(cls, item):
         return cls
+
+
+class MockConfigFlow(MockBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.context = {}
+
+    def _async_current_ids(self):
+        return set()
+
+    def async_show_form(self, **kwargs):
+        return {"type": "form", **kwargs}
+
+    def async_abort(self, **kwargs):
+        return {"type": "abort", **kwargs}
+
+    def async_create_entry(self, **kwargs):
+        return {"type": "create_entry", **kwargs}
+
+    async def async_set_unique_id(self, *args, **kwargs):
+        pass
+
+    def _abort_if_unique_id_configured(self):
+        pass
 
 
 def _make_entity_base(name: str):
@@ -63,10 +90,21 @@ ha_bt_processor.PassiveBluetoothProcessorCoordinator = MockBase
 ha_bt_processor.PassiveBluetoothDataProcessor = MockBase
 sys.modules["homeassistant.components.bluetooth.passive_update_processor"] = ha_bt_processor
 
-sys.modules["homeassistant.config_entries"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
+ha_config_entries = MagicMock()
+ha_config_entries.ConfigFlow = MockConfigFlow
+ha_config_entries.OptionsFlowWithReload = MockConfigFlow
+sys.modules["homeassistant.config_entries"] = ha_config_entries
+
+sys.modules["homeassistant.data_entry_flow"] = MagicMock()
+
+ha_const = MagicMock()
+ha_const.CONF_ADDRESS = "address"
+ha_const.CONF_SCAN_INTERVAL = "scan_interval"
+sys.modules["homeassistant.const"] = ha_const
+
 sys.modules["homeassistant.core"] = MagicMock()
 sys.modules["homeassistant.helpers"] = MagicMock()
+sys.modules["homeassistant.helpers.selector"] = MagicMock()
 sys.modules["homeassistant.helpers.device_registry"] = MagicMock()
 sys.modules["homeassistant.helpers.entity"] = MagicMock()
 sys.modules["homeassistant.helpers.entity_platform"] = MagicMock()
@@ -161,3 +199,13 @@ try:
     import imagespec  # noqa: F401
 except ImportError:
     sys.modules["imagespec"] = MagicMock()
+
+try:
+    import voluptuous  # noqa: F401
+except ImportError:
+    vol_mock = MagicMock()
+    vol_mock.Required = lambda key, default=None: key
+    vol_mock.Optional = lambda key, default=None: key
+    vol_mock.In = lambda values: values
+    vol_mock.Schema = lambda schema: schema
+    sys.modules["voluptuous"] = vol_mock

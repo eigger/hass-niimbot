@@ -4,6 +4,8 @@ import base64
 from .niimprint import BLEData
 from homeassistant.components.image import Image
 
+from .niimprint.printer import SERVICE_UUID as NIIMBOT_SERVICE_UUID
+
 DOMAIN = "niimbot"
 CONF_USE_SOUND = "use_sound"
 CONF_WAIT_BETWEEN_EACH_PRINT_LINE = "wait_between_each_print_line"
