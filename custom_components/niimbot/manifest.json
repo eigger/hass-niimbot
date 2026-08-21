@@ -1,6 +1,9 @@
 {
   "domain": "niimbot",
   "name": "Niimbot",
+  "after_dependencies": [
+    "recorder"
+  ],
   "bluetooth": [
     {
       "local_name": "A63*"

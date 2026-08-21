@@ -1,7 +1,6 @@
 print:
   target:
     device:
-      integration: niimbot
   fields:
     payload:
       required: true
@@ -91,4 +90,3 @@ print:
 refresh_info:
   target:
     device:
-      integration: niimbot
