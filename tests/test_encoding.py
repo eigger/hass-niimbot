@@ -1,7 +1,6 @@
 """Tests for row encoding and model capability helpers."""
 
 import asyncio
-import struct
 
 from PIL import Image
 
@@ -10,7 +9,6 @@ from custom_components.niimbot.niimprint.model import (
     get_printer_meta_by_id,
     supports_label_rfid,
 )
-from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.printer import (
     INDEXED_BLACK_PIXEL_LIMIT,
     PrinterClient,

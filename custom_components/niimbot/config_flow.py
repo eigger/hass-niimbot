@@ -13,11 +13,9 @@ from homeassistant.core import callback
 from homeassistant.config_entries import (
     ConfigFlow,
     OptionsFlowWithReload,
-    ConfigEntry,
     ConfigFlowResult,
 )
 from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
-from homeassistant.data_entry_flow import FlowResult, FlowContext
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,

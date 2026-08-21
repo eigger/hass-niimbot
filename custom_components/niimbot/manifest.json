@@ -1,4 +1,9 @@
 {
+  "domain": "niimbot",
+  "name": "Niimbot",
+  "after_dependencies": [
+    "recorder"
+  ],
   "bluetooth": [
     {
       "local_name": "A63*"
@@ -41,13 +46,11 @@
   "dependencies": [
     "bluetooth_adapters"
   ],
-  "documentation": "https://www.github.com/eigger/hass-niimbot",
-  "domain": "niimbot",
+  "documentation": "https://github.com/eigger/hass-niimbot",
   "iot_class": "local_polling",
-  "issue_tracker": "https://www.github.com/eigger/hass-niimbot/issues",
-  "name": "Niimbot",
+  "issue_tracker": "https://github.com/eigger/hass-niimbot/issues",
   "requirements": [
     "imagespec[datamatrix]==0.4.0"
   ],
-  "version": "3.1.1"
+  "version": "3.1.2"
 }

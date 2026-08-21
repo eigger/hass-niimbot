@@ -1,6 +1,6 @@
 print:
   target:
-    device:
+    entity:
       integration: niimbot
   fields:
     payload:
@@ -90,5 +90,5 @@ print:
 
 refresh_info:
   target:
-    device:
+    entity:
       integration: niimbot

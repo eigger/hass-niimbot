@@ -1,0 +1,13 @@
+# Ruff configuration.
+#
+# CI installs ruff unpinned, so without this file the effective rule set is
+# whatever the latest release happens to enable by default — a ruff upgrade can
+# turn a green branch red without any code change. Pin the selection here
+# instead: E/F are the pycodestyle+pyflakes rules this codebase was already
+# clean against (real errors: undefined names, unused imports, syntax issues).
+[lint]
+select = ["E", "F"]
+
+# Long lines are pervasive in the device catalog and log-message formatting and
+# are not worth churning; everything else in E/F stays enforced.
+ignore = ["E501"]

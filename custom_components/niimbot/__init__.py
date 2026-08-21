@@ -18,11 +18,10 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import (
-    ConfigEntryNotReady,
     HomeAssistantError,
     ServiceValidationError,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .cloud import LabelCloudLookup
 from .const import (
@@ -41,7 +40,7 @@ from .const import (
     ImageAndBLEData,
 )
 from .niimprint import BLEData, NiimbotDevice, PrinterError
-from .niimprint.model import default_label_type_code, get_supported_label_type_codes
+from .niimprint.model import get_supported_label_type_codes
 from .render import render_image
 
 PLATFORMS: list[Platform] = [

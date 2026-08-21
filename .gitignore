@@ -1,9 +1,13 @@
 .DS_Store
 .tool-versions
 .idea
-__pycache__
+__pycache__/
+*.py[cod]
 pythonenv*
 .python-version
 .coverage
+.pytest_cache/
+.ruff_cache/
+.claude/
 venv
 .venv
