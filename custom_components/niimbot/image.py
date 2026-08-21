@@ -8,7 +8,7 @@ from __future__ import annotations
 from propcache.api import cached_property
 import logging
 
-from homeassistant.components.image import ImageEntity, ImageEntityDescription, Image
+from homeassistant.components.image import ImageEntity, ImageEntityDescription
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 
-from .const import EMPTY_PNG, DOMAIN, ImageAndBLEData
+from .const import DOMAIN, ImageAndBLEData
 
 _LOGGER = logging.getLogger(__name__)
 

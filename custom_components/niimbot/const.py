@@ -1,12 +1,13 @@
 """Constants for Niimbot BLE."""
 
 import base64
-from .niimprint import BLEData
 from homeassistant.components.image import Image
 
-from .niimprint.printer import SERVICE_UUID as NIIMBOT_SERVICE_UUID
+from .niimprint import BLEData
+from .niimprint.printer import SERVICE_UUID
 
 DOMAIN = "niimbot"
+NIIMBOT_SERVICE_UUID = SERVICE_UUID
 CONF_USE_SOUND = "use_sound"
 CONF_WAIT_BETWEEN_EACH_PRINT_LINE = "wait_between_each_print_line"
 CONF_CONFIRM_EVERY_NTH_PRINT_LINE = "confirm_every_nth_print_line"
