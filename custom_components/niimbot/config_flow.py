@@ -93,9 +93,11 @@ NIIMBOT_NAME_PREFIXES = (
     "A63",
     "B1-",
     "B1_",
+    "B1 Pro",
     "B18",
     "B2-",
     "B2_",
+    "B2 Pro",
     "B21",
     "B3S",
     "D11",
@@ -109,7 +111,7 @@ def _name_looks_like_niimbot(name: str | None, address: str | None = None) -> bo
     if not name or (address and name == address):
         return False
     upper = name.upper()
-    return any(upper.startswith(prefix) for prefix in NIIMBOT_NAME_PREFIXES)
+    return any(upper.startswith(prefix.upper()) for prefix in NIIMBOT_NAME_PREFIXES)
 
 
 def _discovery_display_name(discovery_info: BluetoothServiceInfo) -> str:
