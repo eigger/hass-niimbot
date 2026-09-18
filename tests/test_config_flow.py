@@ -96,6 +96,7 @@ def test_name_looks_like_niimbot_guards_mac_address_and_avoids_false_positives()
     assert _name_looks_like_niimbot("B2_Pro-9999", "AA:BB:CC:DD:EE:05") is True
     assert _name_looks_like_niimbot("B2-0001", "AA:BB:CC:DD:EE:06") is True
     assert _name_looks_like_niimbot("B18_0001", "AA:BB:CC:DD:EE:07") is True
+    assert _name_looks_like_niimbot("N1-I525020290", "AA:BB:CC:DD:EE:13") is True
     assert _name_looks_like_niimbot("A63_0001", "AA:BB:CC:DD:EE:08") is True
     assert _name_looks_like_niimbot("T2S_0001", "AA:BB:CC:DD:EE:09") is True
     assert _name_looks_like_niimbot("B21-123456", "AA:BB:CC:DD:EE:10") is True
