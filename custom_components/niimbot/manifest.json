@@ -39,6 +39,9 @@
       "local_name": "D11*"
     },
     {
+      "local_name": "N1-*"
+    },
+    {
       "local_name": "T2S*"
     },
     {
@@ -58,5 +61,5 @@
   "requirements": [
     "imagespec[datamatrix]==0.4.0"
   ],
-  "version": "3.1.3"
+  "version": "3.1.4"
 }
