@@ -24,6 +24,7 @@ Niimbot Label Printer Home Assistant Integration
 
 ## Feedback & Support
 
+- A print failing? **[docs/troubleshooting.md](docs/troubleshooting.md)** — the failure sensors say where a session died and why.
 - Found a bug? [Open an issue](https://github.com/eigger/hass-niimbot/issues)
 - Questions or ideas? [Join the discussion](https://github.com/eigger/hass-niimbot/discussions)
 
@@ -390,49 +391,11 @@ sequence:
 
 ## Troubleshooting
 
-From **4.0.0** every BLE session (print, status poll, setting change) records where it spent its time and where it failed. Start with the diagnostic sensors before turning on debug logs.
+**[docs/troubleshooting.md](docs/troubleshooting.md)** ([한국어](docs/ko/troubleshooting.md)) — how to read the **Last Failure**, **Last Error** and **Print Duration** sensors' attributes (`failed_stage`, `likely_cause`, the radio, the per-stage timings), what each failed stage and printer error code means, and what to attach to an issue.
 
-### Where to look
-
-| Sensor | What it holds |
-|--------|---------------|
-| **Print Duration** | Attributes carry the breakdown of the last print: `success`, `via` / `via_type` / `rssi` / `paths`, per-stage timings (`connect_s`, `prepare_s`, `transfer_s`, `finish_s`), and on failure `failed_stage` + `likely_cause`. Hidden while a job is running. |
-| **Last Error** | The printer's own error code (`CoverOpen`, `LackPaper`, …) plus the same breakdown for the print that produced it. |
-| **Last Failure** | Timestamp of the last failed session of any kind, with its breakdown. A status poll that never connects is *not* recorded — the printer is usually just asleep. |
-| **Error Count** | Failed sessions since the integration was loaded. Same rule: an asleep printer during a poll does not count, a failed print or a failed `niimbot.refresh_info` does. |
-
-Both **Last Failure** and **Error Count** keep their value through later successful prints, so a printer that fails overnight is visible the next morning.
-
-### Reading `failed_stage` and `likely_cause`
-
-| `failed_stage` | Meaning | Typical fix |
-|----------------|---------|-------------|
-| `connect` | No BLE link. `likely_cause` says whether the printer is out of reach, the proxy has no free slot, or a bond is stale. | Turn the printer on, move it closer to the proxy, add a proxy if `paths` is `1` and slots are exhausted. |
-| `session` (`subscribe` / `prepare` / `info` in `failed_detail`) | Connected but the protocol did not start, or job setup (model / label type lookup) failed. | Usually transient. If it repeats, the proxy may hold a stale GATT cache — restart it. |
-| `transfer` | The link dropped while image data was being sent. | Raise `wait_between_print_lines`, lower `print_line_batch_size`, or move the printer closer. Same point every time → open an issue with the attributes. |
-| `finish` | Label printed, only the post-print status read failed. | Harmless unless the next job is refused. |
-
-`likely_cause` is one sentence in plain language. When a printer error code is involved (cover open, out of paper, low battery, wrong paper, overheated head, …) it names it directly.
-
-### Radio facts
-
-- `via` — the adapter or proxy the link actually went over; `via_type` is `proxy` or `adapter`.
-- `rssi` — signal as seen by that radio. Below about `-85` dBm transfers become unreliable.
-- `paths` — how many radios currently see the printer. `1` means no failover if that proxy is busy or drops.
-- `reused_connection: true` — **Keep Connection** was on and no reconnect was needed.
-
-### Common cases
-
-- **`niimbot.print` fails instantly with "not supported for this printer"** — the `density` or `label_type` is outside the model's range. The action validates before connecting; check `Print Density` or [docs/devices.md](docs/devices.md) for the model's range.
-- **Error Count climbs while nothing is printing** — a poll connected and then failed (not an asleep printer). Look at **Last Failure** → `failed_stage`. Repeated `session` failures usually point at the proxy.
-- **Slow prints** — see [Increasing print speed](#increasing-print-speed). Compare `transfer_s` between runs when tuning.
-- **Nothing helps** — enable debug logging and attach the log plus the **Last Failure** attributes to an issue:
-
-```yaml
-logger:
-  logs:
-    custom_components.niimbot: debug
-```
+- **`niimbot.print` fails instantly with "not supported for this printer"** — `density` or `label_type` is outside the model's range; the action validates before connecting. See [docs/devices.md](docs/devices.md).
+- **Error Count climbs while nothing is printing** — a poll connected and then failed; read Last Failure's `failed_stage`. An asleep printer does not count.
+- **Slow prints** — see [Increasing print speed](#increasing-print-speed) and compare `transfer_s` between runs.
 
 ---
 
@@ -461,6 +424,7 @@ Reverse-engineered reference for the printers' BLE protocol.
 | [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
 | [docs/rfid.md](docs/rfid.md) | Reading consumable info from label / ribbon RFID tags |
 | [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Reading the Last Failure / Print Duration attributes, what each failed stage means, what to attach to an issue ([한국어](docs/ko/troubleshooting.md)) |
 | [docs/app-gap-analysis.md](docs/app-gap-analysis.md) | What the official app does that this integration does not, and why some of it is deliberately out of scope |
 | [docs/improvement-plan.md](docs/improvement-plan.md) | Open work, with what shipped in 3.0.0 recorded for context |
 | [docs/work-plan.md](docs/work-plan.md) | Task orders for that open work — files, changes, tests, acceptance criteria |
