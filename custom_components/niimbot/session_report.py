@@ -140,6 +140,12 @@ def _printer_cause(
         )
     if where == "calibrate":
         return "Calibration did not finish. Check that paper is loaded and the cover is closed."
+    if where == "cancel":
+        return "The printer did not accept the cancel command."
+    if where == "reset":
+        return "The printer did not accept the settings reset."
+    if where == "test_page":
+        return "The printer did not print the test page."
     return None
 
 

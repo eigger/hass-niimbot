@@ -4,7 +4,7 @@ import asyncio
 
 from PIL import Image
 import pytest
-from blesession import SessionTrace, stages
+from blesession import LinkInfo, SessionTrace, stages
 
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterError, PrinterErrorCodeEnum
@@ -131,6 +131,91 @@ def test_print_failure_records_transfer_and_the_error_sensor_trace():
         assert trace.failed_primary == stages.TRANSFER
         assert "transfer_s" in {f"{name}_s" for name in trace.timings}
         assert "prepare_s" in {f"{name}_s" for name in trace.timings}
+
+    run(_test())
+
+
+def test_asleep_poll_does_not_replace_the_last_real_failure():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        device.model = "B1"
+        device.ble_data.model = "B1"
+        device.ble_data.devicetype = "4096"
+        calls: list[str] = []
+        device.callback_session = lambda operation, _trace, _exc: calls.append(operation)
+
+        printer = _Printer()
+
+        async def _print(*_args, **_kwargs):
+            raise PrinterError(PrinterErrorCodeEnum.CoverOpen)
+
+        printer.print_image = _print  # type: ignore[method-assign]
+        _patch_link(device, printer)
+        with pytest.raises(PrinterError):
+            await device.print_image(
+                _Ble(),  # type: ignore[arg-type]
+                Image.new("1", (8, 8)),
+                3,
+                0,
+                1,
+                label_type=1,
+            )
+        failed = device.last_failure_trace
+        assert device.error_count == 1
+        assert calls == ["print"]
+
+        async def _asleep(_ble):
+            trace = device._active_trace
+            assert trace is not None
+            with trace.timed(stages.CONNECT):
+                raise OSError("asleep")
+
+        device._ensure_printer = _asleep  # type: ignore[method-assign]
+        with pytest.raises(OSError):
+            await device.update_device(_Ble())  # type: ignore[arg-type]
+        assert device.error_count == 1
+        assert device.last_failure_trace is failed
+        assert calls == ["print"]
+
+    run(_test())
+
+
+def test_reused_connection_keeps_the_probed_link():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff", keep_connection=True)
+
+        class _Client:
+            is_connected = True
+
+        class _Held:
+            _heartbeat_payload = None
+
+        device.client = _Client()
+        device._printer = _Held()  # type: ignore[assignment]
+        device._link = LinkInfo(via="proxy-1")
+        device._active_trace = SessionTrace()
+        await device._ensure_printer(_Ble())  # type: ignore[arg-type]
+        assert device._active_trace.facts["reused_connection"] is True
+        assert device._active_trace.link is device._link
+
+    run(_test())
+
+
+def test_refresh_info_failure_is_attributed_to_info():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+
+        async def _load(_printer, force=False):
+            raise RuntimeError("status")
+
+        device._load_printer_info = _load  # type: ignore[method-assign]
+        _patch_link(device, _Printer())
+        with pytest.raises(RuntimeError):
+            await device.refresh_info(_Ble())  # type: ignore[arg-type]
+        trace = device.last_failure_trace
+        assert trace is not None
+        assert trace.failed_detail == "info"
+        assert device.error_count == 1
 
     run(_test())
 

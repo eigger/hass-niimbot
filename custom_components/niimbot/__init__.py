@@ -126,43 +126,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         connection_sound_seed=connection_sound_seed,
     )
 
-    def _publish_session_report() -> None:
-        """Turn the finished trace into sensor attributes, then refresh them.
+    def _publish_session_report(operation: str, trace, outcome) -> None:
+        """Freeze this session's report once, then refresh the sensors.
 
+        ``radio_facts`` reads RSSI and path count live, so rebuilding an older
+        trace on a later poll would replace that session's radio with whatever
+        the adapter sees now. Only the trace that just finished is rendered.
         Diagnostics must not mask the session's own outcome.
         """
         try:
-            if niimbot.last_print_trace is not None:
-                niimbot.last_print_report = build_session_report(
-                    hass,
-                    address,
-                    operation="print",
-                    trace=niimbot.last_print_trace,
-                    exc=niimbot.last_print_error,
-                )
-            if niimbot.last_failure_trace is not None:
-                niimbot.last_failure_report = build_session_report(
-                    hass,
-                    address,
-                    operation=niimbot.last_failure_operation or "session",
-                    trace=niimbot.last_failure_trace,
-                    exc=niimbot.last_failure_error,
-                )
-            if niimbot.last_error_trace is not None:
-                niimbot.last_error_report = build_session_report(
-                    hass,
-                    address,
-                    operation="print",
-                    trace=niimbot.last_error_trace,
-                    exc=niimbot.last_error_session_error,
-                )
+            report = build_session_report(
+                hass,
+                address,
+                operation=operation,
+                trace=trace,
+                exc=outcome,
+            )
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Building the session report failed: %s", err)
-        _LOGGER.debug(
-            "Session reports: print=%s last_failure=%s",
-            niimbot.last_print_report,
-            niimbot.last_failure_report,
-        )
+        else:
+            if operation == "print":
+                niimbot.last_print_report = report
+            if niimbot.last_failure_trace is trace:
+                niimbot.last_failure_report = report
+            if niimbot.last_error_trace is trace:
+                niimbot.last_error_report = report
+            _LOGGER.debug("Session report (%s): %s", operation, report)
         niimbot._notify_session_listeners()
 
     niimbot.callback_session = _publish_session_report
@@ -384,7 +373,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coordinator.async_set_updated_data(niimbot.ble_data)
             result["image"] = image_data
             return result
-        except (PrinterError, RuntimeError, ValueError) as e:
+        except (PrinterError, RuntimeError, ValueError, ConnectionError) as e:
             raise HomeAssistantError("Failed to print: %s" % e) from e
 
     @callback

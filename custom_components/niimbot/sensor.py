@@ -707,9 +707,9 @@ class NiimbotLastFailureSensor(
     """When a BLE session last failed, with that session's breakdown.
 
     The attributes are the same keys as Print Duration's report, kept until
-    the next failure so a later success does not erase them. A connect failure
-    on a status poll is often just the printer being asleep; ``operation`` and
-    ``likely_cause`` say which.
+    the next failure so a later success does not erase them. A status poll
+    that never connects is left out: the printer is often asleep, and counting
+    it would replace the last real failure on every scan.
     """
 
     _attr_has_entity_name = True
@@ -758,8 +758,8 @@ class NiimbotErrorCountSensor(
     """How many BLE sessions have failed since this entry was loaded.
 
     The count starts over on every reload, so it is not a long-term statistic.
-    A rising count while prints still succeed is usually the status poll finding
-    the printer asleep; Last Failure says which session it was.
+    A status poll that fails before the link is up is not counted. A print
+    failure, or a poll that connected and then failed, is.
     """
 
     _attr_has_entity_name = True

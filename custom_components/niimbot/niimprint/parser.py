@@ -11,7 +11,14 @@ from datetime import datetime, timezone
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
-from blesession import DISCONNECT_TIMEOUT_S, ConnectFailed, SessionTrace, probe_link, stages
+from blesession import (
+    DISCONNECT_TIMEOUT_S,
+    ConnectFailed,
+    LinkInfo,
+    SessionTrace,
+    probe_link,
+    stages,
+)
 
 # from logging import Logger
 from PIL import Image
@@ -62,6 +69,9 @@ STAGE_MAP = {
     "info": stages.SESSION,
     "settings": stages.SESSION,
     "calibrate": stages.SESSION,
+    "cancel": stages.SESSION,
+    "reset": stages.SESSION,
+    "test_page": stages.SESSION,
 }
 
 RFID_SENSOR_KEYS = (
@@ -163,6 +173,9 @@ class NiimbotDevice:
         # can attach that session's breakdown to the Last Error sensor.
         self._error_from_session = False
         self._active_trace: SessionTrace | None = None
+        # Radio the current keep_connection link actually took. Reused sessions
+        # copy it onto their trace; a fresh connect probes again.
+        self._link: LinkInfo | None = None
         self.last_print_trace: SessionTrace | None = None
         self.last_print_error: BaseException | None = None
         self.last_print_report: dict | None = None
@@ -175,7 +188,9 @@ class NiimbotDevice:
         self.last_failure_error: BaseException | None = None
         self.last_failure_operation: str | None = None
         self.last_failure_report: dict | None = None
-        self.callback_session: Callable[[], None] | None = None
+        self.callback_session: (
+            Callable[[str, SessionTrace, BaseException | None], None] | None
+        ) = None
         self._session_listeners: list[Callable[[], None]] = []
         self.pending_events: list[dict] = []
         self.callback_connection = None
@@ -405,6 +420,8 @@ class NiimbotDevice:
         if self.is_connected:
             if self._active_trace is not None:
                 self._active_trace.note(reused_connection=True)
+                if self._link is not None:
+                    self._active_trace.link = self._link
         else:
             trace = self._active_trace
             connect = (
@@ -427,6 +444,7 @@ class NiimbotDevice:
             if trace is not None:
                 try:
                     trace.link = probe_link(self.client, ble_device)
+                    self._link = trace.link
                 except Exception as exc:  # noqa: BLE001 — probe must not fail the job
                     _LOGGER.debug("Link probe failed: %s", exc)
             self._printer = None
@@ -479,6 +497,7 @@ class NiimbotDevice:
                     pass
             if trace is not None:
                 trace.forgive(stages.DISCONNECT)
+            self._link = None
             self._notify_connection()
 
     @contextlib.asynccontextmanager
@@ -527,7 +546,10 @@ class NiimbotDevice:
                 self._apply_error(outcome)
                 self._error_from_session = True
         notify_error = False
-        if outcome is not None:
+        recorded_failure = outcome is not None and self._counts_as_failure(
+            operation, trace
+        )
+        if recorded_failure:
             self.error_count += 1
             self.last_failure_at = datetime.now(timezone.utc)
             self.last_failure_trace = trace
@@ -538,10 +560,21 @@ class NiimbotDevice:
                 self.last_error_session_error = outcome
                 notify_error = True
         self._error_from_session = False
-        if self.callback_session:
-            self.callback_session()
+        # Skip the callback when nothing was stored. An asleep status poll
+        # would otherwise rebuild sensor state on every scan interval.
+        if self.callback_session and (operation == "print" or recorded_failure):
+            self.callback_session(operation, trace, outcome)
         if notify_error:
             self._notify_error()
+
+    def _counts_as_failure(self, operation: str, trace: SessionTrace) -> bool:
+        """Whether this failure belongs on Last Failure and Error Count.
+
+        A status poll that dies at connect is the printer being off or asleep
+        between jobs. Counting it would climb on every scan interval and push
+        the last real failure off the sensor.
+        """
+        return not (operation == "update" and trace.failed_primary == stages.CONNECT)
 
     def add_session_listener(self, listener: Callable[[], None]) -> None:
         """Register a diagnostic sensor to refresh when a session is committed."""
@@ -595,6 +628,7 @@ class NiimbotDevice:
                 await self.client.disconnect()
             except Exception:
                 pass
+            self._link = None
             self._notify_connection()
 
     async def refresh_info(self, ble_device: BLEDevice) -> BLEData:
@@ -603,7 +637,8 @@ class NiimbotDevice:
             if not self.ble_data.name:
                 self.ble_data.name = ble_device.name or "(no such device)"
             async with self._operation(ble_device, "update") as printer:
-                await self._load_printer_info(printer, force=True)
+                with self._active_trace.timed("info"):
+                    await self._load_printer_info(printer, force=True)
             return self.ble_data
 
     async def _load_printer_info(
@@ -707,19 +742,22 @@ class NiimbotDevice:
             return True
         async with self.lock:
             async with self._operation(ble_device, "cancel") as printer:
-                return await printer.cancel_print()
+                with self._active_trace.timed("cancel"):
+                    return await printer.cancel_print()
 
     async def printer_reset(self, ble_device: BLEDevice) -> bool:
         """Reset printer NVRAM settings (0x28)."""
         async with self.lock:
             async with self._operation(ble_device, "reset") as printer:
-                return await printer.printer_reset()
+                with self._active_trace.timed("reset"):
+                    return await printer.printer_reset()
 
     async def print_test_page(self, ble_device: BLEDevice) -> bool:
         """Print test page (0x5A)."""
         async with self.lock:
             async with self._operation(ble_device, "test_page") as printer:
-                return await printer.print_test_page()
+                with self._active_trace.timed("test_page"):
+                    return await printer.print_test_page()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
