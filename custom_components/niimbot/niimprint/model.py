@@ -1122,6 +1122,39 @@ def default_label_type_code(meta: PrinterModelMeta | None) -> int:
     return 1 if 1 in supported else supported[0]
 
 
+def density_range(meta: PrinterModelMeta | None) -> tuple[int, int, int]:
+    """Return ``(min, max, default)`` print density for the model.
+
+    Falls back to the common 1-5 / default 3 when the model is unknown or the
+    vendor table has no entry for it. Mirrors the defaults used by
+    ``PrinterClient.print_image``.
+    """
+    if meta is None:
+        return 1, 5, 3
+    return (
+        meta.get("densityMin", 1),
+        meta.get("densityMax", 5),
+        meta.get("densityDefault", 3),
+    )
+
+
+def resolve_density(meta: PrinterModelMeta | None, requested: int | None) -> int:
+    """Return the density to print with, or raise ValueError when out of range.
+
+    ``None`` picks the model's default so a printer whose range does not
+    include 3 (e.g. min 6) still prints without an explicit value.
+    """
+    density_min, density_max, density_default = density_range(meta)
+    if requested is None:
+        return density_default
+    if not density_min <= requested <= density_max:
+        raise ValueError(
+            f"Density {requested} is not supported for this printer "
+            f"(supported range: {density_min}-{density_max})"
+        )
+    return requested
+
+
 def supports_label_rfid(rfid: RfidClass | None) -> bool:
     return rfid in (RfidClass.LABEL, RfidClass.LABEL_RIBBON)
 

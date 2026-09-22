@@ -94,7 +94,7 @@ Connection beep is a **Connection Sound** switch entity (not an option). Auto sh
 | Sensor | Ribbon Remaining / Used / Total, Ribbon Usage, Ribbon SKU | Ribbon RFID models only |
 | Sensor | Label Type | PrinterInfo, overridden by RFID tag type when present |
 | Sensor | Print Progress / Print Duration | Live during `niimbot.print` |
-| Sensor | Last Error, Print Density, Print Speed, Protocol Version, Colour Support, Print Area | Diagnostic (some disabled by default) |
+| Sensor | Last Error, Last Failure, Error Count, Print Density, Print Speed, Protocol Version, Colour Support, Print Area | Diagnostic (some disabled by default) |
 | Binary sensor | Cover | Label bay cover — Open / Closed |
 | Binary sensor | Paper | Loaded / Empty |
 | Binary sensor | RFID | Tag readable / not readable |
@@ -139,7 +139,7 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 | `rotate` | no | `0` | `0`, `90`, `180`, or `270` |
 | `width` | no | `400` | Label width in pixels (10–1600) |
 | `height` | no | `240` | Label height in pixels (10–1600) |
-| `density` | no | `3` | Print density (model range, typically 1–5; some up to 20) |
+| `density` | no | model default (usually `3`) | Print density. Validated against the model range (typically 1–5; some up to 20) before connecting |
 | `label_type` | no | `1` | Paper type code (`1` WithGaps, `2` Black, `3` Continuous, …) |
 | `copies` | no | `1` | Number of copies in one print job |
 | `wait_between_print_lines` | no | device option | Seconds between lines (device default **10 ms**) |

@@ -91,7 +91,7 @@
                 },
                 "density": {
                     "name": "Density",
-                    "description": "Print density. Range depends on the printer model (up to 1-20). Default: 3."
+                    "description": "Print density. Range depends on the printer model (typically 1-5, some up to 20). Omit to use the model's default."
                 },
                 "label_type": {
                     "name": "Label Type",
