@@ -1,13 +1,17 @@
 """Parser for Niimbot BLE devices"""
 
 import asyncio
+import contextlib
 import dataclasses
 import logging
 import time
+from collections.abc import AsyncIterator, Callable
+from datetime import datetime, timezone
 
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import establish_connection
+from blesession import DISCONNECT_TIMEOUT_S, ConnectFailed, SessionTrace, probe_link, stages
 
 # from logging import Logger
 from PIL import Image
@@ -49,6 +53,16 @@ def _battery_percentage(
 _LOGGER = logging.getLogger(__name__)
 
 EVENT_ROLL_CHANGED = "niimbot_roll_changed"
+
+# Device stage -> blesession primary stage. ``connect``, ``transfer``,
+# ``finish`` and ``disconnect`` are already primary and need no entry.
+STAGE_MAP = {
+    "subscribe": stages.SESSION,
+    "prepare": stages.SESSION,
+    "info": stages.SESSION,
+    "settings": stages.SESSION,
+    "calibrate": stages.SESSION,
+}
 
 RFID_SENSOR_KEYS = (
     "labels_remaining",
@@ -145,6 +159,24 @@ class NiimbotDevice:
         self._info_loaded = False
         self.last_error: str | None = None
         self.last_error_time: float | None = None
+        # Set when _record_error runs inside a traced session, so the commit
+        # can attach that session's breakdown to the Last Error sensor.
+        self._error_from_session = False
+        self._active_trace: SessionTrace | None = None
+        self.last_print_trace: SessionTrace | None = None
+        self.last_print_error: BaseException | None = None
+        self.last_print_report: dict | None = None
+        self.last_error_trace: SessionTrace | None = None
+        self.last_error_session_error: BaseException | None = None
+        self.last_error_report: dict | None = None
+        self.error_count = 0
+        self.last_failure_at: datetime | None = None
+        self.last_failure_trace: SessionTrace | None = None
+        self.last_failure_error: BaseException | None = None
+        self.last_failure_operation: str | None = None
+        self.last_failure_report: dict | None = None
+        self.callback_session: Callable[[], None] | None = None
+        self._session_listeners: list[Callable[[], None]] = []
         self.pending_events: list[dict] = []
         self.callback_connection = None
         self.callback_printing = None
@@ -336,14 +368,21 @@ class NiimbotDevice:
         if self.callback_error:
             self.callback_error()
 
-    def _record_error(self, err: Exception) -> None:
+    def _apply_error(self, err: BaseException) -> None:
         if isinstance(err, PrinterError):
             self.last_error = err.code().name
         else:
             self.last_error = type(err).__name__
         self.last_error_time = time.time()
         self.ble_data.sensors["last_error"] = self.last_error
-        self._notify_error()
+
+    def _record_error(self, err: Exception) -> None:
+        self._apply_error(err)
+        # Inside a session the trace is not finished yet; commit notifies
+        # once the breakdown is stored.
+        self._error_from_session = self._active_trace is not None
+        if not self._error_from_session:
+            self._notify_error()
 
     def _handle_print_progress(self, status: dict) -> None:
         progress = float(status.get("progress") or 0)
@@ -363,15 +402,33 @@ class NiimbotDevice:
 
     async def _ensure_printer(self, ble_device: BLEDevice) -> PrinterClient:
         """Connect and return a PrinterClient, reusing it when keep_connection is on."""
-        if not self.is_connected:
-            self.client = await establish_connection(
-                BleakClient,
-                ble_device,
-                ble_device.address,
-                use_services_cache=False,
+        if self.is_connected:
+            if self._active_trace is not None:
+                self._active_trace.note(reused_connection=True)
+        else:
+            trace = self._active_trace
+            connect = (
+                trace.timed(stages.CONNECT) if trace is not None else contextlib.nullcontext()
             )
-            if not self.client.is_connected:
-                raise RuntimeError("could not connect to thermal printer")
+            with connect:
+                try:
+                    self.client = await establish_connection(
+                        BleakClient,
+                        ble_device,
+                        ble_device.address,
+                        use_services_cache=False,
+                    )
+                except ConnectFailed:
+                    raise
+                except Exception as exc:
+                    raise ConnectFailed(str(exc) or type(exc).__name__) from exc
+                if not self.client.is_connected:
+                    raise ConnectFailed("could not connect to thermal printer")
+            if trace is not None:
+                try:
+                    trace.link = probe_link(self.client, ble_device)
+                except Exception as exc:  # noqa: BLE001 — probe must not fail the job
+                    _LOGGER.debug("Link probe failed: %s", exc)
             self._printer = None
             self._notify_connection()
 
@@ -379,10 +436,18 @@ class NiimbotDevice:
             self._printer = PrinterClient(
                 self.client, heartbeat_payload=self._heartbeat_payload
             )
-            await self._printer.start_notify()
+            await self._timed("subscribe", self._printer.start_notify())
         else:
             self._printer._heartbeat_payload = self._heartbeat_payload
         return self._printer
+
+    async def _timed(self, stage: str, awaitable):
+        """Await ``awaitable`` inside ``stage`` when a session trace is active."""
+        trace = self._active_trace
+        if trace is None:
+            return await awaitable
+        with trace.timed(stage):
+            return await awaitable
 
     async def _release_printer(self) -> None:
         """Stop notify / disconnect unless keep_connection holds the session open."""
@@ -400,11 +465,98 @@ class NiimbotDevice:
             self._printer = None
 
         if self.client is not None:
-            try:
-                await self.client.disconnect()
-            except Exception:
-                pass
+            trace = self._active_trace
+            disconnect = (
+                trace.timed(stages.DISCONNECT)
+                if trace is not None
+                else contextlib.nullcontext()
+            )
+            with disconnect:
+                try:
+                    async with asyncio.timeout(DISCONNECT_TIMEOUT_S):
+                        await self.client.disconnect()
+                except Exception:
+                    pass
+            if trace is not None:
+                trace.forgive(stages.DISCONNECT)
             self._notify_connection()
+
+    @contextlib.asynccontextmanager
+    async def _operation(
+        self, ble_device: BLEDevice, operation: str
+    ) -> AsyncIterator[PrinterClient]:
+        """One BLE operation: connect, the protocol, disconnect, then the report.
+
+        Callers already hold ``self.lock``. The trace is committed before this
+        returns so a state write in the caller's ``finally`` sees it.
+        """
+        trace = SessionTrace(stage_map=STAGE_MAP)
+        self._active_trace = trace
+        outcome: BaseException | None = None
+        try:
+            printer = await self._ensure_printer(ble_device)
+            try:
+                with trace.timed(stages.SESSION):
+                    yield printer
+            except BaseException as exc:
+                outcome = exc
+                raise
+        except BaseException as exc:
+            if outcome is None:
+                outcome = exc
+            raise
+        finally:
+            try:
+                await self._release_printer()
+            finally:
+                self._active_trace = None
+                self._commit_session(operation, trace, outcome)
+
+    def _commit_session(
+        self, operation: str, trace: SessionTrace, outcome: BaseException | None
+    ) -> None:
+        """Store the finished trace for the diagnostic sensors."""
+        if isinstance(outcome, asyncio.CancelledError):
+            self._error_from_session = False
+            return
+        if operation == "print":
+            self.last_print_trace = trace
+            self.last_print_error = outcome
+            # Connect failures raise before the print body can record them.
+            if outcome is not None and not self._error_from_session:
+                self._apply_error(outcome)
+                self._error_from_session = True
+        notify_error = False
+        if outcome is not None:
+            self.error_count += 1
+            self.last_failure_at = datetime.now(timezone.utc)
+            self.last_failure_trace = trace
+            self.last_failure_error = outcome
+            self.last_failure_operation = operation
+            if self._error_from_session:
+                self.last_error_trace = trace
+                self.last_error_session_error = outcome
+                notify_error = True
+        self._error_from_session = False
+        if self.callback_session:
+            self.callback_session()
+        if notify_error:
+            self._notify_error()
+
+    def add_session_listener(self, listener: Callable[[], None]) -> None:
+        """Register a diagnostic sensor to refresh when a session is committed."""
+        self._session_listeners.append(listener)
+
+    def remove_session_listener(self, listener: Callable[[], None]) -> None:
+        """Unregister a session listener."""
+        try:
+            self._session_listeners.remove(listener)
+        except ValueError:
+            return
+
+    def _notify_session_listeners(self) -> None:
+        for listener in list(self._session_listeners):
+            listener()
 
     @property
     def is_connected(self) -> bool:
@@ -450,11 +602,8 @@ class NiimbotDevice:
         async with self.lock:
             if not self.ble_data.name:
                 self.ble_data.name = ble_device.name or "(no such device)"
-            printer = await self._ensure_printer(ble_device)
-            try:
+            async with self._operation(ble_device, "update") as printer:
                 await self._load_printer_info(printer, force=True)
-            finally:
-                await self._release_printer()
             return self.ble_data
 
     async def _load_printer_info(
@@ -507,16 +656,14 @@ class NiimbotDevice:
     async def set_auto_shutdown(self, ble_device: BLEDevice, index: int) -> BLEData:
         """Write AutoShutdownTime and update the local cache."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
-                ok = await printer.set_auto_shutdown_time(index)
-                if not ok:
-                    raise RuntimeError(
-                        f"Printer rejected auto shutdown index {index}"
-                    )
-                self.ble_data.autoshutdowntime = int(index)
-            finally:
-                await self._release_printer()
+            async with self._operation(ble_device, "settings") as printer:
+                with self._active_trace.timed("settings"):
+                    ok = await printer.set_auto_shutdown_time(index)
+                    if not ok:
+                        raise RuntimeError(
+                            f"Printer rejected auto shutdown index {index}"
+                        )
+                    self.ble_data.autoshutdowntime = int(index)
             return self.ble_data
 
     async def set_connection_sound(
@@ -524,40 +671,34 @@ class NiimbotDevice:
     ) -> BLEData:
         """Write Bluetooth connection beep and update the local cache."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
-                ok = await printer.set_sound(
-                    SoundEnum.BluetoothConnectionSound, on
-                )
-                if not ok:
-                    raise RuntimeError("Printer rejected connection sound setting")
-                self._apply_connection_sound(on)
-            finally:
-                await self._release_printer()
+            async with self._operation(ble_device, "settings") as printer:
+                with self._active_trace.timed("settings"):
+                    ok = await printer.set_sound(
+                        SoundEnum.BluetoothConnectionSound, on
+                    )
+                    if not ok:
+                        raise RuntimeError("Printer rejected connection sound setting")
+                    self._apply_connection_sound(on)
             return self.ble_data
 
     async def calibrate_label_position(self, ble_device: BLEDevice) -> bool:
         """Calibrate paper gap/mark sensors (0x8E), after setting label type."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
-                label_type = self.ble_data.labeltype
-                if label_type is None:
-                    label_type = default_label_type_code(self.get_model_meta())
-                if not await printer.set_label_type(int(label_type)):
-                    return False
-                return await printer.calibrate_label_position()
-            finally:
-                await self._release_printer()
+            async with self._operation(ble_device, "calibrate") as printer:
+                with self._active_trace.timed("calibrate"):
+                    label_type = self.ble_data.labeltype
+                    if label_type is None:
+                        label_type = default_label_type_code(self.get_model_meta())
+                    if not await printer.set_label_type(int(label_type)):
+                        return False
+                    return await printer.calibrate_label_position()
 
     async def calibrate_height(self, ble_device: BLEDevice) -> bool:
         """Calibrate roll feed height (0x59)."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
-                return await printer.calibrate_height()
-            finally:
-                await self._release_printer()
+            async with self._operation(ble_device, "calibrate") as printer:
+                with self._active_trace.timed("calibrate"):
+                    return await printer.calibrate_height()
 
     async def cancel_print(self, ble_device: BLEDevice) -> bool:
         """Cancel print job (0xDA). Signal in-flight job if running, or send command directly."""
@@ -565,29 +706,20 @@ class NiimbotDevice:
             self._printer.cancel_requested = True
             return True
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
+            async with self._operation(ble_device, "cancel") as printer:
                 return await printer.cancel_print()
-            finally:
-                await self._release_printer()
 
     async def printer_reset(self, ble_device: BLEDevice) -> bool:
         """Reset printer NVRAM settings (0x28)."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
+            async with self._operation(ble_device, "reset") as printer:
                 return await printer.printer_reset()
-            finally:
-                await self._release_printer()
 
     async def print_test_page(self, ble_device: BLEDevice) -> bool:
         """Print test page (0x5A)."""
         async with self.lock:
-            printer = await self._ensure_printer(ble_device)
-            try:
+            async with self._operation(ble_device, "test_page") as printer:
                 return await printer.print_test_page()
-            finally:
-                await self._release_printer()
 
     async def update_device(self, ble_device: BLEDevice) -> BLEData:
         """Connects to the device through BLE and retrieves relevant data"""
@@ -598,72 +730,75 @@ class NiimbotDevice:
                 self.ble_data.address = ble_device.address
 
             try:
-                printer = await self._ensure_printer(ble_device)
-                if not self.ble_data.serial_number:
-                    self.ble_data.serial_number = str(
-                        await printer.get_info(InfoEnum.DEVICESERIAL)
-                    )
-                if not self.ble_data.hw_version:
-                    self.ble_data.hw_version = str(
-                        await printer.get_info(InfoEnum.HARDVERSION)
-                    )
-                if not self.ble_data.sw_version:
-                    self.ble_data.sw_version = str(
-                        await printer.get_info(InfoEnum.SOFTVERSION)
-                    )
-                if not self.ble_data.devicetype:
-                    device_type = await printer.get_info(InfoEnum.DEVICETYPE)
-                    if device_type is not None:
-                        self.ble_data.devicetype = device_type
-                        meta = get_printer_meta_by_id(int(device_type))
-                        self.ble_data.model = (
-                            meta["model"].name if meta else str(device_type)
-                        )
-                        self.model = self.ble_data.model
-
-                await self._load_printer_info(printer)
-
-                sound = await printer.get_sound(SoundEnum.BluetoothConnectionSound)
-                if sound is not None:
-                    self._apply_connection_sound(sound)
-                else:
-                    self.ble_data.sensors["connection_sound"] = self.connection_sound
-
-                heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
-                if printer.heartbeat_payload is not None:
-                    self._heartbeat_payload = printer.heartbeat_payload
-                self._apply_heartbeat(heartbeat)
-                _LOGGER.debug(
-                    "Heartbeat raw: closingstate=%s paperstate=%s "
-                    "rfidreadstate=%s powerlevel=%s variant=%s",
-                    heartbeat.get("closingstate"),
-                    heartbeat.get("paperstate"),
-                    heartbeat.get("rfidreadstate"),
-                    heartbeat.get("powerlevel"),
-                    heartbeat.get("variant"),
-                )
-                battery = _battery_percentage(
-                    heartbeat["powerlevel"],
-                    self.ble_data.model,
-                    variant=heartbeat.get("variant"),
-                )
-                # Prefer live heartbeat; fall back to cached PrinterInfo key 10.
-                if battery is None and self._info_battery_bucket is not None:
-                    battery = round(float(self._info_battery_bucket) * 25.0)
-                self.ble_data.sensors["battery"] = battery
-                if self._info_battery_bucket is not None:
-                    self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
-
-                await self._maybe_read_rfid(printer, heartbeat)
-                await self._maybe_read_ribbon_rfid(printer)
+                async with self._operation(ble_device, "update") as printer:
+                    with self._active_trace.timed("info"):
+                        await self._read_device_state(printer)
             except PrinterTimeout as err:
                 _LOGGER.warning("Printer timed out during update: %s", err)
                 raise
-            finally:
-                await self._release_printer()
 
             _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
             return self.ble_data
+
+    async def _read_device_state(self, printer: PrinterClient) -> None:
+        """Read identity, settings, heartbeat and RFID while a session is open."""
+        if not self.ble_data.serial_number:
+            self.ble_data.serial_number = str(
+                await printer.get_info(InfoEnum.DEVICESERIAL)
+            )
+        if not self.ble_data.hw_version:
+            self.ble_data.hw_version = str(
+                await printer.get_info(InfoEnum.HARDVERSION)
+            )
+        if not self.ble_data.sw_version:
+            self.ble_data.sw_version = str(
+                await printer.get_info(InfoEnum.SOFTVERSION)
+            )
+        if not self.ble_data.devicetype:
+            device_type = await printer.get_info(InfoEnum.DEVICETYPE)
+            if device_type is not None:
+                self.ble_data.devicetype = device_type
+                meta = get_printer_meta_by_id(int(device_type))
+                self.ble_data.model = (
+                    meta["model"].name if meta else str(device_type)
+                )
+                self.model = self.ble_data.model
+
+        await self._load_printer_info(printer)
+
+        sound = await printer.get_sound(SoundEnum.BluetoothConnectionSound)
+        if sound is not None:
+            self._apply_connection_sound(sound)
+        else:
+            self.ble_data.sensors["connection_sound"] = self.connection_sound
+
+        heartbeat = await printer.heartbeat(model_id=self.ble_data.devicetype)
+        if printer.heartbeat_payload is not None:
+            self._heartbeat_payload = printer.heartbeat_payload
+        self._apply_heartbeat(heartbeat)
+        _LOGGER.debug(
+            "Heartbeat raw: closingstate=%s paperstate=%s "
+            "rfidreadstate=%s powerlevel=%s variant=%s",
+            heartbeat.get("closingstate"),
+            heartbeat.get("paperstate"),
+            heartbeat.get("rfidreadstate"),
+            heartbeat.get("powerlevel"),
+            heartbeat.get("variant"),
+        )
+        battery = _battery_percentage(
+            heartbeat["powerlevel"],
+            self.ble_data.model,
+            variant=heartbeat.get("variant"),
+        )
+        # Prefer live heartbeat; fall back to cached PrinterInfo key 10.
+        if battery is None and self._info_battery_bucket is not None:
+            battery = round(float(self._info_battery_bucket) * 25.0)
+        self.ble_data.sensors["battery"] = battery
+        if self._info_battery_bucket is not None:
+            self.ble_data.sensors["battery_bucket"] = self._info_battery_bucket
+
+        await self._maybe_read_rfid(printer, heartbeat)
+        await self._maybe_read_ribbon_rfid(printer)
 
     def _check_rfid_firmware_support(self) -> bool:
         """Check if RFID reading is supported on this firmware version, logging once per connection."""
@@ -761,6 +896,10 @@ class NiimbotDevice:
             await self._maybe_read_ribbon_rfid(printer)
         except Exception as err:
             _LOGGER.debug("Post-print status refresh failed: %s", err)
+            if self._active_trace is not None:
+                self._active_trace.note(
+                    refresh_error=str(err) or type(err).__name__
+                )
 
     async def print_image(
         self,
@@ -780,80 +919,94 @@ class NiimbotDevice:
             self._notify_printing()
 
             try:
-                printer = await self._ensure_printer(ble_device)
-                printer.on_progress = self._handle_print_progress
+                async with self._operation(ble_device, "print") as printer:
+                    printer.on_progress = self._handle_print_progress
+                    trace = self._active_trace
+                    assert trace is not None
+                    trace.note(copies=copies, density=density)
+                    try:
+                        with trace.timed("prepare"):
+                            if not self.model:
+                                device_type = await printer.get_info(InfoEnum.DEVICETYPE)
+                                if device_type is not None:
+                                    meta = get_printer_meta_by_id(int(device_type))
+                                    self.model = (
+                                        meta["model"].name if meta else str(device_type)
+                                    )
+                                    self.ble_data.model = self.model
+                                    self.ble_data.devicetype = device_type
+                                    _LOGGER.debug(
+                                        "Resolved model during print: %s", self.model
+                                    )
 
-                if not self.model:
-                    device_type = await printer.get_info(InfoEnum.DEVICETYPE)
-                    if device_type is not None:
-                        meta = get_printer_meta_by_id(int(device_type))
-                        self.model = meta["model"].name if meta else str(device_type)
-                        self.ble_data.model = self.model
-                        self.ble_data.devicetype = device_type
-                        _LOGGER.debug("Resolved model during print: %s", self.model)
+                            meta = self.get_model_meta()
+                            # Fallback validation for callers that bypass the service
+                            # handler. The primary path is printservice, before BLE.
+                            supported_types = get_supported_label_type_codes(meta)
+                            if label_type is None:
+                                label_type = default_label_type_code(meta)
+                            elif label_type not in supported_types:
+                                raise ValueError(
+                                    f"Label type {label_type} is not supported for printer "
+                                    f"model {self.model} "
+                                    f"(supported label types: {supported_types})"
+                                )
+                            if (
+                                meta
+                                and meta.get("printheadPixelsEstimated")
+                                and self.model not in self._warned_estimated_models
+                            ):
+                                self._warned_estimated_models.add(self.model)
+                                _LOGGER.warning(
+                                    "Printer model %s (%s) uses an estimated "
+                                    "printheadPixels value (%d px). "
+                                    "Please report whether output alignment and "
+                                    "scaling are correct.",
+                                    self.model,
+                                    self.ble_data.devicetype,
+                                    meta["printheadPixels"],
+                                )
 
-                meta = self.get_model_meta()
-                # Fallback validation for callers that bypass the service handler (e.g. tests
-                # that drive PrinterClient or NiimbotDevice directly).  The primary validation
-                # path lives in __init__.printservice and runs before BLE is touched.
-                supported_types = get_supported_label_type_codes(meta)
-                if label_type is None:
-                    label_type = default_label_type_code(meta)
-                elif label_type not in supported_types:
-                    raise ValueError(
-                        f"Label type {label_type} is not supported for printer model {self.model} "
-                        f"(supported label types: {supported_types})"
-                    )
-                if (
-                    meta
-                    and meta.get("printheadPixelsEstimated")
-                    and self.model not in self._warned_estimated_models
-                ):
-                    self._warned_estimated_models.add(self.model)
-                    _LOGGER.warning(
-                        "Printer model %s (%s) uses an estimated printheadPixels value (%d px). "
-                        "Please report whether output alignment and scaling are correct.",
-                        self.model,
-                        self.ble_data.devicetype,
-                        meta["printheadPixels"],
-                    )
-
-                try:
-                    printer_model = PrinterModel(self.model)
-                except (ValueError, TypeError):
-                    printer_model = PrinterModel.UNKNOWN
-                    _LOGGER.warning(
-                        "Unknown printer model %r, falling back to UNKNOWN", self.model
-                    )
-
-                result = await printer.print_image(
-                    printer_model,
-                    image,
-                    density,
-                    wait_between_print_lines,
-                    print_line_batch_size,
-                    label_type=label_type,
-                    copies=copies,
-                )
-            except Exception as err:
-                self._record_error(err)
-                raise
-            else:
-                if isinstance(result, dict) and result.get("status") == "cancelled":
-                    _LOGGER.info("Print job was cancelled; skipping 100%% progress mark")
-                    return {
-                        "status": "cancelled",
-                        "duration": self.print_duration,
-                        "copies": copies,
-                    }
-                # Only mark 100% on a clean finish; leave the last reported
-                # value (and last_error) alone when the job failed.
-                if self.print_progress < 100:
-                    self.print_progress = 100.0
-                    self.ble_data.sensors["print_progress"] = 100.0
-                # Printer writes used_len back to the RFID tag during the job;
-                # re-read before disconnecting so remaining/usage sensors update.
-                await self._refresh_after_print(printer)
+                            try:
+                                printer_model = PrinterModel(self.model)
+                            except (ValueError, TypeError):
+                                printer_model = PrinterModel.UNKNOWN
+                                _LOGGER.warning(
+                                    "Unknown printer model %r, falling back to UNKNOWN",
+                                    self.model,
+                                )
+                        with trace.timed(stages.TRANSFER):
+                            result = await printer.print_image(
+                                printer_model,
+                                image,
+                                density,
+                                wait_between_print_lines,
+                                print_line_batch_size,
+                                label_type=label_type,
+                                copies=copies,
+                            )
+                    except Exception as err:
+                        self._record_error(err)
+                        raise
+                    if isinstance(result, dict) and result.get("status") == "cancelled":
+                        trace.note(cancelled=True)
+                        _LOGGER.info(
+                            "Print job was cancelled; skipping 100%% progress mark"
+                        )
+                        return {
+                            "status": "cancelled",
+                            "duration": self.print_duration,
+                            "copies": copies,
+                        }
+                    # Only mark 100% on a clean finish; leave the last reported
+                    # value (and last_error) alone when the job failed.
+                    if self.print_progress < 100:
+                        self.print_progress = 100.0
+                        self.ble_data.sensors["print_progress"] = 100.0
+                    # Printer writes used_len back to the RFID tag during the job;
+                    # re-read before disconnecting so remaining/usage sensors update.
+                    with trace.timed(stages.FINISH):
+                        await self._refresh_after_print(printer)
             finally:
                 if self._printer is not None:
                     self._printer.on_progress = None
@@ -861,7 +1014,6 @@ class NiimbotDevice:
                 self._is_printing = False
                 self._notify_printing()
                 self._notify_progress()
-                await self._release_printer()
 
         return {
             "status": "ok",

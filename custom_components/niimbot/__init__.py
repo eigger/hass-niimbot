@@ -42,6 +42,7 @@ from .const import (
 from .niimprint import BLEData, NiimbotDevice, PrinterError
 from .niimprint.model import get_supported_label_type_codes
 from .render import render_image
+from .session_report import build_session_report
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -124,6 +125,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         keep_connection=keep_connection,
         connection_sound_seed=connection_sound_seed,
     )
+
+    def _publish_session_report() -> None:
+        """Turn the finished trace into sensor attributes, then refresh them.
+
+        Diagnostics must not mask the session's own outcome.
+        """
+        try:
+            if niimbot.last_print_trace is not None:
+                niimbot.last_print_report = build_session_report(
+                    hass,
+                    address,
+                    operation="print",
+                    trace=niimbot.last_print_trace,
+                    exc=niimbot.last_print_error,
+                )
+            if niimbot.last_failure_trace is not None:
+                niimbot.last_failure_report = build_session_report(
+                    hass,
+                    address,
+                    operation=niimbot.last_failure_operation or "session",
+                    trace=niimbot.last_failure_trace,
+                    exc=niimbot.last_failure_error,
+                )
+            if niimbot.last_error_trace is not None:
+                niimbot.last_error_report = build_session_report(
+                    hass,
+                    address,
+                    operation="print",
+                    trace=niimbot.last_error_trace,
+                    exc=niimbot.last_error_session_error,
+                )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Building the session report failed: %s", err)
+        _LOGGER.debug(
+            "Session reports: print=%s last_failure=%s",
+            niimbot.last_print_report,
+            niimbot.last_failure_report,
+        )
+        niimbot._notify_session_listeners()
+
+    niimbot.callback_session = _publish_session_report
 
     async def _refresh_cloud_label_info(barcode: str) -> None:
         """Resolve a label barcode via the cloud catalogue and push the result.

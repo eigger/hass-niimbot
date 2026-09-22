@@ -242,6 +242,12 @@
             },
             "print_progress": {
                 "name": "Print Progress"
+            },
+            "last_failure": {
+                "name": "Last Failure"
+            },
+            "error_count": {
+                "name": "Error Count"
             }
         },
         "select": {
