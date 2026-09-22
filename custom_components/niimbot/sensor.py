@@ -274,6 +274,8 @@ async def async_setup_entry(
 
     entities.append(NiimbotPrintDurationSensor(coordinator, coordinator.data, device))
     entities.append(NiimbotPrintProgressSensor(coordinator, coordinator.data, device))
+    entities.append(NiimbotLastFailureSensor(coordinator, coordinator.data, device))
+    entities.append(NiimbotErrorCountSensor(coordinator, coordinator.data, device))
 
     def _add_rfid_entities() -> list[SensorEntity]:
         added: list[SensorEntity] = []
@@ -467,9 +469,18 @@ class NiimbotLastErrorSensor(NiimbotSensor):
 
     @property
     def extra_state_attributes(self) -> dict | None:
-        if self._device.last_error_time is None:
-            return None
-        return {"timestamp": self._device.last_error_time}
+        """Printer error code plus the BLE session that produced it.
+
+        The session breakdown (failed stage, radio, per-stage timings,
+        likely_cause) is kept until the next print error, so a later status
+        poll does not replace it.
+        """
+        attrs: dict = {}
+        if self._device.last_error_time is not None:
+            attrs["timestamp"] = self._device.last_error_time
+        if self._device.last_error_report:
+            attrs.update(self._device.last_error_report)
+        return attrs or None
 
 
 class NiimbotRfidSensor(NiimbotSensor):
@@ -622,14 +633,22 @@ class NiimbotPrintDurationSensor(
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Return extra state attributes."""
+        """Elapsed time, plus the last print's BLE session breakdown.
+
+        The breakdown (outcome, radio, per-stage timings such as connect_s /
+        transfer_s / finish_s, and likely_cause on failure) is omitted while a
+        job is running so the ticking state is not paired with the previous job.
+        """
         duration = self._device.print_duration
         minutes = int(duration // 60)
         seconds = int(duration % 60)
-        return {
+        attrs: dict = {
             "formatted": f"{minutes:02d}:{seconds:01d}",
             "is_printing": self._device.is_printing,
         }
+        if not self._device.is_printing and self._device.last_print_report:
+            attrs.update(self._device.last_print_report)
+        return attrs
 
 
 class NiimbotPrintProgressSensor(
@@ -680,3 +699,98 @@ class NiimbotPrintProgressSensor(
             "page_feed_progress": self._device.print_page_feed_progress,
             "is_printing": self._device.is_printing,
         }
+
+
+class NiimbotLastFailureSensor(
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+):
+    """When a BLE session last failed, with that session's breakdown.
+
+    The attributes are the same keys as Print Duration's report, kept until
+    the next failure so a later success does not erase them. A status poll
+    that never connects is left out: the printer is often asleep, and counting
+    it would replace the last real failure on every scan.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_failure"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-alert-outline"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator)
+        self._device = device
+        name = f"{ble_data.name} {ble_data.identifier}"
+        self._attr_unique_id = f"{name}_last_failure"
+        self._attr_device_info = _device_info(ble_data)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._device.add_session_listener(self._handle_session_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
+        self._device.remove_session_listener(self._handle_session_update)
+
+    @callback
+    def _handle_session_update(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self):
+        return self._device.last_failure_at
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        """The breakdown of the session that failed at this time."""
+        return self._device.last_failure_report
+
+
+class NiimbotErrorCountSensor(
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+):
+    """How many BLE sessions have failed since this entry was loaded.
+
+    The count starts over on every reload, so it is not a long-term statistic.
+    A status poll that fails before the link is up is not counted. A print
+    failure, or a poll that connected and then failed, is.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "error_count"
+    _attr_icon = "mdi:alert-circle-outline"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[BLEData],
+        ble_data: BLEData,
+        device: NiimbotDevice,
+    ) -> None:
+        super().__init__(coordinator)
+        self._device = device
+        name = f"{ble_data.name} {ble_data.identifier}"
+        self._attr_unique_id = f"{name}_error_count"
+        self._attr_device_info = _device_info(ble_data)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._device.add_session_listener(self._handle_session_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
+        self._device.remove_session_listener(self._handle_session_update)
+
+    @callback
+    def _handle_session_update(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> int:
+        return self._device.error_count

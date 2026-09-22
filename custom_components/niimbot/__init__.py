@@ -42,6 +42,7 @@ from .const import (
 from .niimprint import BLEData, NiimbotDevice, PrinterError
 from .niimprint.model import get_supported_label_type_codes
 from .render import render_image
+from .session_report import build_session_report
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -124,6 +125,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         keep_connection=keep_connection,
         connection_sound_seed=connection_sound_seed,
     )
+
+    def _publish_session_report(operation: str, trace, outcome) -> None:
+        """Freeze this session's report once, then refresh the sensors.
+
+        ``radio_facts`` reads RSSI and path count live, so rebuilding an older
+        trace on a later poll would replace that session's radio with whatever
+        the adapter sees now. Only the trace that just finished is rendered.
+        Diagnostics must not mask the session's own outcome.
+        """
+        try:
+            report = build_session_report(
+                hass,
+                address,
+                operation=operation,
+                trace=trace,
+                exc=outcome,
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Building the session report failed: %s", err)
+            # Clear rather than keep: a stale report would describe an older
+            # session under this session's timestamp.
+            report = None
+        else:
+            _LOGGER.debug("Session report (%s): %s", operation, report)
+        if operation == "print":
+            niimbot.last_print_report = report
+        if niimbot.last_failure_trace is trace:
+            niimbot.last_failure_report = report
+        if niimbot.last_error_trace is trace:
+            niimbot.last_error_report = report
+        niimbot._notify_session_listeners()
+
+    niimbot.callback_session = _publish_session_report
 
     async def _refresh_cloud_label_info(barcode: str) -> None:
         """Resolve a label barcode via the cloud catalogue and push the result.
@@ -342,7 +376,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coordinator.async_set_updated_data(niimbot.ble_data)
             result["image"] = image_data
             return result
-        except (PrinterError, RuntimeError, ValueError) as e:
+        except (PrinterError, RuntimeError, ValueError, ConnectionError) as e:
             raise HomeAssistantError("Failed to print: %s" % e) from e
 
     @callback

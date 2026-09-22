@@ -242,6 +242,12 @@
             },
             "print_progress": {
                 "name": "인쇄 진행률"
+            },
+            "last_failure": {
+                "name": "마지막 실패"
+            },
+            "error_count": {
+                "name": "오류 횟수"
             }
         },
         "select": {
