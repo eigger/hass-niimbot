@@ -45,7 +45,6 @@ print:
           step: 1
     density:
       required: false
-      default: 3
       selector:
         number:
           min: 1

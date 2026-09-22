@@ -15,6 +15,7 @@ from .model import (
     PrinterModel,
     PrintGeneration,
     default_label_type_code,
+    density_range,
     get_printer_meta_by_model,
     get_supported_label_type_codes,
 )
@@ -328,8 +329,7 @@ class PrinterClient:
                     f"(supported label types: {supported_types})"
                 )
             printhead_pixels = meta["printheadPixels"] if meta else None
-            density_min = meta.get("densityMin", 1) if meta else 1
-            density_max = meta.get("densityMax", 5) if meta else 5
+            density_min, density_max, _ = density_range(meta)
             kwargs = dict(
                 image=image,
                 density=density,

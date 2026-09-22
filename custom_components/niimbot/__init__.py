@@ -40,7 +40,7 @@ from .const import (
     ImageAndBLEData,
 )
 from .niimprint import BLEData, NiimbotDevice, PrinterError
-from .niimprint.model import get_supported_label_type_codes
+from .niimprint.model import get_supported_label_type_codes, resolve_density
 from .render import render_image
 from .session_report import build_session_report
 
@@ -347,6 +347,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     f"(supported label types: {supported_types})"
                 )
 
+        # Same for density: the selector allows 1-20 because a few models go
+        # that high, but most stop at 5. Reject here instead of after connect,
+        # and let an omitted value fall back to the model's own default.
+        try:
+            density = resolve_density(
+                model_meta,
+                int(service.data["density"]) if "density" in service.data else None,
+            )
+        except ValueError as e:
+            raise ServiceValidationError(str(e)) from e
+
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
             raise HomeAssistantError(
@@ -360,9 +371,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             result = await niimbot.print_image(
                 ble_device,
                 image,
-                density=int(service.data["density"])
-                if "density" in service.data
-                else 3,
+                density=density,
                 wait_between_print_lines=float(service.data["wait_between_print_lines"])
                 if "wait_between_print_lines" in service.data
                 else wait_between_each_print_line / 1000,
