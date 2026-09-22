@@ -636,7 +636,9 @@ class NiimbotDevice:
         async with self.lock:
             if not self.ble_data.name:
                 self.ble_data.name = ble_device.name or "(no such device)"
-            async with self._operation(ble_device, "update") as printer:
+            # Not "update": a user-triggered refresh that cannot connect is a
+            # real failure, unlike the background poll finding the printer asleep.
+            async with self._operation(ble_device, "refresh_info") as printer:
                 with self._active_trace.timed("info"):
                     await self._load_printer_info(printer, force=True)
             return self.ble_data

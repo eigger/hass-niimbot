@@ -215,7 +215,38 @@ def test_refresh_info_failure_is_attributed_to_info():
         trace = device.last_failure_trace
         assert trace is not None
         assert trace.failed_detail == "info"
+        assert device.last_failure_operation == "refresh_info"
         assert device.error_count == 1
+
+    run(_test())
+
+
+def test_refresh_info_connect_failure_is_a_real_failure():
+    """Unlike the background poll, a user-triggered refresh that cannot
+    connect must land on Last Failure."""
+
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        calls: list[str] = []
+        device.callback_session = lambda operation, _trace, _exc: calls.append(operation)
+
+        async def _asleep(_ble):
+            trace = device._active_trace
+            assert trace is not None
+            with trace.timed(stages.CONNECT):
+                raise OSError("asleep")
+
+        device._ensure_printer = _asleep  # type: ignore[method-assign]
+
+        async def _release():
+            return None
+
+        device._release_printer = _release  # type: ignore[method-assign]
+        with pytest.raises(OSError):
+            await device.refresh_info(_Ble())  # type: ignore[arg-type]
+        assert device.error_count == 1
+        assert device.last_failure_operation == "refresh_info"
+        assert calls == ["refresh_info"]
 
     run(_test())
 

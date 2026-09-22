@@ -144,14 +144,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Building the session report failed: %s", err)
+            # Clear rather than keep: a stale report would describe an older
+            # session under this session's timestamp.
+            report = None
         else:
-            if operation == "print":
-                niimbot.last_print_report = report
-            if niimbot.last_failure_trace is trace:
-                niimbot.last_failure_report = report
-            if niimbot.last_error_trace is trace:
-                niimbot.last_error_report = report
             _LOGGER.debug("Session report (%s): %s", operation, report)
+        if operation == "print":
+            niimbot.last_print_report = report
+        if niimbot.last_failure_trace is trace:
+            niimbot.last_failure_report = report
+        if niimbot.last_error_trace is trace:
+            niimbot.last_error_report = report
         niimbot._notify_session_listeners()
 
     niimbot.callback_session = _publish_session_report
