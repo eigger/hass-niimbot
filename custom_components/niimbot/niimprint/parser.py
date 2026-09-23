@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator, Callable
 from datetime import datetime, timezone
 
 from bleak.backends.device import BLEDevice
-from blesession import LinkInfo, SessionTrace, ble_session, stages
+from blesession import LinkInfo, SessionReports, SessionTrace, ble_session, stages
 
 # from logging import Logger
 from PIL import Image
@@ -171,7 +171,6 @@ class NiimbotDevice:
         self._open_session = None
         self.last_print_trace: SessionTrace | None = None
         self.last_print_error: BaseException | None = None
-        self.last_print_report: dict | None = None
         self.last_error_trace: SessionTrace | None = None
         self.last_error_session_error: BaseException | None = None
         self.last_error_report: dict | None = None
@@ -180,7 +179,9 @@ class NiimbotDevice:
         self.last_failure_trace: SessionTrace | None = None
         self.last_failure_error: BaseException | None = None
         self.last_failure_operation: str | None = None
-        self.last_failure_report: dict | None = None
+        # last is the last print. last_failure is the last counted failure
+        # and is not replaced by a later success or by an asleep poll.
+        self.reports = SessionReports()
         self.callback_session: (
             Callable[[str, SessionTrace, BaseException | None], None] | None
         ) = None

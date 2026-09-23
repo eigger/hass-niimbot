@@ -8,7 +8,11 @@ from blesession import LinkInfo, SessionTrace, stages
 
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterError, PrinterErrorCodeEnum
-from custom_components.niimbot.session_report import build_session_report, likely_cause
+from custom_components.niimbot.session_report import (
+    build_session_report,
+    file_session_report,
+    likely_cause,
+)
 
 
 def run(coro):
@@ -31,6 +35,42 @@ def _patch_link(device: NiimbotDevice, printer, *, fail: BaseException | None = 
 
     device._ensure_printer = _ensure  # type: ignore[method-assign]
     device._release_printer = _release  # type: ignore[method-assign]
+
+
+def test_a_later_failure_does_not_replace_the_print_report():
+    """Print Duration reads reports.last; a refresh failure stays on last_failure."""
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    printed = {"operation": "print", "success": True}
+    file_session_report(device.reports, "print", printed, is_recorded_failure=False)
+    assert device.reports.last == printed
+    assert device.reports.last_failure is None
+
+    failed = {"operation": "refresh_info", "success": False, "error": "down"}
+    file_session_report(device.reports, "refresh_info", failed, is_recorded_failure=True)
+    assert device.reports.last == printed
+    assert device.reports.last_failure == failed
+
+
+def test_a_successful_print_keeps_the_previous_failure():
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    failed = {"operation": "print", "success": False, "error": "cover"}
+    file_session_report(device.reports, "print", failed, is_recorded_failure=True)
+    assert device.reports.last == failed
+    assert device.reports.last_failure == failed
+
+    printed = {"operation": "print", "success": True}
+    file_session_report(device.reports, "print", printed, is_recorded_failure=False)
+    assert device.reports.last == printed
+    assert device.reports.last_failure == failed
+
+
+def test_a_report_that_cannot_be_built_clears_the_slot_it_owned():
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    device.reports.last = {"operation": "print", "success": True}
+    device.reports.last_failure = {"operation": "print", "error": "cover"}
+    file_session_report(device.reports, "print", None, is_recorded_failure=True)
+    assert device.reports.last is None
+    assert device.reports.last_failure is None
 
 
 def test_cover_open_has_its_own_sentence():
