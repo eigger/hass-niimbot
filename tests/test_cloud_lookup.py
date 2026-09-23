@@ -193,9 +193,9 @@ def test_parse_label_data_swaps_print_size_when_rotated():
     assert info["label_names"]["ko"] == "T50*30-230WHITE"
 
 
-def test_get_returns_none_for_empty_barcode():
+def test_get_returns_none_for_empty_barcode(monkeypatch):
     async def _test():
-        lookup = LabelCloudLookup(hass=object())
+        lookup = _lookup_with(monkeypatch, FakeSession(lambda barcode: None), FakeStore())
         assert await lookup.get("") is None
         assert await lookup.get(None) is None
 
