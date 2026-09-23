@@ -623,8 +623,9 @@ class NiimbotPrintDurationSensor(
             "formatted": f"{minutes:02d}:{seconds:01d}",
             "is_printing": self._device.is_printing,
         }
-        if not self._device.is_printing and self._device.last_print_report:
-            attrs.update(self._device.last_print_report)
+        report = self._device.reports.last
+        if not self._device.is_printing and report:
+            attrs.update(report)
         return attrs
 
 
@@ -719,8 +720,12 @@ class NiimbotLastFailureSensor(
 
     @property
     def extra_state_attributes(self) -> dict | None:
-        """The breakdown of the session that failed at this time."""
-        return self._device.last_failure_report
+        """The breakdown of the session that failed at this time.
+
+        ``reports.last_failure`` is kept until the next counted failure. A
+        later successful print replaces ``reports.last`` only.
+        """
+        return self._device.reports.last_failure
 
 
 class NiimbotErrorCountSensor(

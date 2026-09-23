@@ -36,7 +36,7 @@ The attributes are, in order. `failed_stage` is the shared name used across BLE 
 | `via`, `via_type`, `rssi`, `paths` | The radio the link went over (a proxy or a local adapter), the printer's signal as that radio last saw it, and how many connectable radios currently see the printer. `paths: 1` means there is no other radio to fall back to. On a `connect` failure `via` is the radio that was tried. |
 | `advertised_via` | Only when it differs from `via`: the radio whose advertisement was strongest, which is the one Home Assistant tries first. The link ending up elsewhere is a failover. |
 | `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | Seconds spent in each stage, in the order they ran. A stage that did not run is absent. `transfer_s` is the image transfer itself and the number to compare when tuning speed. |
-| `reused_connection` | `true` when **Keep Connection** was on and the job ran over the link that was already open — no `connect_s` in that case. |
+| `reused` | `true` when **Keep Connection** was on and the job ran over the link that was already open — no `connect_s` in that case. |
 | `copies`, `density` | What the print was asked for. |
 | `cancelled` | `true` when the job was stopped by `niimbot.cancel_print` or the printer's own cancel; not a failure. |
 | `refresh_error` | The post-print status read (RFID / heartbeat) failed but the label had already printed. Informational. |
@@ -100,7 +100,7 @@ The label was sent; only the status read afterwards (RFID remaining, heartbeat) 
 - **`rssi` is low but `paths` is 2 or more** — another radio might do better; Home Assistant connects through the strongest advertisement, so the alternative is only used after a failure. Check `via` to see which one was used.
 - **Everything fails at `connect` right after adding a proxy** — the proxy must be `active: true` in both `esp32_ble_tracker` and `bluetooth_proxy` (see the [README](../README.md#important-notice)); a passive proxy sees the printer but cannot connect.
 - **`error: ConnectFailed` on a print while the phone app is open** — most models accept one client. Close the app.
-- **`reused_connection: true` and then `transfer` failures** — a link kept open across a long idle can go stale on some proxies. Turn **Keep Connection** off and compare.
+- **`reused: true` and then `transfer` failures** — a link kept open across a long idle can go stale on some proxies. Turn **Keep Connection** off and compare.
 - **Error Count climbs while nothing is printing** — a poll connected and then failed (`failed_stage: session`, `failed_detail: info`) — usually the proxy, see above; or a `refresh_info` action in an automation is running while the printer is off (it *is* counted, unlike the poll).
 
 ## What the attributes cannot show

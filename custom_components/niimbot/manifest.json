@@ -59,7 +59,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/eigger/hass-niimbot/issues",
   "requirements": [
-    "blesession==0.1.0",
+    "blesession==0.2.0",
     "imagespec[datamatrix]==0.5.0"
   ],
   "version": "4.0.0"

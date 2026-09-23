@@ -31,7 +31,7 @@ from .const import (
 from .data import NiimbotRuntimeData
 from .niimprint import BLEData, NiimbotDevice
 from .services import async_setup_services
-from .session_report import build_session_report
+from .session_report import build_session_report, file_session_report
 from .types import NiimbotConfigEntry
 
 PLATFORMS: list[Platform] = [
@@ -147,10 +147,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
             report = None
         else:
             _LOGGER.debug("Session report (%s): %s", operation, report)
-        if operation == "print":
-            niimbot.last_print_report = report
-        if niimbot.last_failure_trace is trace:
-            niimbot.last_failure_report = report
+        file_session_report(
+            niimbot.reports,
+            operation,
+            report,
+            is_recorded_failure=niimbot.last_failure_trace is trace,
+        )
         if niimbot.last_error_trace is trace:
             niimbot.last_error_report = report
         niimbot._notify_session_listeners()

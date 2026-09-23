@@ -8,17 +8,8 @@ import time
 from collections.abc import AsyncIterator, Callable
 from datetime import datetime, timezone
 
-from bleak import BleakClient
 from bleak.backends.device import BLEDevice
-from bleak_retry_connector import establish_connection
-from blesession import (
-    DISCONNECT_TIMEOUT_S,
-    ConnectFailed,
-    LinkInfo,
-    SessionTrace,
-    probe_link,
-    stages,
-)
+from blesession import LinkInfo, SessionReports, SessionTrace, ble_session, stages
 
 # from logging import Logger
 from PIL import Image
@@ -173,12 +164,13 @@ class NiimbotDevice:
         # can attach that session's breakdown to the Last Error sensor.
         self._error_from_session = False
         self._active_trace: SessionTrace | None = None
-        # Radio the current keep_connection link actually took. Reused sessions
-        # copy it onto their trace; a fresh connect probes again.
+        # Radio the current keep_connection link actually took. A reused
+        # session copies it onto its trace; a fresh connect probes again.
         self._link: LinkInfo | None = None
+        # The ble_session() entered by _ensure_printer, exited by _release_printer.
+        self._open_session = None
         self.last_print_trace: SessionTrace | None = None
         self.last_print_error: BaseException | None = None
-        self.last_print_report: dict | None = None
         self.last_error_trace: SessionTrace | None = None
         self.last_error_session_error: BaseException | None = None
         self.last_error_report: dict | None = None
@@ -187,7 +179,9 @@ class NiimbotDevice:
         self.last_failure_trace: SessionTrace | None = None
         self.last_failure_error: BaseException | None = None
         self.last_failure_operation: str | None = None
-        self.last_failure_report: dict | None = None
+        # last is the last print. last_failure is the last counted failure
+        # and is not replaced by a later success or by an asleep poll.
+        self.reports = SessionReports()
         self.callback_session: (
             Callable[[str, SessionTrace, BaseException | None], None] | None
         ) = None
@@ -416,47 +410,44 @@ class NiimbotDevice:
         self._notify_progress()
 
     async def _ensure_printer(self, ble_device: BLEDevice) -> PrinterClient:
-        """Connect and return a PrinterClient, reusing it when keep_connection is on."""
-        if self.is_connected:
-            if self._active_trace is not None:
-                self._active_trace.note(reused_connection=True)
-                if self._link is not None:
-                    self._active_trace.link = self._link
-        else:
-            trace = self._active_trace
-            connect = (
-                trace.timed(stages.CONNECT) if trace is not None else contextlib.nullcontext()
-            )
-            with connect:
-                try:
-                    self.client = await establish_connection(
-                        BleakClient,
-                        ble_device,
-                        ble_device.address,
-                        use_services_cache=False,
-                    )
-                except ConnectFailed:
-                    raise
-                except Exception as exc:
-                    raise ConnectFailed(str(exc) or type(exc).__name__) from exc
-                if not self.client.is_connected:
-                    raise ConnectFailed("could not connect to thermal printer")
-            if trace is not None:
-                try:
-                    trace.link = probe_link(self.client, ble_device)
-                    self._link = trace.link
-                except Exception as exc:  # noqa: BLE001 — probe must not fail the job
-                    _LOGGER.debug("Link probe failed: %s", exc)
-            self._printer = None
-            self._notify_connection()
+        """Connect and return a PrinterClient, reusing it when keep_connection is on.
 
-        if self._printer is None:
-            self._printer = PrinterClient(
-                self.client, heartbeat_payload=self._heartbeat_payload
-            )
-            await self._timed("subscribe", self._printer.start_notify())
-        else:
+        ``ble_session`` owns connect, reuse, the drop watch and the disconnect
+        bound. Reads on the printer client wait on that watch, so a link that
+        drops ends the step instead of running out its timeout. This method
+        owns the printer client that sits on that link.
+        """
+        trace = self._active_trace
+        # Always enter ble_session, including when a link is already up.
+        # It reuses that link (no connect stage, fact `reused`) and still
+        # times this session and watches for a drop. A stale handle is its
+        # problem: it closes one that is no longer up before connecting.
+        session = ble_session(
+            ble_device,
+            trace=trace,
+            name=ble_device.address,
+            client=self.client,
+            keep=self.keep_connection,
+            use_services_cache=False,
+        )
+        client = await session.__aenter__()
+        self._open_session = session
+        same_link = client is self.client and self._printer is not None
+        self.client = client
+        if trace is not None and trace.link is not None:
+            self._link = trace.link
+        if same_link:
             self._printer._heartbeat_payload = self._heartbeat_payload
+            return self._printer
+        self._printer = PrinterClient(
+            self.client, heartbeat_payload=self._heartbeat_payload
+        )
+        try:
+            await self._timed("subscribe", self._printer.start_notify())
+        except BaseException:
+            self._printer = None
+            raise
+        self._notify_connection()
         return self._printer
 
     async def _timed(self, stage: str, awaitable):
@@ -468,37 +459,34 @@ class NiimbotDevice:
             return await awaitable
 
     async def _release_printer(self) -> None:
-        """Stop notify / disconnect unless keep_connection holds the session open."""
+        """Leave the link up when keep_connection is on; otherwise disconnect.
+
+        Every session ``_ensure_printer`` opened is closed here, including a
+        reused link. ``keep=True`` leaves that link up, and a disconnect that
+        fails is a ``disconnect_error`` fact rather than a second failure.
+        """
         if self._printer is not None and self._printer.heartbeat_payload is not None:
             self._heartbeat_payload = self._printer.heartbeat_payload
 
-        if self.keep_connection and self.is_connected:
+        session = self._open_session
+        self._open_session = None
+        if session is None:
             return
 
-        if self._printer is not None:
+        if not self.keep_connection and self._printer is not None:
             try:
                 await self._printer.stop_notify()
             except Exception:
                 pass
             self._printer = None
 
-        if self.client is not None:
-            trace = self._active_trace
-            disconnect = (
-                trace.timed(stages.DISCONNECT)
-                if trace is not None
-                else contextlib.nullcontext()
-            )
-            with disconnect:
-                try:
-                    async with asyncio.timeout(DISCONNECT_TIMEOUT_S):
-                        await self.client.disconnect()
-                except Exception:
-                    pass
-            if trace is not None:
-                trace.forgive(stages.DISCONNECT)
-            self._link = None
-            self._notify_connection()
+        try:
+            await session.__aexit__(None, None, None)
+        finally:
+            if not self.keep_connection:
+                self.client = None
+                self._link = None
+                self._notify_connection()
 
     @contextlib.asynccontextmanager
     async def _operation(
@@ -515,8 +503,10 @@ class NiimbotDevice:
         try:
             printer = await self._ensure_printer(ble_device)
             try:
-                with trace.timed(stages.SESSION):
-                    yield printer
+                # ble_session already times "session" around this yield.
+                # A test that replaces _ensure_printer has no session timer;
+                # the body's own stages are what the report reads.
+                yield printer
             except BaseException as exc:
                 outcome = exc
                 raise
