@@ -413,7 +413,9 @@ class NiimbotDevice:
         """Connect and return a PrinterClient, reusing it when keep_connection is on.
 
         ``ble_session`` owns connect, reuse, the drop watch and the disconnect
-        bound. This method owns the printer client that sits on that link.
+        bound. Reads on the printer client wait on that watch, so a link that
+        drops ends the step instead of running out its timeout. This method
+        owns the printer client that sits on that link.
         """
         trace = self._active_trace
         # Always enter ble_session, including when a link is already up.

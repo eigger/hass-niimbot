@@ -347,3 +347,39 @@ def test_refresh_info_connect_failure_is_a_real_failure():
 class _Printer:
     async def calibrate_height(self) -> bool:
         return True
+
+
+def test_a_dropped_link_ends_the_command_without_the_step_timeout():
+    """A printer that powers off mid-command must not sit out the read timeout."""
+
+    async def _test():
+        from blesession import SessionDropped, ble_session
+        from blesession import session as session_mod
+        from blesession.testing import FakeClient, FakeDevice, fake_connect
+
+        from custom_components.niimbot.niimprint.printer import (
+            BLETransport,
+            PrinterClient,
+            RequestCodeEnum,
+        )
+
+        client = FakeClient()
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(session_mod, "establish_connection", fake_connect(client))
+            async with ble_session(FakeDevice()):
+                transport = BLETransport(client)
+                printer = PrinterClient(transport=transport)
+                client.drop()
+                started = asyncio.get_running_loop().time()
+                with pytest.raises(SessionDropped, match="link dropped"):
+                    await printer._transceive(
+                        RequestCodeEnum.HEARTBEAT, b"\x01", timeout=30
+                    )
+                assert asyncio.get_running_loop().time() - started < 1
+
+                # A reply that already arrived is the answer, even if the
+                # link went away before it was read.
+                transport._notification_handler(None, bytearray(b"\x55\x55"))
+                assert await transport.read(8, timeout=30) == b"\x55\x55"
+
+    run(_test())
