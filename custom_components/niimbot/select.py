@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant import config_entries
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -18,8 +15,9 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.components import bluetooth
 
-from .const import DOMAIN
+from .entity import NiimbotBleEntity
 from .niimprint import BLEData, NiimbotDevice
+from .types import NiimbotConfigEntry
 from .niimprint.model import (
     AUTO_SHUTDOWN_OPTIONS,
     auto_shutdown_index,
@@ -31,25 +29,22 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: config_entries.ConfigEntry,
+    entry: NiimbotConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Niimbot select entities."""
-    coordinator: DataUpdateCoordinator[BLEData] = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
-    device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
+    coordinator = entry.runtime_data.coordinator
+    device = entry.runtime_data.device
     async_add_entities(
         [NiimbotAutoShutdownSelect(coordinator, coordinator.data, device)]
     )
 
 
 class NiimbotAutoShutdownSelect(
-    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SelectEntity
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SelectEntity
 ):
     """Select for printer auto-shutdown time."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "auto_shutdown"
     _attr_icon = "mdi:timer-outline"
     _attr_entity_category = EntityCategory.CONFIG
@@ -63,17 +58,7 @@ class NiimbotAutoShutdownSelect(
     ) -> None:
         super().__init__(coordinator)
         self._device = device
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_auto_shutdown"
-        self._attr_device_info = DeviceInfo(
-            connections={(CONNECTION_BLUETOOTH, ble_data.address)},
-            name=name,
-            manufacturer="Niimbot",
-            model=ble_data.model,
-            hw_version=ble_data.hw_version,
-            sw_version=ble_data.sw_version,
-            serial_number=ble_data.serial_number,
-        )
+        self._bind_printer(ble_data, "auto_shutdown")
 
     @property
     def current_option(self) -> str | None:

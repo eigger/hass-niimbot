@@ -236,6 +236,7 @@ def test_async_step_user_creates_entry():
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
+        flow.context = {}
         flow.async_set_unique_id = AsyncMock()
         flow._abort_if_unique_id_configured = MagicMock()
         flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})

@@ -1,26 +1,15 @@
 """The Niimbot BLE integration."""
 
-import base64
-import io
 import logging
 from datetime import datetime, timedelta, timezone
 
 from bleak_retry_connector import close_stale_connections_by_address
 from homeassistant.components import bluetooth
 from homeassistant.components.image import Image
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import (
-    HomeAssistant,
-    ServiceCall,
-    ServiceResponse,
-    SupportsResponse,
-    callback,
-)
-from homeassistant.exceptions import (
-    HomeAssistantError,
-    ServiceValidationError,
-)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .cloud import LabelCloudLookup
@@ -39,10 +28,11 @@ from .const import (
     EMPTY_PNG,
     ImageAndBLEData,
 )
-from .niimprint import BLEData, NiimbotDevice, PrinterError
-from .niimprint.model import get_supported_label_type_codes, resolve_density
-from .render import render_image
+from .data import NiimbotRuntimeData
+from .niimprint import BLEData, NiimbotDevice
+from .services import async_setup_services
 from .session_report import build_session_report
+from .types import NiimbotConfigEntry
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -55,10 +45,18 @@ PLATFORMS: list[Platform] = [
 
 _LOGGER = logging.getLogger(__name__)
 
+# Config-entry only: a `niimbot:` YAML section is rejected at startup.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up domain services once for this Home Assistant instance."""
+    async_setup_services(hass)
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
     address = entry.unique_id
     # Legacy option — only seeds the Connection Sound switch until get_sound works.
     connection_sound_seed = entry.options.get(
@@ -290,143 +288,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (Image(content_type="image/png", content=EMPTY_PNG), coordinator.data)
     )
 
-    hass.data[DOMAIN][entry.entry_id] = {
-        "coordinator": coordinator,
-        "image_coordinator": image_coordinator,
-        "device": niimbot,
-    }
+    entry.runtime_data = NiimbotRuntimeData(
+        address=address,
+        device=niimbot,
+        coordinator=coordinator,
+        image_coordinator=image_coordinator,
+        wait_between_each_print_line=wait_between_each_print_line,
+        confirm_every_nth_print_line=confirm_every_nth_print_line,
+        cloud_lookup=cloud_lookup,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    @callback
-    # callback for the draw custom service
-    async def printservice(service: ServiceCall) -> ServiceResponse:
-        cloud = niimbot._cloud_label_attrs or {}
-        render_defaults: dict = {}
-        if cloud.get("print_width_px") is not None:
-            render_defaults["width"] = int(cloud["print_width_px"])
-        if cloud.get("print_height_px") is not None:
-            render_defaults["height"] = int(cloud["print_height_px"])
-
-        try:
-            image = await hass.async_add_executor_job(
-                render_image, entry.entry_id, service, hass, render_defaults
-            )
-        except Exception as e:
-            raise ServiceValidationError("Failed to create image: %s" % e) from e
-
-        d = io.BytesIO()
-        image.save(d, format="PNG")
-        d.seek(0)
-        read = d.read()
-        image_coordinator.async_set_updated_data(
-            (Image(content_type="image/png", content=read), coordinator.data)
-        )
-        encoded = base64.b64encode(read).decode("ascii")
-        image_data = f"data:image/png;base64,{encoded}"
-
-        if service.data.get("preview"):
-            return {"image": image_data}
-
-        # Validate label_type locally before opening a BLE connection.
-        # niimbot.get_model_meta() is populated by the coordinator update cycle and
-        # is therefore available without BLE.  If the model is not yet known the
-        # check is skipped; the fallback inside NiimbotDevice.print_image covers that.
-        if "label_type" in service.data:
-            requested_label_type = int(service.data["label_type"])
-        elif cloud.get("paper_type") is not None:
-            requested_label_type = int(cloud["paper_type"])
-        else:
-            requested_label_type = None
-        model_meta = niimbot.get_model_meta()
-        if requested_label_type is not None and model_meta is not None:
-            supported_types = get_supported_label_type_codes(model_meta)
-            if requested_label_type not in supported_types:
-                raise ServiceValidationError(
-                    f"Label type {requested_label_type} is not supported for this printer "
-                    f"(supported label types: {supported_types})"
-                )
-
-        # Same for density: the selector allows 1-20 because a few models go
-        # that high, but most stop at 5. Reject here instead of after connect,
-        # and let an omitted value fall back to the model's own default.
-        try:
-            density = resolve_density(
-                model_meta,
-                int(service.data["density"]) if "density" in service.data else None,
-            )
-        except ValueError as e:
-            raise ServiceValidationError(str(e)) from e
-
-        ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        if ble_device is None:
-            raise HomeAssistantError(
-                f"could not find printer with address {address} through your Bluetooth network"
-            )
-
-        try:
-            # Clear leftover 100% in the UI before the BLE job starts.
-            niimbot.begin_print_progress()
-            coordinator.async_set_updated_data(niimbot.ble_data)
-            result = await niimbot.print_image(
-                ble_device,
-                image,
-                density=density,
-                wait_between_print_lines=float(service.data["wait_between_print_lines"])
-                if "wait_between_print_lines" in service.data
-                else wait_between_each_print_line / 1000,
-                print_line_batch_size=int(service.data["print_line_batch_size"])
-                if "print_line_batch_size" in service.data
-                else confirm_every_nth_print_line,
-                label_type=requested_label_type,
-                copies=int(service.data["copies"]) if "copies" in service.data else 1,
-            )
-            # Push post-print RFID / heartbeat updates into entities immediately.
-            coordinator.async_set_updated_data(niimbot.ble_data)
-            result["image"] = image_data
-            return result
-        except (PrinterError, RuntimeError, ValueError, ConnectionError) as e:
-            raise HomeAssistantError("Failed to print: %s" % e) from e
-
-    @callback
-    async def refresh_info_service(service: ServiceCall) -> ServiceResponse:
-        ble_device = bluetooth.async_ble_device_from_address(hass, address)
-        if ble_device is None:
-            raise HomeAssistantError(
-                f"could not find printer with address {address} through your Bluetooth network"
-            )
-        try:
-            data = await niimbot.refresh_info(ble_device)
-            coordinator.async_set_updated_data(data)
-            return {
-                "density": data.density,
-                "printspeed": data.printspeed,
-                "labeltype": data.labeltype,
-                "autoshutdowntime": data.autoshutdowntime,
-                "battery_bucket": niimbot._info_battery_bucket,
-            }
-        except Exception as e:
-            raise HomeAssistantError("Failed to refresh printer info: %s" % e) from e
-
-    # register the services
-    hass.services.async_register(
-        DOMAIN, "print", printservice, supports_response=SupportsResponse.OPTIONAL
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "refresh_info",
-        refresh_info_service,
-        supports_response=SupportsResponse.OPTIONAL,
-    )
-
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> bool:
     """Unload a config entry."""
-    niimbot: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
-    await niimbot.disconnect()
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok
+    await entry.runtime_data.device.disconnect()
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

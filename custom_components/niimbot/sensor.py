@@ -5,7 +5,6 @@ from datetime import timedelta
 
 from .niimprint import NiimbotDevice, BLEData
 
-from homeassistant import config_entries
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
@@ -19,8 +18,6 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import (
@@ -32,8 +29,10 @@ from homeassistant.helpers.event import async_track_time_interval
 from .const import (
     CONF_USE_CLOUD_LABEL_INFO,
     DEFAULT_USE_CLOUD_LABEL_INFO,
-    DOMAIN,
 )
+from .entity import NiimbotBleEntity
+from .types import NiimbotConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS_MAPPING_TEMPLATE: dict[str, SensorEntityDescription] = {
@@ -226,29 +225,14 @@ CLOUD_LABEL_INFO_DESCRIPTION = SensorEntityDescription(
 )
 
 
-def _device_info(ble_data: BLEData) -> DeviceInfo:
-    name = f"{ble_data.name} {ble_data.identifier}"
-    return DeviceInfo(
-        connections={(CONNECTION_BLUETOOTH, ble_data.address)},
-        name=name,
-        manufacturer="Niimbot",
-        model=ble_data.model,
-        hw_version=ble_data.hw_version,
-        sw_version=ble_data.sw_version,
-        serial_number=ble_data.serial_number,
-    )
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: config_entries.ConfigEntry,
+    entry: NiimbotConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Niimbot BLE sensors."""
-    coordinator: DataUpdateCoordinator[BLEData] = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
-    device: NiimbotDevice = hass.data[DOMAIN][entry.entry_id]["device"]
+    coordinator = entry.runtime_data.coordinator
+    device = entry.runtime_data.device
 
     sensors_mapping = SENSORS_MAPPING_TEMPLATE.copy()
     entities: list[SensorEntity] = []
@@ -383,10 +367,10 @@ async def async_setup_entry(
         unsub = coordinator.async_add_listener(_on_coordinator_update)
 
 
-class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity):
+class NiimbotSensor(
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+):
     """Niimbot BLE sensors for the device."""
-
-    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -397,10 +381,7 @@ class NiimbotSensor(CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEnt
         """Populate the niimbot entity with relevant data."""
         super().__init__(coordinator)
         self.entity_description = entity_description
-
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_{entity_description.key}"
-        self._attr_device_info = _device_info(ble_data)
+        self._bind_printer(ble_data, entity_description.key)
 
     @property
     def native_value(self) -> StateType:
@@ -559,11 +540,10 @@ class NiimbotRibbonRfidSensor(NiimbotSensor):
 
 
 class NiimbotPrintDurationSensor(
-    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
 ):
     """Niimbot print duration sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "print_duration"
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_device_class = SensorDeviceClass.DURATION
@@ -581,10 +561,7 @@ class NiimbotPrintDurationSensor(
 
         self._device = device
         self._unsub_timer = None
-
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_print_duration"
-        self._attr_device_info = _device_info(ble_data)
+        self._bind_printer(ble_data, "print_duration")
 
     async def async_added_to_hass(self) -> None:
         """Register callback when entity is added."""
@@ -652,11 +629,10 @@ class NiimbotPrintDurationSensor(
 
 
 class NiimbotPrintProgressSensor(
-    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
 ):
     """Live print progress percentage from GET_PRINT_STATUS polls."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "print_progress"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -671,9 +647,7 @@ class NiimbotPrintProgressSensor(
     ) -> None:
         super().__init__(coordinator)
         self._device = device
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_print_progress"
-        self._attr_device_info = _device_info(ble_data)
+        self._bind_printer(ble_data, "print_progress")
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -702,7 +676,7 @@ class NiimbotPrintProgressSensor(
 
 
 class NiimbotLastFailureSensor(
-    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
 ):
     """When a BLE session last failed, with that session's breakdown.
 
@@ -712,7 +686,6 @@ class NiimbotLastFailureSensor(
     it would replace the last real failure on every scan.
     """
 
-    _attr_has_entity_name = True
     _attr_translation_key = "last_failure"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:clock-alert-outline"
@@ -726,9 +699,7 @@ class NiimbotLastFailureSensor(
     ) -> None:
         super().__init__(coordinator)
         self._device = device
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_last_failure"
-        self._attr_device_info = _device_info(ble_data)
+        self._bind_printer(ble_data, "last_failure")
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -753,7 +724,7 @@ class NiimbotLastFailureSensor(
 
 
 class NiimbotErrorCountSensor(
-    CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
 ):
     """How many BLE sessions have failed since this entry was loaded.
 
@@ -762,7 +733,6 @@ class NiimbotErrorCountSensor(
     failure, or a poll that connected and then failed, is.
     """
 
-    _attr_has_entity_name = True
     _attr_translation_key = "error_count"
     _attr_icon = "mdi:alert-circle-outline"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -775,9 +745,7 @@ class NiimbotErrorCountSensor(
     ) -> None:
         super().__init__(coordinator)
         self._device = device
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_unique_id = f"{name}_error_count"
-        self._attr_device_info = _device_info(ble_data)
+        self._bind_printer(ble_data, "error_count")
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

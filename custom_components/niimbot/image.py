@@ -14,23 +14,21 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
-
-from .const import DOMAIN, ImageAndBLEData
+from .const import ImageAndBLEData
+from .entity import device_info
+from .types import NiimbotConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: NiimbotConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up image platform for Niimbot."""
     assert config_entry.unique_id
-    image_coordinator = hass.data[DOMAIN][config_entry.entry_id]["image_coordinator"]
+    image_coordinator = config_entry.runtime_data.image_coordinator
     desc = ImageEntityDescription(
         key="last_label_made",
         translation_key="last_label_made",
@@ -67,21 +65,7 @@ class NiimbotImageEntity(
         self.entity_description = entity_description
         self._attr_unique_id = f"{unique_id}_{entity_description.key}"
         ble_data = coordinator.data[1]
-        name = f"{ble_data.name} {ble_data.identifier}"
-        self._attr_device_info = DeviceInfo(
-            connections={
-                (
-                    CONNECTION_BLUETOOTH,
-                    ble_data.address,
-                )
-            },
-            name=name,
-            manufacturer="Niimbot",
-            model=ble_data.model,
-            hw_version=ble_data.hw_version,
-            sw_version=ble_data.sw_version,
-            serial_number=ble_data.serial_number,
-        )
+        self._attr_device_info = device_info(ble_data)
         self._cached_image = coordinator.data[0]
 
     @cached_property
