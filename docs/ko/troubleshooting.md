@@ -38,7 +38,7 @@ Home Assistant는 Print Duration의 속성을 상태 변경마다 기록하므�
 | `via`, `via_type`, `rssi`, `paths` | 링크가 지나간 무선(프록시 또는 로컬 어댑터), 그 무선이 마지막으로 본 프린터 신호, 지금 프린터가 보이는 연결 가능한 무선 수. `paths: 1`이면 대체할 무선이 없습니다. `connect` 실패 시 `via`는 시도한 무선입니다. |
 | `advertised_via` | `via`와 다를 때만: 광고 신호가 가장 강했던 무선, 즉 Home Assistant가 먼저 시도하는 무선. 링크가 다른 곳으로 갔다면 페일오버입니다. |
 | `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | 단계별 소요 초, 실행 순서대로. 실행되지 않은 단계는 없습니다. `transfer_s`가 이미지 전송 자체이며 속도 조정 시 비교할 숫자입니다. |
-| `reused_connection` | **연결 유지**가 켜져 있어 이미 열린 링크로 작업이 실행됐으면 `true` — 이 경우 `connect_s`가 없습니다. |
+| `reused` | **연결 유지**가 켜져 있어 이미 열린 링크로 작업이 실행됐으면 `true` — 이 경우 `connect_s`가 없습니다. |
 | `copies`, `density` | 인쇄에 요청된 값. |
 | `cancelled` | `niimbot.cancel_print`나 프린터 자체 취소로 작업이 중단됐으면 `true`. 실패가 아닙니다. |
 | `refresh_error` | 인쇄 후 상태 읽기(RFID / 하트비트)는 실패했지만 라벨은 이미 인쇄됨. 참고용. |
@@ -102,7 +102,7 @@ Last Failure의 `failed_stage`부터 시작하세요: 세션이 어디까지 갔
 - **`rssi`가 낮은데 `paths`가 2 이상** — 다른 무선이 더 나을 수 있습니다. Home Assistant는 광고 신호가 가장 강한 쪽으로 연결하므로 대안은 실패 후에만 쓰입니다. `via`로 어느 것이 사용됐는지 확인하세요.
 - **프록시를 추가한 직후 모든 것이 `connect`에서 실패** — 프록시는 `esp32_ble_tracker`와 `bluetooth_proxy` 양쪽 모두 `active: true`여야 합니다 ([README](../../README.md#important-notice) 참고). 패시브 프록시는 프린터를 보기만 하고 연결은 못 합니다.
 - **휴대폰 앱이 열린 상태에서 인쇄 시 `error: ConnectFailed`** — 대부분 모델은 클라이언트 하나만 받습니다. 앱을 닫으세요.
-- **`reused_connection: true` 다음에 `transfer` 실패** — 오래 유휴 상태로 열어둔 링크는 일부 프록시에서 stale 해질 수 있습니다. **연결 유지**를 끄고 비교해 보세요.
+- **`reused: true` 다음에 `transfer` 실패** — 오래 유휴 상태로 열어둔 링크는 일부 프록시에서 stale 해질 수 있습니다. **연결 유지**를 끄고 비교해 보세요.
 - **아무것도 인쇄하지 않는데 Error Count가 올라감** — 연결 후 실패한 폴링(`failed_stage: session`, `failed_detail: info`) — 보통 프록시 문제, 위 참고. 또는 자동화의 `refresh_info` 액션이 프린터가 꺼진 동안 실행되고 있음 (폴링과 달리 이것은 *셉니다*).
 
 ## 속성으로는 볼 수 없는 것

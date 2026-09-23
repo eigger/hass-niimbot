@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components import bluetooth
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -15,6 +14,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
+from .ble import require_ble_device
 from .entity import NiimbotBleEntity
 from .niimprint import BLEData, NiimbotDevice
 from .types import NiimbotConfigEntry
@@ -68,13 +68,7 @@ class NiimbotConnectionSoundSwitch(
         await self._set_sound(False)
 
     async def _set_sound(self, on: bool) -> None:
-        ble_device = bluetooth.async_ble_device_from_address(
-            self.hass, self._device.address
-        )
-        if ble_device is None:
-            raise HomeAssistantError(
-                f"Could not find printer with address {self._device.address}"
-            )
+        ble_device = require_ble_device(self.hass, self._device.address)
         try:
             data = await self._device.set_connection_sound(ble_device, on)
         except Exception as err:

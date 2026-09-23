@@ -180,6 +180,57 @@ def test_asleep_poll_does_not_replace_the_last_real_failure():
     run(_test())
 
 
+def test_fresh_connect_uses_ble_session():
+    """Opening a link is blesession's job, including the service-cache bypass."""
+
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        seen: dict = {}
+
+        class _Client:
+            is_connected = True
+
+        class _Session:
+            async def __aenter__(self):
+                seen["entered"] = True
+                return _Client()
+
+            async def __aexit__(self, *_exc):
+                seen["exited"] = True
+
+        def _ble_session(*_args, **kwargs):
+            seen["kwargs"] = kwargs
+            return _Session()
+
+        class _Held:
+            heartbeat_payload = None
+
+            async def start_notify(self):
+                return None
+
+            async def stop_notify(self):
+                return None
+
+        device._active_trace = SessionTrace()
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(
+                "custom_components.niimbot.niimprint.parser.ble_session", _ble_session
+            )
+            patch.setattr(
+                "custom_components.niimbot.niimprint.parser.PrinterClient",
+                lambda *args, **kwargs: _Held(),
+            )
+            await device._ensure_printer(_Ble())  # type: ignore[arg-type]
+            await device._release_printer()
+
+        assert seen["entered"] is True
+        assert seen["exited"] is True
+        assert seen["kwargs"]["keep"] is False
+        assert seen["kwargs"]["use_services_cache"] is False
+
+    run(_test())
+
+
 def test_reused_connection_keeps_the_probed_link():
     async def _test():
         device = NiimbotDevice("aa:bb:cc:dd:ee:ff", keep_connection=True)
@@ -188,15 +239,17 @@ def test_reused_connection_keeps_the_probed_link():
             is_connected = True
 
         class _Held:
-            _heartbeat_payload = None
+            heartbeat_payload = None
 
         device.client = _Client()
         device._printer = _Held()  # type: ignore[assignment]
         device._link = LinkInfo(via="proxy-1")
         device._active_trace = SessionTrace()
         await device._ensure_printer(_Ble())  # type: ignore[arg-type]
-        assert device._active_trace.facts["reused_connection"] is True
-        assert device._active_trace.link is device._link
+        await device._release_printer()
+        assert device._active_trace.facts["reused"] is True
+        assert stages.CONNECT not in device._active_trace.timings
+        assert device.client is not None
 
     run(_test())
 

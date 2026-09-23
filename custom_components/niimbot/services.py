@@ -19,7 +19,6 @@ import io
 from collections.abc import Awaitable, Callable
 from functools import partial
 
-from homeassistant.components import bluetooth
 from homeassistant.components.image import Image
 from homeassistant.core import (
     HomeAssistant,
@@ -31,6 +30,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.service import async_extract_config_entry_ids
 
+from .ble import require_ble_device
 from .const import DOMAIN
 from .niimprint import PrinterError
 from .niimprint.model import get_supported_label_type_codes, resolve_density
@@ -202,11 +202,7 @@ async def _print_one(
     except ValueError as err:
         raise ServiceValidationError(str(err)) from err
 
-    ble_device = bluetooth.async_ble_device_from_address(hass, data.address)
-    if ble_device is None:
-        raise HomeAssistantError(
-            f"could not find printer with address {data.address} through your Bluetooth network"
-        )
+    ble_device = require_ble_device(hass, data.address)
 
     try:
         # Clear leftover 100% in the UI before the BLE job starts.
@@ -242,11 +238,7 @@ async def _refresh_one(hass: HomeAssistant, entry: NiimbotConfigEntry) -> Servic
     """Re-read one printer. Raises HomeAssistantError on failure."""
     data = entry.runtime_data
     device = data.device
-    ble_device = bluetooth.async_ble_device_from_address(hass, data.address)
-    if ble_device is None:
-        raise HomeAssistantError(
-            f"could not find printer with address {data.address} through your Bluetooth network"
-        )
+    ble_device = require_ble_device(hass, data.address)
     try:
         refreshed = await device.refresh_info(ble_device)
         data.coordinator.async_set_updated_data(refreshed)

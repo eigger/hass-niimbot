@@ -13,8 +13,8 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from homeassistant.components import bluetooth
 
+from .ble import require_ble_device
 from .entity import NiimbotBleEntity
 from .niimprint import BLEData, NiimbotDevice
 from .types import NiimbotConfigEntry
@@ -68,13 +68,7 @@ class NiimbotAutoShutdownSelect(
         index = auto_shutdown_index(option)
         if index is None:
             raise HomeAssistantError(f"Unknown auto shutdown option: {option}")
-        ble_device = bluetooth.async_ble_device_from_address(
-            self.hass, self._device.address
-        )
-        if ble_device is None:
-            raise HomeAssistantError(
-                f"Could not find printer with address {self._device.address}"
-            )
+        ble_device = require_ble_device(self.hass, self._device.address)
         try:
             data = await self._device.set_auto_shutdown(ble_device, index)
         except Exception as err:

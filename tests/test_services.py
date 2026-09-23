@@ -40,7 +40,7 @@ async def test_print_targets_the_selected_printer(
     with (
         patch.object(NiimbotDevice, "print_image", fake_print),
         patch(
-            "custom_components.niimbot.services.bluetooth.async_ble_device_from_address",
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
             lambda hass, address, connectable=True: _ble_device(address),
         ),
     ):
@@ -73,7 +73,7 @@ async def test_print_without_a_target_uses_the_only_printer(
     with (
         patch.object(NiimbotDevice, "print_image", fake_print),
         patch(
-            "custom_components.niimbot.services.bluetooth.async_ble_device_from_address",
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
             lambda hass, address, connectable=True: _ble_device(address),
         ),
     ):
@@ -143,7 +143,7 @@ async def test_refresh_info_targets_one_printer(
     with (
         patch.object(NiimbotDevice, "refresh_info", fake_refresh),
         patch(
-            "custom_components.niimbot.services.bluetooth.async_ble_device_from_address",
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
             lambda hass, address, connectable=True: _ble_device(address),
         ),
     ):
@@ -180,7 +180,7 @@ async def test_print_passes_hass_when_the_helper_still_requires_it(
         ),
         patch.object(NiimbotDevice, "print_image", fake_print),
         patch(
-            "custom_components.niimbot.services.bluetooth.async_ble_device_from_address",
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
             lambda hass, address, connectable=True: _ble_device(address),
         ),
     ):
@@ -192,3 +192,22 @@ async def test_print_passes_hass_when_the_helper_still_requires_it(
         )
 
     assert seen == [hass]
+
+
+async def test_print_when_no_radio_sees_the_printer(
+    hass: HomeAssistant, enable_bluetooth: None
+) -> None:
+    """A printer no radio can see fails with blesession's Unreachable sentence."""
+    await setup_entry(hass)
+
+    with patch(
+        "homeassistant.components.bluetooth.async_ble_device_from_address",
+        lambda *args, **kwargs: None,
+    ):
+        with pytest.raises(HomeAssistantError, match="No connectable radio sees"):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_PRINT,
+                {"payload": PAYLOAD, "width": 20, "height": 20},
+                blocking=True,
+            )

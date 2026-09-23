@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components import bluetooth
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -15,6 +14,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
+from .ble import require_ble_device
 from .entity import NiimbotBleEntity
 from .niimprint import BLEData, NiimbotDevice, PrinterCommandUnsupported
 from .types import NiimbotConfigEntry
@@ -83,14 +83,7 @@ class NiimbotBaseButton(
         self._bind_printer(ble_data, key)
 
     def _get_ble_device(self):
-        ble_device = bluetooth.async_ble_device_from_address(
-            self.hass, self._device.address
-        )
-        if ble_device is None:
-            raise HomeAssistantError(
-                f"Could not find printer with address {self._device.address}"
-            )
-        return ble_device
+        return require_ble_device(self.hass, self._device.address)
 
 
 class NiimbotCalibrateLabelPositionButton(NiimbotBaseButton):
