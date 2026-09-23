@@ -14,6 +14,7 @@ would only congest it.
 from __future__ import annotations
 
 import base64
+import inspect
 import io
 from collections.abc import Awaitable, Callable
 from functools import partial
@@ -38,6 +39,19 @@ from .types import NiimbotConfigEntry
 
 SERVICE_PRINT = "print"
 SERVICE_REFRESH_INFO = "refresh_info"
+
+
+async def _extract_config_entry_ids(hass: HomeAssistant, service: ServiceCall) -> set[str]:
+    """Extract entry ids with the signature this Home Assistant has.
+
+    2025.1 through 2025.9 require hass as the first argument. 2025.10 reads
+    service.hass itself. Passing hass on that version warns on every print,
+    and the argument is removed in 2026.10.
+    """
+    extract: Callable[..., Awaitable[set[str]]] = async_extract_config_entry_ids
+    if "hass" in inspect.signature(async_extract_config_entry_ids).parameters:
+        return await extract(hass, service)
+    return await extract(service)
 
 
 @callback
@@ -65,7 +79,7 @@ async def async_targeted_entries(
     No target and a single loaded printer selects that printer, so existing
     automations that call the service with only a payload keep working.
     """
-    entry_ids = await async_extract_config_entry_ids(service)
+    entry_ids = await _extract_config_entry_ids(hass, service)
     loaded = {
         entry.entry_id: entry
         for entry in hass.config_entries.async_loaded_entries(DOMAIN)

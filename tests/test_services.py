@@ -157,3 +157,38 @@ async def test_refresh_info_targets_one_printer(
 
     assert refreshed == [ADDRESS_2]
     assert response["density"] == 3
+
+
+async def test_print_passes_hass_when_the_helper_still_requires_it(
+    hass: HomeAssistant, enable_bluetooth: None
+) -> None:
+    """2025.1–2025.9 helpers take hass first; omitting it raises TypeError."""
+    await setup_entry(hass)
+    seen: list[object] = []
+
+    async def two_argument_helper(hass, service_call, expand_group=True):
+        seen.append(hass)
+        return set()
+
+    async def fake_print(self, ble_device, image, **kwargs):
+        return {"ok": True}
+
+    with (
+        patch(
+            "custom_components.niimbot.services.async_extract_config_entry_ids",
+            two_argument_helper,
+        ),
+        patch.object(NiimbotDevice, "print_image", fake_print),
+        patch(
+            "custom_components.niimbot.services.bluetooth.async_ble_device_from_address",
+            lambda hass, address, connectable=True: _ble_device(address),
+        ),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_PRINT,
+            {"payload": PAYLOAD, "width": 20, "height": 20},
+            blocking=True,
+        )
+
+    assert seen == [hass]
