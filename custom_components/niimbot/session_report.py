@@ -57,8 +57,9 @@ _PRINTER_FAULTS: tuple[tuple[str, str], ...] = (
     ("disconnect", "The printer dropped the link during the job."),
     (
         "receivedatatimeout",
-        "The printer timed out waiting for image data. A congested proxy "
-        "often causes this — raise the line delay if it repeats.",
+        "The printer timed out waiting for image data. A weak or congested "
+        "BLE link can cause this — move the printer or proxy closer and "
+        "reduce competing BLE traffic if it repeats.",
     ),
     (
         "rfidtagnotwritten",
@@ -148,7 +149,8 @@ def _printer_cause(
     if where == stages.TRANSFER:
         return (
             "The link failed while the label was being sent. Once: move the "
-            "printer closer or raise the line delay. Every time at the same "
+            "printer closer to the adapter or proxy and check for radio "
+            "interference. Every time at the same "
             f"point: please open an issue.{advice}"
         )
     if where == stages.FINISH:

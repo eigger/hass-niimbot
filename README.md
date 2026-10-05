@@ -12,16 +12,6 @@ Niimbot Label Printer Home Assistant Integration
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="300" alt="B1 / B1 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="370" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="300" alt="D110"> |
 
-> [!IMPORTANT]
->
-> For all NIIMBOT users using Bluetooth proxies:
-> Please update your proxy devices to **ESPHome 2025.11.2 or later**.
->
-> **Benefits of updating:**
-> - Much faster printing (almost instant)
-> - Greatly improved reliability
-> - Reduced delays thanks to improved internal GATT handling
-
 ## Feedback & Support
 
 - A print failing? **[docs/troubleshooting.md](docs/troubleshooting.md)** — the failure sensors say where a session died and why.
@@ -75,14 +65,9 @@ Configure via **Settings** → **Devices & Services** → **Niimbot** → **Conf
 | Option | Default | Range | Description |
 |--------|---------|-------|-------------|
 | **Scan Interval** | 600 | 10–9999 s | How often to poll printer status |
-| **Wait Between Each Print Line** | 10 | 0–1000 ms | Delay between each line sent to the printer |
-| **Confirm Every Nth Print Line** | 16 | 1–512 | Confirm every N lines (higher = faster, less reliable) |
 | **Keep Connection** | Off | On/Off | Keep the BLE link open between polls and prints |
 
 Connection beep is a **Connection Sound** switch entity (not an option). Auto shutdown is an **Auto Shutdown** select entity.
-
-> [!TIP]
-> Defaults already favour speed. If prints fail or look corrupted, raise wait / lower confirm interval. See [Increasing print speed](#increasing-print-speed).
 
 ---
 
@@ -315,29 +300,6 @@ See [`new_multiline` in imagespec](https://github.com/eigger/imagespec/blob/main
 
 ---
 
-## Increasing print speed
-
-The printer receives data line by line. Over Bluetooth proxies, waiting for a response on every line adds up — especially on dense labels. From **3.0.0** the integration defaults are already **10 ms** wait and confirm every **16** lines, plus indexed/empty-row packing and mid-transfer checkpoints.
-
-Tune per call if needed:
-
-```yaml
-action: niimbot.print
-target:
-  device_id: <your device>
-data:
-  payload:
-    - type: rectangle
-      x_start: 0
-      x_end: 10
-      y_start: 0
-      y_end: 600
-      fill: black
-  width: 584
-  height: 350
-  density: 5
-```
-
 BLE image data is sent in paced, no-response chunks; printer replies remain handled by the print protocol. Enabling **Keep Connection** also cuts reconnect overhead between jobs.
 
 ---
@@ -389,7 +351,7 @@ sequence:
 
 - **`niimbot.print` fails instantly with "not supported for this printer"** — `density` or `label_type` is outside the model's range; the action validates before connecting. See [docs/devices.md](docs/devices.md).
 - **Error Count climbs while nothing is printing** — a poll connected and then failed; read Last Failure's `failed_stage`. An asleep printer does not count.
-- **Slow prints** — see [Increasing print speed](#increasing-print-speed) and compare `transfer_s` between runs.
+- **Slow or failed prints** — inspect `transfer_s` and the radio details in [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ---
 

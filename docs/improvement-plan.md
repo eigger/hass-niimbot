@@ -51,7 +51,8 @@ out as `PrintBitmapRowIndexed` (`0x83`); counter bytes follow the split/total ru
 `printheadPixels`; completion drains `0xE0` first and keeps the `0xA3` poll as fallback; `copies` is a
 print-service parameter; `PrinterCheckLine` (`0x86`) runs every 200 rows; the client and its
 notification subscription are held for the lifetime of the connection under `keep_connection`.
-Defaults moved to 10 ms between rows and a confirmation every 16 rows.
+Image data now uses fixed-size no-response BLE chunks with a short internal delay; protocol replies
+remain handled separately through notifications and print checkpoints.
 
 **Phase 5 — partial.** Density validates against the model's range, `label_type` is a service
 parameter, and entity creation is driven by capability rather than by whatever the first refresh
@@ -140,8 +141,7 @@ to the model's first entry rather than a hardcoded `1`.
 ### 8. BLE image transfer pacing (rest of 4.6) — **Revised (T8)**
 
 Image data uses 20-byte no-response writes with a short internal delay between chunks. Printer-level
-replies are handled separately by protocol checkpoints. Per-row delay and acknowledgement cadence
-are no longer user-configurable.
+replies are handled separately by protocol checkpoints.
 
 ---
 

@@ -392,7 +392,7 @@ so in the PR rather than silently changing it.
 
 Image-data writes use fixed-size no-response BLE chunks with a short internal delay between chunks.
 Printer replies continue through notification-based protocol handling and explicit command
-checkpoints; users no longer configure per-row sleep or response cadence.
+checkpoints.
 
 ---
 

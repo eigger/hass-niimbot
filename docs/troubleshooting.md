@@ -35,7 +35,7 @@ The attributes are, in order. `failed_stage` is the shared name used across BLE 
 | `error`, `failed_stage`, `failed_detail`, `likely_cause` | Only on a failure: the exact message, the shared stage it escaped from, the printer's own name for that stage, and one sentence on what that usually means. |
 | `via`, `via_type`, `rssi`, `paths` | The radio the link went over (a proxy or a local adapter), the printer's signal as that radio last saw it, and how many connectable radios currently see the printer. `paths: 1` means there is no other radio to fall back to. On a `connect` failure `via` is the radio that was tried. |
 | `advertised_via` | Only when it differs from `via`: the radio whose advertisement was strongest, which is the one Home Assistant tries first. The link ending up elsewhere is a failover. |
-| `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | Seconds spent in each stage, in the order they ran. A stage that did not run is absent. `transfer_s` is the image transfer itself and the number to compare when tuning speed. |
+| `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | Seconds spent in each stage, in the order they ran. A stage that did not run is absent. `transfer_s` is the time spent sending image data. |
 | `reused` | `true` when **Keep Connection** was on and the job ran over the link that was already open — no `connect_s` in that case. |
 | `copies`, `density` | What the print was asked for. |
 | `cancelled` | `true` when the job was stopped by `niimbot.cancel_print` or the printer's own cancel; not a failure. |
