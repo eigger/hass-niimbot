@@ -11,6 +11,7 @@ from typing import Any, TypeVar
 from bleak import BleakClient
 from blesession import (
     WRITE_TIMEOUT_S,
+    DeviceError,
     GattMismatch,
     Notifications,
     characteristic_or_raise,
@@ -156,12 +157,17 @@ class PrinterErrorCodeEnum(enum.IntEnum):
     Unknown = 0xFF
 
 
-class PrinterError(Exception):
-    def __str__(self) -> str:
-        return "Printer error: %s" % self.args[0].name
+class PrinterError(DeviceError):
+    """The printer answered with an error frame.
 
-    def code(self) -> PrinterErrorCodeEnum:
-        return self.args[0]
+    A ``DeviceError`` (so a ``ConnectionError`` Home Assistant treats as an
+    expected failure); ``code`` is the ``PrinterErrorCodeEnum``.
+    """
+
+    code: PrinterErrorCodeEnum
+
+    def __init__(self, code: PrinterErrorCodeEnum):
+        super().__init__(f"Printer error: {code.name}", code=code)
 
 
 class PrinterTimeout(RuntimeError):

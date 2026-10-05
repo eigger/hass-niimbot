@@ -542,3 +542,17 @@ def test_services_not_discovered_yet_are_left_to_the_subscribe_recovery():
         assert CHARACTERISTIC_UUID in client.subscribed
 
     run(_test())
+
+
+def test_a_printer_error_is_a_device_error_and_reports_its_code_name():
+    from blesession import DeviceError
+
+    err = PrinterError(PrinterErrorCodeEnum.CoverOpen)
+    assert isinstance(err, DeviceError)
+    assert isinstance(err, ConnectionError)
+    assert str(err) == "Printer error: CoverOpen"
+    assert err.code is PrinterErrorCodeEnum.CoverOpen
+
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    device._apply_error(err)
+    assert device.last_error == "CoverOpen"

@@ -387,7 +387,7 @@ class NiimbotDevice:
 
     def _apply_error(self, err: BaseException) -> None:
         if isinstance(err, PrinterError):
-            self.last_error = err.code().name
+            self.last_error = err.code.name
         else:
             self.last_error = type(err).__name__
         self.last_error_time = time.time()
