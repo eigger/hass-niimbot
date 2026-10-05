@@ -8,7 +8,7 @@ from asyncio import sleep
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from bleak import BleakClient
+from bleak import BleakClient, BleakError
 from blesession import (
     WRITE_TIMEOUT_S,
     DeviceError,
@@ -276,10 +276,20 @@ class BLETransport(BaseTransport):
         discovered yet) is left to ``Notifications``, which refreshes the
         services and retries the subscribe.
         """
+        # The characteristic's own service, so a model that keeps it under
+        # another service than SERVICE_UUID is not refused; bleak resolves the
+        # UUID across services when it subscribes and writes.
+        service_uuid = SERVICE_UUID
+        try:
+            found = self._client.services.get_characteristic(CHARACTERISTIC_UUID)
+            if found is not None:
+                service_uuid = found.service_uuid
+        except BleakError:
+            pass  # not discovered yet (or ambiguous): the check below decides
         try:
             characteristic_or_raise(
                 self._client,
-                SERVICE_UUID,
+                service_uuid,
                 CHARACTERISTIC_UUID,
                 properties=("notify",),
                 label="printer",

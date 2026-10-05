@@ -344,6 +344,23 @@ def test_refresh_info_connect_failure_is_a_real_failure():
     run(_test())
 
 
+def _expose(client, service_uuid, char_uuid, **kwargs):
+    """``add_characteristic`` plus what bleak's real ``services`` also offers:
+    ``get_characteristic`` across services and ``service_uuid`` on the result."""
+    char = client.add_characteristic(service_uuid, char_uuid, **kwargs)
+    char.service_uuid = service_uuid
+
+    def get_characteristic(uuid):
+        for service in client.services.by_uuid.values():
+            found = service.get_characteristic(uuid)
+            if found is not None:
+                return found
+        return None
+
+    client.services.get_characteristic = get_characteristic
+    return char
+
+
 class _Printer:
     async def calibrate_height(self) -> bool:
         return True
@@ -366,7 +383,7 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
         )
 
         client = FakeClient()
-        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID)
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID)
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(session_mod, "establish_connection", fake_connect(client))
             async with ble_session(FakeDevice()):
@@ -429,7 +446,7 @@ def test_a_link_drop_while_waiting_for_a_reply_ends_the_command_at_once():
         )
 
         client = FakeClient()
-        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID)
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID)
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(session_mod, "establish_connection", fake_connect(client))
             async with ble_session(FakeDevice()):
@@ -509,9 +526,10 @@ def test_a_printer_without_the_characteristic_fails_as_a_gatt_mismatch():
         )
 
         client = FakeClient()
+        _expose(client, "0000ffe0-0000-1000-8000-00805f9b34fb", "00002a00-0000-1000-8000-00805f9b34fb")
         with pytest.raises(GattMismatch, match="service"):
             await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
-        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID, properties=("write",))
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID, properties=("write",))
         with pytest.raises(GattMismatch, match="notify"):
             await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
 
@@ -556,3 +574,20 @@ def test_a_printer_error_is_a_device_error_and_reports_its_code_name():
     device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
     device._apply_error(err)
     assert device.last_error == "CoverOpen"
+
+
+def test_a_characteristic_under_another_service_is_still_accepted():
+    async def _test():
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            BLETransport,
+        )
+
+        client = FakeClient()
+        _expose(client, "0000ffe0-0000-1000-8000-00805f9b34fb", CHARACTERISTIC_UUID)
+        await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        assert CHARACTERISTIC_UUID in client.subscribed
+
+    run(_test())
