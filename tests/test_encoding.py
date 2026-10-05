@@ -94,7 +94,7 @@ def test_set_image_coalesces_identical_rows_and_uses_indexed():
 
         transport = FakeTransport()
         client = PrinterClient(transport=transport)
-        await client.set_image(img, wait_between_print_lines=0, print_line_batch_size=1, printhead_pixels=96)
+        await client.set_image(img, printhead_pixels=96)
 
         packets = transport.written_packets
         types = [p.type for p in packets]
@@ -118,7 +118,7 @@ def test_set_image_falls_back_to_bitmap_above_six_pixels():
 
         transport = FakeTransport()
         client = PrinterClient(transport=transport)
-        await client.set_image(img, 0, 1, printhead_pixels=96)
+        await client.set_image(img, printhead_pixels=96)
         types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.PRINT_BITMAP_ROW in types
         assert RequestCodeEnum.PRINT_BITMAP_ROW_INDEXED not in types

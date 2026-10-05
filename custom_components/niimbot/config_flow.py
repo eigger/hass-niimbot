@@ -23,13 +23,9 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
-    CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-    CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
     CONF_USE_CLOUD_LABEL_INFO,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
-    DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DEFAULT_KEEP_CONNECTION,
     DEFAULT_USE_CLOUD_LABEL_INFO,
     DOMAIN,
@@ -48,30 +44,6 @@ OPTIONS_SCHEMA = {
             step=1,
             mode=NumberSelectorMode.BOX,
             unit_of_measurement="seconds",
-        )
-    ),
-    vol.Required(
-        CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-        default=DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
-    ): NumberSelector(
-        NumberSelectorConfig(
-            min=0,
-            max=1000,
-            step=1,
-            mode=NumberSelectorMode.BOX,
-            unit_of_measurement="milliseconds",
-        )
-    ),
-    vol.Required(
-        CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
-        default=DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
-    ): NumberSelector(
-        NumberSelectorConfig(
-            min=1,
-            max=512,
-            step=1,
-            mode=NumberSelectorMode.BOX,
-            unit_of_measurement="lines",
         )
     ),
     vol.Required(CONF_KEEP_CONNECTION, default=DEFAULT_KEEP_CONNECTION): bool,

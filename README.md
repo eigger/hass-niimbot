@@ -143,8 +143,6 @@ From version 2.0.0, labels are rendered with **[imagespec](https://github.com/ei
 | `density` | no | model default (usually `3`) | Print density. Validated against the model range (typically 1–5; some up to 20) before connecting |
 | `label_type` | no | `1` | Paper type code (`1` WithGaps, `2` Black, `3` Continuous, …) |
 | `copies` | no | `1` | Number of copies in one print job |
-| `wait_between_print_lines` | no | device option | Seconds between lines (device default **10 ms**) |
-| `print_line_batch_size` | no | device option | Lines per batch before confirmation (device default **16**) |
 | `preview` | no | `false` | Render only; do not send to the printer |
 
 Use `response_variable` in scripts to receive the generated image as a `data:` URL when `preview: true`.
@@ -338,13 +336,9 @@ data:
   width: 584
   height: 350
   density: 5
-  wait_between_print_lines: 0.01
-  print_line_batch_size: 16
 ```
 
-Persist working values in **Configure** (`wait_between_print_lines × 1000` → ms for **Wait Between Each Print Line**). Enabling **Keep Connection** also cuts reconnect overhead between jobs.
-
-Anecdotally, B21 Pro on a busy network is reliable at 10 ms wait and batch size 16. Report what works for your setup in [issues](https://github.com/eigger/hass-niimbot/issues).
+BLE image data is sent in paced, no-response chunks; printer replies remain handled by the print protocol. Enabling **Keep Connection** also cuts reconnect overhead between jobs.
 
 ---
 

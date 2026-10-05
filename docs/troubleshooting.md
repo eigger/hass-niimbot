@@ -57,7 +57,7 @@ When the printer itself refused the job, `error` reads `Printer error: <Code>` a
 | `WrongPaper` / `WrongRibbon` / `NoRibbon` / `UsedRibbon` | The consumable does not match the job or is missing. | Check the roll / ribbon; check `label_type` against the paper. |
 | `Overheat` / `TemperatureLow` | The head is out of its temperature range. | Wait, then retry. |
 | `PrinterBusy` | Another job is running (often the phone app). | Close the app or wait. |
-| `ReceiveDataTimeout` | The printer waited too long for image data — a congested proxy. | Raise `wait_between_print_lines`; see `transfer` below. |
+| `ReceiveDataTimeout` | The printer waited too long for image data — a congested proxy. | Move the printer or proxy closer; see `transfer` below. |
 
 ### `connect`
 
@@ -88,7 +88,7 @@ Connected, but the printer did not answer a status read, or rejected a setting o
 
 Failed while the image was being sent. This is the one stage that points at link quality.
 - *Check:* `rssi`, `via`, `transfer_s`, and whether it dies at the same point every time. `ReceiveDataTimeout` from the printer is the same problem seen from its side.
-- *Do:* Once: move the printer or the proxy it used (`via`), or add one. Raise `wait_between_print_lines` (e.g. `0.02`) and lower `print_line_batch_size` (e.g. `8`) — see [Increasing print speed](../README.md#increasing-print-speed). Every time at the same point, on any setting: please [open an issue](https://github.com/eigger/hass-niimbot/issues) with the attributes.
+- *Do:* Once: move the printer or the proxy it used (`via`), or add one. Every time at the same point: please [open an issue](https://github.com/eigger/hass-niimbot/issues) with the attributes.
 
 ### `finish`
 

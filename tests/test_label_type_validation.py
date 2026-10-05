@@ -108,8 +108,6 @@ def test_print_image_rejects_unsupported_label_type():
                 model=PrinterModel.B1,
                 image=img,
                 density=3,
-                wait_between_print_lines=0,
-                print_line_batch_size=1,
                 label_type=3,
             )
 
@@ -127,8 +125,6 @@ def test_print_image_defaults_p1_to_pvc_tag():
             model=PrinterModel.P1,
             image=img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
             label_type=None,
         )
 
@@ -151,8 +147,6 @@ def test_print_image_defaults_b1_to_with_gaps():
             model=PrinterModel.B1,
             image=img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
             label_type=None,
         )
 

@@ -19,8 +19,4 @@ class NiimbotRuntimeData:
     device: NiimbotDevice
     coordinator: DataUpdateCoordinator[BLEData]
     image_coordinator: DataUpdateCoordinator[ImageAndBLEData]
-    # Snapshotted at setup, matching the values the print service used when
-    # each entry registered its own handler.
-    wait_between_each_print_line: int
-    confirm_every_nth_print_line: int
     cloud_lookup: LabelCloudLookup | None

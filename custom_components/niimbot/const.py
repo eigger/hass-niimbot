@@ -9,15 +9,9 @@ from .niimprint.printer import SERVICE_UUID
 DOMAIN = "niimbot"
 NIIMBOT_SERVICE_UUID = SERVICE_UUID
 CONF_USE_SOUND = "use_sound"
-CONF_WAIT_BETWEEN_EACH_PRINT_LINE = "wait_between_each_print_line"
-CONF_CONFIRM_EVERY_NTH_PRINT_LINE = "confirm_every_nth_print_line"
 CONF_KEEP_CONNECTION = "keep_connection"
 CONF_USE_CLOUD_LABEL_INFO = "use_cloud_label_info"
 DEFAULT_SCAN_INTERVAL = 600
-# Match niimblue's packetIntervalMs; previous 50 ms + confirm-every-line
-# made even small labels spend seconds idle.
-DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE = 10
-DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE = 16
 DEFAULT_KEEP_CONNECTION = False
 DEFAULT_USE_CLOUD_LABEL_INFO = False
 

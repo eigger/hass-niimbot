@@ -137,11 +137,11 @@ not the protocol. **[HW]** each — they move paper.
 value reaches the printer and returns `SetPrintLabelMaterialNoSupport`. Validate locally and default
 to the model's first entry rather than a hardcoded `1`.
 
-### 8. Adaptive flow control (rest of 4.6) — **Done (T8)**
+### 8. BLE image transfer pacing (rest of 4.6) — **Revised (T8)**
 
-Defaults are now 10 ms and confirm-every-16. The second half — measuring per-write latency from
-`PrinterClient._timings` and adapting the batch size during the page, backing off when latency rises —
-is not done. Start conservative and only widen.
+Image data uses 20-byte no-response writes with a short internal delay between chunks. Printer-level
+replies are handled separately by protocol checkpoints. Per-row delay and acknowledgement cadence
+are no longer user-configurable.
 
 ---
 
