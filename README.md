@@ -39,15 +39,17 @@ See [examples](examples/README.md) for more print and automation recipes. See [A
 
 ## Supported printers
 
-| Model | Status |
-|---|---|
-| B1 | Verified |
-| B1 Pro | Verified |
-| B2 Pro | Verified |
-| B21 Pro | Verified |
-| D110 | Verified |
+| Model | Resolution | Printhead width | Typical `rotate` | Density (default) | Status |
+|---|---|---|---|---|---|
+| B1 | 203 DPI | 384 px | `0` | 1–5 (3) | Verified |
+| B1 Pro | 300 DPI | 567 px | `0` | 1–5 (3) | Verified |
+| B2 Pro | 300 DPI | 567 px | `0` | 1–5 (3) | Verified |
+| B21 Pro | 300 DPI | 591 px | `0` | 1–5 (3) | Verified |
+| D110 | 203 DPI | 96 px | `90` | 1–3 (2) | Verified |
 
-See the [device reference](docs/devices.md) for the full model list and hardware limits.
+Printhead width is the pixel width used by the integration's model profile. Set the action's `width` and `height` to suit the loaded label. The rotation values above are starting points for landscape labels; `90` or `270` swaps the rendered width and height. See the [D110 example](examples/d110.yaml) for a rotated layout.
+
+See the [device reference](docs/devices.md) for the full model list and supported label types, and [Actions](docs/actions.md) for sizing and rotation.
 
 ## Documentation and support
 
