@@ -65,22 +65,6 @@ print:
           min: 1
           max: 99
           step: 1
-    wait_between_print_lines:
-      required: false
-      default: 0.05
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.01
-    print_line_batch_size:
-      required: false
-      default: 1
-      selector:
-        number:
-          min: 1
-          max: 512
-          step: 1
     preview:
       required: false
       example: 'false'

@@ -165,8 +165,6 @@ def test_print_failure_records_transfer_and_the_error_sensor_trace():
                 _Ble(),  # type: ignore[arg-type]
                 Image.new("1", (8, 8)),
                 3,
-                0,
-                1,
                 label_type=1,
             )
 
@@ -204,8 +202,6 @@ def test_asleep_poll_does_not_replace_the_last_real_failure():
                 _Ble(),  # type: ignore[arg-type]
                 Image.new("1", (8, 8)),
                 3,
-                0,
-                1,
                 label_type=1,
             )
         failed = device.reports.last_failure

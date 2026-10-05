@@ -133,9 +133,7 @@ def test_set_image_sends_check_line_every_200_rows():
             [NiimbotPacket(PRINTER_CHECK_LINE_RESP, b"\x01")]
         )
         client = PrinterClient(transport=transport)
-        await client.set_image(
-            img, wait_between_print_lines=0, print_line_batch_size=32, printhead_pixels=96
-        )
+        await client.set_image(img, printhead_pixels=96)
         types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.PRINTER_CHECK_LINE in types
         check = next(

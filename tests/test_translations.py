@@ -12,8 +12,6 @@ KO_PATH = os.path.join(COMPONENT_DIR, "translations", "ko.json")
 
 EXPECTED_OPTION_KEYS = {
     "scan_interval",
-    "wait_between_each_print_line",
-    "confirm_every_nth_print_line",
     "keep_connection",
     "use_cloud_label_info",
 }

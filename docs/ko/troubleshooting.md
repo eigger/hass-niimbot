@@ -59,7 +59,7 @@ Last Failure의 `failed_stage`부터 시작하세요: 세션이 어디까지 갔
 | `WrongPaper` / `WrongRibbon` / `NoRibbon` / `UsedRibbon` | 소모품이 작업과 맞지 않거나 없음. | 롤 / 리본 확인; `label_type`이 용지와 맞는지 확인. |
 | `Overheat` / `TemperatureLow` | 헤드가 온도 범위를 벗어남. | 기다렸다가 재시도. |
 | `PrinterBusy` | 다른 작업이 실행 중 (흔히 휴대폰 앱). | 앱을 닫거나 대기. |
-| `ReceiveDataTimeout` | 프린터가 이미지 데이터를 너무 오래 기다림 — 혼잡한 프록시. | `wait_between_print_lines`를 올리세요; 아래 `transfer` 참고. |
+| `ReceiveDataTimeout` | 프린터가 이미지 데이터를 너무 오래 기다림 — 혼잡한 프록시. | 프린터나 프록시를 가까이 옮기세요; 아래 `transfer` 참고. |
 
 ### `connect`
 
@@ -90,7 +90,7 @@ Last Failure의 `failed_stage`부터 시작하세요: 세션이 어디까지 갔
 
 이미지를 보내는 중 실패했습니다. 링크 품질을 가리키는 유일한 단계입니다.
 - *확인:* `rssi`, `via`, `transfer_s`, 매번 같은 지점에서 죽는지. 프린터 쪽의 `ReceiveDataTimeout`은 같은 문제를 반대편에서 본 것입니다.
-- *조치:* 한 번: 프린터나 사용된 프록시(`via`)를 옮기거나 하나 추가. `wait_between_print_lines`를 올리고(예: `0.02`) `print_line_batch_size`를 낮추세요(예: `8`) — [인쇄 속도 높이기](../../README.md#increasing-print-speed) 참고. 어떤 설정에서도 매번 같은 지점이라면: 속성과 함께 [이슈를 열어주세요](https://github.com/eigger/hass-niimbot/issues).
+- *조치:* 한 번: 프린터나 사용된 프록시(`via`)를 옮기거나 하나 추가. 매번 같은 지점에서 실패한다면 속성과 함께 [이슈를 열어주세요](https://github.com/eigger/hass-niimbot/issues).
 
 ### `finish`
 

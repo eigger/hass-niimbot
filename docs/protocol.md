@@ -54,11 +54,9 @@ searching for the next `55 55` and discarding leading garbage.
 
 ### Write flow control
 
-Bitmap row commands (`0x83`, `0x84`, `0x85`) expect no response. Sending all of them as
-write-without-response floods the link and drops packets; sending all of them as
-write-with-response makes printing extremely slow. This integration sends
-write-with-response once every `print_line_batch_size` rows and idles
-`wait_between_print_lines` between rows. Both are user-configurable.
+Bitmap row commands (`0x83`, `0x84`, `0x85`) are sent as 20-byte write-without-response chunks
+with a short pacing interval between chunks. Printer-level replies are received separately and
+remain part of protocol checkpoints and command exchanges.
 
 ## 2. Packet framing
 

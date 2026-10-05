@@ -176,8 +176,6 @@ def test_in_flight_print_cancellation():
             model=PrinterModel.B1,
             image=img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         assert isinstance(res, dict)

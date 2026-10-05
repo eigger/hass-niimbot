@@ -912,8 +912,6 @@ class NiimbotDevice:
         ble_device: BLEDevice,
         image: Image.Image,
         density: int,
-        wait_between_print_lines: float,
-        print_line_batch_size: int,
         label_type: int | None = None,
         copies: int = 1,
     ) -> dict:
@@ -986,8 +984,6 @@ class NiimbotDevice:
                                 printer_model,
                                 image,
                                 density,
-                                wait_between_print_lines,
-                                print_line_batch_size,
                                 label_type=label_type,
                                 copies=copies,
                             )
@@ -1026,4 +1022,3 @@ class NiimbotDevice:
             "duration": self.print_duration,
             "copies": copies,
         }
-

@@ -7,15 +7,11 @@
         "data": {
           "address": "[%key:component::bluetooth::config::step::user::data::address%]",
           "scan_interval": "Scan Interval",
-          "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
           "keep_connection": "Keep BLE Connection",
           "use_cloud_label_info": "Fetch Label Info Online"
         },
         "data_description": {
           "scan_interval": "Interval in seconds to poll printer status (battery, printhead temperature, RFID/label info, etc.). Lower values update status faster but consume more battery.",
-          "wait_between_each_print_line": "Time in milliseconds to pause between sending each line of print data over BLE. Increase this value if you experience buffer overflows or packet drops (e.g., via ESPHome Bluetooth proxies).",
-          "confirm_every_nth_print_line": "Number of print lines sent in a batch before waiting for an acknowledgment packet from the printer. Higher values speed up printing significantly, while 1 is safest for unstable connections.",
           "keep_connection": "Keep the Bluetooth connection alive continuously instead of disconnecting after each operation. Eliminates reconnection delay when printing, but drains more battery and prevents other devices from connecting to the printer.",
           "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
@@ -24,15 +20,11 @@
         "description": "[%key:component::bluetooth::config::step::bluetooth_confirm::description%]",
         "data": {
           "scan_interval": "Scan Interval",
-          "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
           "keep_connection": "Keep BLE Connection",
           "use_cloud_label_info": "Fetch Label Info Online"
         },
         "data_description": {
           "scan_interval": "Interval in seconds to poll printer status (battery, printhead temperature, RFID/label info, etc.). Lower values update status faster but consume more battery.",
-          "wait_between_each_print_line": "Time in milliseconds to pause between sending each line of print data over BLE. Increase this value if you experience buffer overflows or packet drops (e.g., via ESPHome Bluetooth proxies).",
-          "confirm_every_nth_print_line": "Number of print lines sent in a batch before waiting for an acknowledgment packet from the printer. Higher values speed up printing significantly, while 1 is safest for unstable connections.",
           "keep_connection": "Keep the Bluetooth connection alive continuously instead of disconnecting after each operation. Eliminates reconnection delay when printing, but drains more battery and prevents other devices from connecting to the printer.",
           "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
@@ -53,15 +45,11 @@
         "description": "Change options for your device",
         "data": {
           "scan_interval": "Scan Interval",
-          "wait_between_each_print_line": "Wait Between Each Print Line",
-          "confirm_every_nth_print_line": "Confirm Every Nth Print Line",
           "keep_connection": "Keep BLE Connection",
           "use_cloud_label_info": "Fetch Label Info Online"
         },
         "data_description": {
           "scan_interval": "Interval in seconds to poll printer status (battery, printhead temperature, RFID/label info, etc.). Lower values update status faster but consume more battery.",
-          "wait_between_each_print_line": "Time in milliseconds to pause between sending each line of print data over BLE. Increase this value if you experience buffer overflows or packet drops (e.g., via ESPHome Bluetooth proxies).",
-          "confirm_every_nth_print_line": "Number of print lines sent in a batch before waiting for an acknowledgment packet from the printer. Higher values speed up printing significantly, while 1 is safest for unstable connections.",
           "keep_connection": "Keep the Bluetooth connection alive continuously instead of disconnecting after each operation. Eliminates reconnection delay when printing, but drains more battery and prevents other devices from connecting to the printer.",
           "use_cloud_label_info": "Look up the loaded label's name and size from a NIIMBOT server using its product code (barcode). Off by default. Only the product code is sent — no serial number, tag ID, or other device information."
         }
@@ -100,14 +88,6 @@
         "copies": {
           "name": "Copies",
           "description": "Number of copies to print of the same label. Default: 1."
-        },
-        "wait_between_print_lines": {
-          "name": "Wait between print lines",
-          "description": "Time to wait between each line sent to the printer."
-        },
-        "print_line_batch_size": {
-          "name": "Print line batch size",
-          "description": "Size of the batch of lines sent to the printer between confirmations."
         },
         "preview": {
           "name": "Preview the image data",

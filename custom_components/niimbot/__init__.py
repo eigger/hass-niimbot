@@ -15,16 +15,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .cloud import LabelCloudLookup
 from .const import (
-    CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
     CONF_KEEP_CONNECTION,
     CONF_USE_CLOUD_LABEL_INFO,
     CONF_USE_SOUND,
-    CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-    DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
     DEFAULT_KEEP_CONNECTION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USE_CLOUD_LABEL_INFO,
-    DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
     DOMAIN,
     EMPTY_PNG,
     ImageAndBLEData,
@@ -66,32 +62,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
     scan_interval = float(
         entry.options.get(
             CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        )
-    )
-    # Number of seconds (usually sub-second amount) to wait between
-    # data packet sends.  Too little and you risk your BLE proxy
-    # getting congested or failing to write data to your printer.
-    wait_between_each_print_line = int(
-        entry.options.get(
-            CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-            entry.data.get(
-                CONF_WAIT_BETWEEN_EACH_PRINT_LINE,
-                DEFAULT_WAIT_BETWEEN_EACH_PRINT_LINE,
-            ),
-        )
-    )
-    # The default for most printers is 1 which means every line
-    # written causes a read from the printer, which is very slow
-    # (0.1 ms per line sent).  With this you can tell the code
-    # to fire-and-forget up to N-1 lines sent to the printer
-    # confirmation, and confirm on the Nth line.
-    confirm_every_nth_print_line = int(
-        entry.options.get(
-            CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
-            entry.data.get(
-                CONF_CONFIRM_EVERY_NTH_PRINT_LINE,
-                DEFAULT_CONFIRM_EVERY_NTH_PRINT_LINE,
-            ),
         )
     )
     keep_connection = bool(
@@ -292,8 +262,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         device=niimbot,
         coordinator=coordinator,
         image_coordinator=image_coordinator,
-        wait_between_each_print_line=wait_between_each_print_line,
-        confirm_every_nth_print_line=confirm_every_nth_print_line,
         cloud_lookup=cloud_lookup,
     )
 

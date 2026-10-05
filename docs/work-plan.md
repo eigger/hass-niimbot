@@ -388,28 +388,11 @@ so in the PR rather than silently changing it.
 
 ---
 
-## T8 — Adaptive flow control [Done]
+## T8 — BLE image transfer pacing [Revised]
 
-**Goal.** Stop paying a fixed per-row cost that the link does not need.
-
-**Why.** Defaults are 10 ms between rows and a confirmation every 16 rows. `PrinterClient._timings`
-already collects per-write latency and nothing reads it.
-
-**Do this last.** T1–T7 change what goes over the link; measuring before they land measures the wrong
-thing.
-
-**Files.** `custom_components/niimbot/niimprint/printer.py` (`set_image`, `_pace_after_row`).
-
-**Change.** Adapt the batch size during the page from observed latency: widen while writes stay fast,
-back off immediately when latency rises or a `PrinterCheckLine` response is late. Start conservative.
-The user's explicit `wait_between_print_lines` / `print_line_batch_size` values must remain a ceiling —
-never exceed what the user configured, only stay under it.
-
-**Tests.** With a fake transport reporting rising latency, the batch size decreases; with flat low
-latency it increases to the configured ceiling and no further.
-
-**Acceptance.** A page prints with the same packets in the same order; only the response-request
-cadence differs. Report measured before/after timings for one real label in the PR.
+Image-data writes use fixed-size no-response BLE chunks with a short internal delay between chunks.
+Printer replies continue through notification-based protocol handling and explicit command
+checkpoints; users no longer configure per-row sleep or response cadence.
 
 ---
 

@@ -212,12 +212,6 @@ async def _print_one(
             ble_device,
             image,
             density=density,
-            wait_between_print_lines=float(service.data["wait_between_print_lines"])
-            if "wait_between_print_lines" in service.data
-            else data.wait_between_each_print_line / 1000,
-            print_line_batch_size=int(service.data["print_line_batch_size"])
-            if "print_line_batch_size" in service.data
-            else data.confirm_every_nth_print_line,
             label_type=requested_label_type,
             copies=int(service.data["copies"]) if "copies" in service.data else 1,
         )

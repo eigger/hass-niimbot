@@ -75,8 +75,6 @@ def test_print_sequence_old_d11():
             PrinterModel.D11,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         sent_types = [p.type for p in transport.written_packets]
@@ -110,8 +108,6 @@ def test_print_sequence_d110():
             PrinterModel.D110,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         sent_types = [p.type for p in transport.written_packets]
@@ -148,8 +144,6 @@ def test_print_sequence_v4():
             PrinterModel.B1,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         sent_types = [p.type for p in transport.written_packets]
@@ -181,8 +175,6 @@ def test_print_sequence_v5():
             PrinterModel.D11_H,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         # V5 start_print sends struct.pack(">HBBBBBBB", ...) -> 9 bytes payload
@@ -221,8 +213,6 @@ def test_unknown_model_fallback_v5_via_protocol_version():
             PrinterModel.UNKNOWN,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         start_print_pkt = next(
@@ -256,8 +246,6 @@ def test_unknown_model_fallback_default_v4():
             PrinterModel.UNKNOWN,
             img,
             density=3,
-            wait_between_print_lines=0,
-            print_line_batch_size=1,
         )
 
         sent_types = [p.type for p in transport.written_packets]

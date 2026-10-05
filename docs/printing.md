@@ -246,18 +246,9 @@ integration use this pattern, with a 5-second timeout.
 
 ## 6. Throughput
 
-Row commands are fire-and-forget, which is what makes printing fast and also what makes it fragile:
-too many unacknowledged writes and the BLE link drops packets mid-page.
-
-This integration exposes two knobs:
-
-| Option | Effect |
-| --- | --- |
-| `print_line_batch_size` | One write-with-response every N rows; the rest are write-without-response |
-| `wait_between_print_lines` | Idle time inserted after each row |
-
-Lower `wait_between_print_lines` and raise `print_line_batch_size` for speed; do the opposite if pages
-come out with missing bands.
+Bitmap rows are sent as 20-byte BLE writes without a GATT response, with a short pacing interval
+between chunks. Printer-level replies are still handled separately at protocol checkpoints and
+command boundaries. Transfer pacing is internal so it stays consistent across print jobs.
 
 `PrintEmptyRow` batching, identical-row coalescing through `repeats` and `PrintBitmapRowIndexed`
 (section 2) are all in use, so the remaining per-page cost is dominated by round-trips rather than by
