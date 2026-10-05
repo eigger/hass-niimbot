@@ -20,71 +20,100 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Check and update imagespec version
+      - name: Check and raise minimum requirement versions
         run: |
           python - <<'PY'
           import json
-          import urllib.request
-          import re
           import os
+          import re
           import sys
-          
+          import urllib.request
+
           manifest_path = "custom_components/niimbot/manifest.json"
+          packages = ["imagespec", "blesession"]
+
+          def version_tuple(version):
+              parts = [int(part) for part in version.split(".")]
+              while len(parts) > 1 and parts[-1] == 0:
+                  parts.pop()  # 1.0 and 1.0.0 are the same release
+              return tuple(parts)
+
           with open(manifest_path, "r", encoding="utf-8") as f:
-              manifest = json.load(f)
-          
-          # Find current imagespec version
-          current_req = None
-          current_version = None
-          for req in manifest.get("requirements", []):
-              if req.startswith("imagespec"):
-                  current_req = req
-                  match = re.search(r"==([0-9.]+)", req)
-                  if match:
-                      current_version = match.group(1)
-                  break
-          
-          if not current_version:
-              print("No imagespec requirement found in manifest.json")
-              sys.exit(0)
-              
-          # Fetch latest version from PyPI
-          try:
-              with urllib.request.urlopen("https://pypi.org/pypi/imagespec/json") as response:
-                  data = json.loads(response.read().decode())
-                  latest_version = data["info"]["version"]
-          except Exception as e:
-              print(f"Failed to fetch from PyPI: {e}")
-              sys.exit(1)
-              
-          print(f"Current version: {current_version}, Latest version: {latest_version}")
-          
-          if current_version != latest_version:
-              # Read raw text to preserve formatting and update the version
-              with open(manifest_path, "r", encoding="utf-8") as f:
-                  text = f.read()
-              new_text = text.replace(f"=={current_version}", f"=={latest_version}")
-              with open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
-                  f.write(new_text)
-              
-              # Set output environment variable for next steps
-              if 'GITHUB_ENV' in os.environ:
-                  with open(os.environ['GITHUB_ENV'], 'a') as env_file:
-                      env_file.write("VERSION_UPDATED=true\n")
-                      env_file.write(f"LATEST_VERSION={latest_version}\n")
-          else:
+              text = f.read()
+          json.loads(text)  # fail early on a broken manifest
+
+          updates = []
+          for package in packages:
+              # "imagespec[datamatrix]>=1.0.0" or the older "imagespec==1.0.0"
+              pattern = re.compile(
+                  r'"%s(\[[^\]]*\])?(==|>=)([0-9]+(?:\.[0-9]+)*)"' % re.escape(package)
+              )
+              match = pattern.search(text)
+              if not match:
+                  if re.search(r'"%s[\[<>=~! ]' % re.escape(package), text):
+                      # Listed, but not as ==x.y.z or >=x.y.z: do not skip it silently.
+                      print(f"::error::{package} is in manifest.json in a form this bot does not understand")
+                      sys.exit(1)
+                  print(f"No {package} requirement found in manifest.json")
+                  continue
+              extras, operator, current = match.groups()
+              extras = extras or ""
+
+              try:
+                  with urllib.request.urlopen(f"https://pypi.org/pypi/{package}/json") as response:
+                      latest = json.loads(response.read().decode())["info"]["version"]
+              except Exception as e:
+                  print(f"Failed to fetch {package} from PyPI: {e}")
+                  sys.exit(1)
+              if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", latest):
+                  print(f"{package}: latest {latest} is not a plain release, skipping")
+                  continue
+
+              print(f"{package}: current minimum {operator}{current}, latest {latest}")
+              target = latest if version_tuple(latest) > version_tuple(current) else current
+              if operator == "==" or target != current:
+                  text = text.replace(
+                      match.group(0), f'"{package}{extras}>={target}"'
+                  )
+                  updates.append((package, current, target, operator))
+
+          if not updates:
               print("Already up to date!")
+              sys.exit(0)
+
+          # Raw text, so the manifest's formatting is preserved
+          with open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
+              f.write(text)
+
+          raised = [(p, c, t) for p, c, t, o in updates if t != c]
+          normalized = [p for p, c, t, o in updates if t == c]
+          parts = [f"bump {p} to {t}" for p, c, t in raised]
+          parts += [f"use >= for {p}" for p in normalized]
+          title = "chore: " + " and ".join(parts)
+          # One branch, so a newer release updates the open PR instead of
+          # opening a second one that conflicts with it.
+          branch = "dep-bump-requirements"
+          lines = [f"- {p}: >={c} -> >={t}" for p, c, t in raised]
+          lines += [f"- {p}: ==x -> >=x (minimum-version requirement)" for p in normalized]
+          body = (
+              "Automated dependency update. The manifest requires a minimum version "
+              "(`>=`):\n\n" + "\n".join(lines)
+          )
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              env_file.write("VERSION_UPDATED=true\n")
+              env_file.write(f"BUMP_BRANCH={branch}\n")
+              env_file.write(f"BUMP_TITLE={title}\n")
+              env_file.write("BUMP_BODY<<EOF\n" + body + "\nEOF\n")
           PY
 
       - name: Create Pull Request
         if: env.VERSION_UPDATED == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          LATEST_VERSION: ${{ env.LATEST_VERSION }}
         run: |
           set -euo pipefail
 
-          branch="dep-bump-imagespec-${LATEST_VERSION}"
+          branch="${BUMP_BRANCH}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -92,17 +121,18 @@ jobs:
 
           git checkout -B "${branch}"
           git add custom_components/niimbot/manifest.json
-          git commit -m "chore: bump imagespec to ${LATEST_VERSION}"
+          git commit -m "${BUMP_TITLE}"
           git push --force origin "${branch}"
 
           existing_pr="$(gh pr list --head "${branch}" --base master --json number --jq '.[0].number' || true)"
           if [ -n "$existing_pr" ] && [ "$existing_pr" != "null" ]; then
-            echo "Pull request already exists: #${existing_pr}"
+            echo "Pull request #${existing_pr} exists; updating its title and body"
+            gh pr edit "${existing_pr}" --title "${BUMP_TITLE}" --body "${BUMP_BODY}"
           elif ! gh pr create \
             --base master \
             --head "${branch}" \
-            --title "chore: bump imagespec to ${LATEST_VERSION}" \
-            --body "Automated dependency update: bumps imagespec to version ${LATEST_VERSION}."; then
+            --title "${BUMP_TITLE}" \
+            --body "${BUMP_BODY}"; then
             echo "::error::Failed to create pull request. In repository Settings > Actions > General, enable 'Allow GitHub Actions to create and approve pull requests'."
             echo "Branch was pushed. Open a PR manually: https://github.com/${GITHUB_REPOSITORY}/compare/master...${branch}?expand=1"
             exit 1
