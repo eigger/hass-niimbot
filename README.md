@@ -39,7 +39,12 @@ See [examples](examples/README.md) for more print and automation recipes. See [A
 
 ## Supported printers
 
-**Verified printers:** B1, B1 Pro, B2 Pro, B21 Pro and D110. The integration also includes profiles for other Niimbot Bluetooth models, including D11, D101, B21 and B3S series printers. See the [device reference](docs/devices.md) for the full model list and hardware limits.
+| Support status | Representative models |
+|---|---|
+| Verified | B1, B1 Pro, B2 Pro, B21 Pro, D110 |
+| Model profiles included | D11 series, D101, B21 series, B3S series |
+
+See the [device reference](docs/devices.md) for the full model list and hardware limits.
 
 ## Documentation and support
 
