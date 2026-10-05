@@ -170,8 +170,6 @@ class NiimbotDevice:
         # can attach that session's breakdown to the Last Error sensor.
         self._error_from_session = False
         self._active_trace: SessionTrace | None = None
-        # Radio the current keep_connection link actually took. A reused
-        # session copies it onto its trace; a fresh connect probes again.
         # The ble_session() entered by _ensure_printer, exited by _release_printer.
         self._open_session = None
         self.last_print_trace: SessionTrace | None = None

@@ -4,7 +4,7 @@ import asyncio
 
 from PIL import Image
 import pytest
-from blesession import LinkInfo, SessionTrace, fallback_report, stages
+from blesession import SessionTrace, fallback_report, stages
 
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterError, PrinterErrorCodeEnum
@@ -279,7 +279,7 @@ def test_fresh_connect_uses_ble_session():
     run(_test())
 
 
-def test_reused_connection_keeps_the_probed_link():
+def test_reused_connection_reuses_the_link():
     async def _test():
         device = NiimbotDevice("aa:bb:cc:dd:ee:ff", keep_connection=True)
 
@@ -291,7 +291,6 @@ def test_reused_connection_keeps_the_probed_link():
 
         device.client = _Client()
         device._printer = _Held()  # type: ignore[assignment]
-        device._link = LinkInfo(via="proxy-1")
         device._active_trace = SessionTrace()
         await device._ensure_printer(_Ble())  # type: ignore[arg-type]
         await device._release_printer()
@@ -599,4 +598,3 @@ def test_a_characteristic_under_another_service_is_still_accepted():
         assert CHARACTERISTIC_UUID in client.subscribed
 
     run(_test())
-

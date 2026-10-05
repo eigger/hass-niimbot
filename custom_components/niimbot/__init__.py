@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from bleak_retry_connector import close_stale_connections_by_address
+from blesession import fallback_report
 from homeassistant.components import bluetooth
 from homeassistant.components.image import Image
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
@@ -31,8 +32,6 @@ from .const import (
 from .data import NiimbotRuntimeData
 from .niimprint import BLEData, NiimbotDevice
 from .services import async_setup_services
-from blesession import fallback_report
-
 from .session_report import build_session_report
 from .types import NiimbotConfigEntry
 

@@ -83,3 +83,55 @@ async def test_a_session_is_recorded_and_a_report_that_cannot_be_built_still_cou
     assert device.reports.last_failure["error"] == "down"
     assert device.last_error_report is device.reports.last_failure
     assert seen == ["ok", "failure"]
+
+
+async def test_a_failed_refresh_reaches_the_diagnostic_sensors_and_unload_drops_them(
+    hass: HomeAssistant, enable_bluetooth: None
+) -> None:
+    """Error Count and Last Failure follow ``reports`` through the real
+    publisher, and unloading removes their listeners."""
+    from blesession import stages
+    from homeassistant.helpers import entity_registry as er
+
+    class _Ble:
+        name = "B1"
+        address = ADDRESS
+
+    entry = await setup_entry(hass, address=ADDRESS)
+    device = entry.runtime_data.device
+
+    registry = er.async_get(hass)
+    by_key = {
+        e.translation_key: e.entity_id
+        for e in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if e.translation_key in {"error_count", "last_failure"}
+    }
+    assert set(by_key) == {"error_count", "last_failure"}
+    assert hass.states.get(by_key["error_count"]).state == "0"
+    listeners_loaded = len(device.reports._listeners)
+    assert listeners_loaded >= 2
+
+    async def _fail(_ble):
+        trace = device._active_trace
+        with trace.timed(stages.CONNECT):
+            raise OSError("down")
+
+    async def _release():
+        return None
+
+    device._ensure_printer = _fail  # type: ignore[method-assign]
+    device._release_printer = _release  # type: ignore[method-assign]
+    try:
+        await device.refresh_info(_Ble())  # type: ignore[arg-type]
+    except OSError:
+        pass
+    await hass.async_block_till_done()
+
+    assert hass.states.get(by_key["error_count"]).state == "1"
+    failure = hass.states.get(by_key["last_failure"])
+    assert failure.state not in ("unknown", "unavailable")
+    assert failure.attributes["operation"] == "refresh_info"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(device.reports._listeners) == listeners_loaded - 2
