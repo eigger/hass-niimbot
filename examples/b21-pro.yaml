@@ -1,3 +1,4 @@
+# B21 Pro, 40×30 mm label at 300 DPI: round(mm × 300 / 25.4).
 action: niimbot.print
 target:
   area_id: kitchen
@@ -5,10 +6,10 @@ data:
   payload:
     - type: rectangle
       x_start: 0
-      x_end: 584
+      x_end: 471
       y_start: 0
-      y_end: 354
+      y_end: 353
       fill: black
-  width: 584
+  width: 472
   height: 354
   density: 5

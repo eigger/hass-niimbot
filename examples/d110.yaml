@@ -1,3 +1,4 @@
+# D110, 30×12 mm label at 203 DPI; rotate to a 96×240 px print image.
 action: niimbot.print
 target:
   device_id: <your D110>

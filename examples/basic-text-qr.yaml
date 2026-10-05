@@ -1,3 +1,4 @@
+# Enable Fetch Label Info Online to use the loaded label's size after lookup.
 action: niimbot.print
 target:
   device_id: <your device>
@@ -7,12 +8,10 @@ data:
       value: Hello World!
       x: 10
       y: 10
-      size: 40
+      size: 28
     - type: qrcode
       data: "https://www.home-assistant.io"
-      x: 280
+      x: 230
       y: 10
       width: 80
       height: 80
-  width: 400
-  height: 240

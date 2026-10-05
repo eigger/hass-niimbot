@@ -18,7 +18,7 @@ An active Bluetooth proxy is recommended when the Home Assistant adapter has lim
 
 ## Quick start
 
-Run this from **Developer tools → Actions** and replace the target with your printer:
+Enable **Fetch Label Info Online** in the integration options to automatically use the loaded label's size after a successful lookup. Run this from **Developer tools → Actions** and replace the target with your printer:
 
 ```yaml
 action: niimbot.print
@@ -30,24 +30,26 @@ data:
       value: Hello World!
       x: 10
       y: 10
-      size: 40
-  width: 400
-  height: 240
+      size: 28
 ```
 
 See [examples](examples/README.md) for more print and automation recipes. See [Actions](docs/actions.md) for parameters and [imagespec's element reference](https://github.com/eigger/imagespec/blob/main/docs/elements.md) for payload syntax.
 
 ## Supported printers
 
-| Model | Resolution | Printhead width | Typical `rotate` | Density (default) | Status |
-|---|---|---|---|---|---|
-| B1 | 203 DPI | 384 px | `0` | 1–5 (3) | Verified |
-| B1 Pro | 300 DPI | 567 px | `0` | 1–5 (3) | Verified |
-| B2 Pro | 300 DPI | 567 px | `0` | 1–5 (3) | Verified |
-| B21 Pro | 300 DPI | 591 px | `0` | 1–5 (3) | Verified |
-| D110 | 203 DPI | 96 px | `90` | 1–3 (2) | Verified |
+These representative models have been verified. Sizes below are **manual action settings for the example label**, not fixed sizes for every roll.
 
-Printhead width is the pixel width used by the integration's model profile. Set the action's `width` and `height` to suit the loaded label. The rotation values above are starting points for landscape labels; `90` or `270` swaps the rendered width and height. See the [D110 example](examples/d110.yaml) for a rotated layout.
+| Model | Resolution | Label example | `width` | `height` | `rotate` | Density (default) |
+|---|---|---|---|---|---|---|
+| B1 | 203 DPI | 40×30 mm | `320` | `240` | `0` | 1–5 (3) |
+| B1 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
+| B2 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
+| B21 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
+| D110 | 203 DPI | 30×12 mm | `240` | `96` | `90` | 1–3 (2) |
+
+For other label sizes, calculate pixels with `round(mm × DPI / 25.4)` and allow for the label's printable margins. `width` and `height` describe the canvas before rotation; `90` or `270` swaps the output dimensions. The [D110 example](examples/d110.yaml) renders 240×96 px and sends a 96×240 px image.
+
+**Automatic label sizing:** Enable **Fetch Label Info Online** in the integration options. Once **Cloud Label Info** has successfully resolved the loaded label, omit `width`, `height` and `label_type` from the print action to use that label's dimensions and paper type automatically. The lookup already accounts for the catalogue orientation; leave `rotate` at `0` unless you want to rotate the content further. Explicit action values override the lookup. If lookup is unavailable, the size falls back to `400×240` px; this legacy fallback is not a universal label size.
 
 See the [device reference](docs/devices.md) for the full model list and supported label types, and [Actions](docs/actions.md) for sizing and rotation.
 

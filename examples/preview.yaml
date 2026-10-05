@@ -1,3 +1,4 @@
+# Enable Fetch Label Info Online to use the loaded label's size after lookup.
 action: niimbot.print
 target:
   device_id: <your device>
@@ -9,5 +10,3 @@ data:
       x: 10
       y: 10
       size: 30
-  width: 400
-  height: 240

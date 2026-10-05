@@ -14,3 +14,5 @@ Copy an example and replace its target with your Niimbot printer. The photo exam
 | [Grocy](grocy/README.md) | Print a product label from a Grocy webhook |
 
 For Bluetooth proxy setup, see [Setup](../docs/setup.md#bluetooth-connection). For the print action fields and defaults, see [Actions](../docs/actions.md).
+
+Basic and preview examples omit canvas dimensions. Enable **Fetch Label Info Online** to use the loaded label's size after a successful lookup. For manual dimensions and rotation, start with the D110 or B21 Pro example and adjust for your label.

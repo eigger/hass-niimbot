@@ -29,7 +29,9 @@ Open **Settings → Devices & services → Niimbot → Configure**.
 | Keep connection | Off | Keep the BLE connection open between polls and print jobs |
 | Fetch label info online | Off | Look up the loaded label's name and dimensions from its product code (barcode) |
 
-Online lookup sends the label product code only. It does not send the printer serial number, RFID tag ID or other device identifiers. If lookup succeeds, the retrieved dimensions and paper type are used as print defaults; explicit values in a print action take precedence.
+Online lookup sends the label product code only. It does not send the printer serial number, RFID tag ID or other device identifiers.
+
+To size prints automatically, enable **Fetch Label Info Online**, wait for **Cloud Label Info** to resolve the loaded label, then omit `width`, `height` and `label_type` from the print action. A successful lookup supplies the label dimensions and paper type. Its catalogue orientation is already included in the dimensions, so leave `rotate` at `0` unless you intend an additional rotation. Explicit action values take precedence. If lookup cannot resolve the label, supply dimensions manually; the `400×240` px fallback does not fit every roll.
 
 ## Supported printers
 

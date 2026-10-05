@@ -15,7 +15,9 @@ The integration provides `niimbot.print` and `niimbot.refresh_info`. Complete ac
 | `copies` | No | `1` | Number of copies in the print job |
 | `preview` | No | `false` | Render the label without sending it to the printer |
 
-Explicit `width`, `height` and `label_type` values override defaults from online label information. Without a matching online lookup, the image size falls back to 400×240 pixels. Width and height must be between 10 and 1600 pixels; the [device reference](devices.md) lists hardware width limits in millimetres, while the runnable [print examples](../examples/README.md) show pixel dimensions for common label sizes.
+Enable **Fetch Label Info Online** and omit `width`, `height` and `label_type` to automatically use the loaded label's dimensions and paper type after a successful lookup. Explicit values override the lookup. The lookup dimensions already account for catalogue rotation; leave `rotate` at `0` unless you want an additional rotation.
+
+Without a matching online lookup, the image size falls back to 400×240 pixels. This is a legacy rendering fallback, not a size selected for the printer or loaded label. For manual sizing, use `round(mm × DPI / 25.4)` and account for printable margins. Width and height must be between 10 and 1600 pixels; the [README model table](../README.md#supported-printers) and [print examples](../examples/README.md) show settings for specific label sizes.
 
 Rotation uses label-printer mode: rotating by 90 or 270 degrees rotates the drawing and swaps the rendered width and height.
 
