@@ -472,3 +472,20 @@ def test_a_hung_disconnect_is_bounded(monkeypatch):
     device.client = client
     asyncio.run(asyncio.wait_for(device.disconnect(), 5))
     assert device.client is client
+
+
+def test_an_unclassified_failure_still_carries_a_likely_cause(monkeypatch):
+    from custom_components.niimbot.session_report import build_session_report
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.session_report.radio_facts",
+        lambda *_args, **_kwargs: {},
+    )
+    report = build_session_report(
+        None,
+        "aa:bb:cc:dd:ee:ff",
+        operation="print",
+        trace=SessionTrace(),
+        exc=RuntimeError("boom"),
+    )
+    assert report["likely_cause"]

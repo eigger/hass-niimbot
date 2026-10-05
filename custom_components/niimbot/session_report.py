@@ -67,6 +67,8 @@ _PRINTER_FAULTS: tuple[tuple[str, str], ...] = (
     ),
 )
 
+_FALLBACK_CAUSE = "The session failed before the first stage was reached; see error."
+
 
 def likely_cause(
     stage: str | None,
@@ -89,7 +91,7 @@ def likely_cause(
     shared = generic_cause(stage or detail, error, facts, exc=exc, noun="printer")
     if shared is not None:
         return shared
-    return "The session failed before the first stage was reached; see error."
+    return _FALLBACK_CAUSE
 
 
 def _printer_cause(
@@ -222,9 +224,20 @@ def build_session_report(
 def _cause(failure: Failure, operation: str) -> str | None:
     """The ``cause`` callback: blesession 0.7+ hands one ``Failure``.
 
-    Only the printer's own reading is returned; on ``None`` ``build_report``
-    words the shared sentence itself and attaches ``likely_cause_key``.
+    The printer's own reading is returned first. Where the shared sentence
+    applies, ``None`` lets ``build_report`` word it and attach
+    ``likely_cause_key``; a failure neither covers still gets the fallback.
     """
-    return _printer_cause(
+    text = _printer_cause(
         failure.stage, failure.detail, failure.error, failure.facts, operation, failure.exc
     )
+    if text is not None:
+        return text
+    shared = generic_cause(
+        failure.stage or failure.detail,
+        failure.error,
+        failure.facts,
+        exc=failure.exc,
+        noun="printer",
+    )
+    return None if shared is not None else _FALLBACK_CAUSE
