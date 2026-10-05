@@ -6,12 +6,10 @@ import dataclasses
 import logging
 import time
 from collections.abc import AsyncIterator, Callable
-from datetime import datetime, timezone
 
 from bleak.backends.device import BLEDevice
 from blesession import (
     DISCONNECT_TIMEOUT_S,
-    LinkInfo,
     SessionReports,
     SessionTrace,
     ble_session,
@@ -174,7 +172,6 @@ class NiimbotDevice:
         self._active_trace: SessionTrace | None = None
         # Radio the current keep_connection link actually took. A reused
         # session copies it onto its trace; a fresh connect probes again.
-        self._link: LinkInfo | None = None
         # The ble_session() entered by _ensure_printer, exited by _release_printer.
         self._open_session = None
         self.last_print_trace: SessionTrace | None = None
@@ -182,18 +179,14 @@ class NiimbotDevice:
         self.last_error_trace: SessionTrace | None = None
         self.last_error_session_error: BaseException | None = None
         self.last_error_report: dict | None = None
-        self.error_count = 0
-        self.last_failure_at: datetime | None = None
-        self.last_failure_trace: SessionTrace | None = None
-        self.last_failure_error: BaseException | None = None
-        self.last_failure_operation: str | None = None
-        # last is the last print. last_failure is the last counted failure
-        # and is not replaced by a later success or by an asleep poll.
+        # Every session handed to ``callback_session`` is recorded: ``last`` is
+        # the latest of any kind, ``of("print")`` the last print, and
+        # ``failures`` / ``last_failure`` the counted failures (an asleep poll
+        # is never handed over, see ``_commit_session``).
         self.reports = SessionReports()
         self.callback_session: (
             Callable[[str, SessionTrace, BaseException | None], None] | None
         ) = None
-        self._session_listeners: list[Callable[[], None]] = []
         self.pending_events: list[dict] = []
         self.callback_connection = None
         self.callback_printing = None
@@ -442,8 +435,6 @@ class NiimbotDevice:
         self._open_session = session
         same_link = client is self.client and self._printer is not None
         self.client = client
-        if trace is not None and trace.link is not None:
-            self._link = trace.link
         if same_link:
             self._printer._heartbeat_payload = self._heartbeat_payload
             return self._printer
@@ -493,7 +484,6 @@ class NiimbotDevice:
         finally:
             if not self.keep_connection:
                 self.client = None
-                self._link = None
                 self._notify_connection()
 
     @contextlib.asynccontextmanager
@@ -548,11 +538,6 @@ class NiimbotDevice:
             operation, trace
         )
         if recorded_failure:
-            self.error_count += 1
-            self.last_failure_at = datetime.now(timezone.utc)
-            self.last_failure_trace = trace
-            self.last_failure_error = outcome
-            self.last_failure_operation = operation
             if self._error_from_session:
                 self.last_error_trace = trace
                 self.last_error_session_error = outcome
@@ -573,21 +558,6 @@ class NiimbotDevice:
         the last real failure off the sensor.
         """
         return not (operation == "update" and trace.failed_primary == stages.CONNECT)
-
-    def add_session_listener(self, listener: Callable[[], None]) -> None:
-        """Register a diagnostic sensor to refresh when a session is committed."""
-        self._session_listeners.append(listener)
-
-    def remove_session_listener(self, listener: Callable[[], None]) -> None:
-        """Unregister a session listener."""
-        try:
-            self._session_listeners.remove(listener)
-        except ValueError:
-            return
-
-    def _notify_session_listeners(self) -> None:
-        for listener in list(self._session_listeners):
-            listener()
 
     @property
     def is_connected(self) -> bool:
@@ -627,7 +597,6 @@ class NiimbotDevice:
                     await self.client.disconnect()
             except Exception:
                 pass
-            self._link = None
             self._notify_connection()
 
     async def refresh_info(self, ble_device: BLEDevice) -> BLEData:

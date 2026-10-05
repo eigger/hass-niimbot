@@ -4,13 +4,12 @@ import asyncio
 
 from PIL import Image
 import pytest
-from blesession import LinkInfo, SessionTrace, stages
+from blesession import LinkInfo, SessionTrace, fallback_report, stages
 
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterError, PrinterErrorCodeEnum
 from custom_components.niimbot.session_report import (
     build_session_report,
-    file_session_report,
     likely_cause,
 )
 
@@ -22,6 +21,21 @@ def run(coro):
 class _Ble:
     name = "B1"
     address = "aa:bb:cc:dd:ee:ff"
+
+
+def _record_sessions(device: NiimbotDevice) -> list[str]:
+    """Wire ``callback_session`` the way ``__init__`` does, without hass."""
+    calls: list[str] = []
+
+    def _publish(operation, trace, outcome):
+        calls.append(operation)
+        report = fallback_report(operation, trace=trace, exc=outcome)
+        if device.last_error_trace is trace:
+            device.last_error_report = report
+        device.reports.record(report)
+
+    device.callback_session = _publish
+    return calls
 
 
 def _patch_link(device: NiimbotDevice, printer, *, fail: BaseException | None = None) -> None:
@@ -38,39 +52,32 @@ def _patch_link(device: NiimbotDevice, printer, *, fail: BaseException | None = 
 
 
 def test_a_later_failure_does_not_replace_the_print_report():
-    """Print Duration reads reports.last; a refresh failure stays on last_failure."""
+    """Print Duration reads reports.of("print"); a refresh failure is last_failure."""
     device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
-    printed = {"operation": "print", "success": True}
-    file_session_report(device.reports, "print", printed, is_recorded_failure=False)
-    assert device.reports.last == printed
+    printed = device.reports.record({"operation": "print", "success": True})
+    assert device.reports.of("print") is printed
     assert device.reports.last_failure is None
 
-    failed = {"operation": "refresh_info", "success": False, "error": "down"}
-    file_session_report(device.reports, "refresh_info", failed, is_recorded_failure=True)
-    assert device.reports.last == printed
-    assert device.reports.last_failure == failed
+    failed = device.reports.record(
+        {"operation": "refresh_info", "success": False, "error": "down"}
+    )
+    assert device.reports.of("print") is printed
+    assert device.reports.last_failure is failed
+    assert device.reports.failures == 1
 
 
 def test_a_successful_print_keeps_the_previous_failure():
     device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
-    failed = {"operation": "print", "success": False, "error": "cover"}
-    file_session_report(device.reports, "print", failed, is_recorded_failure=True)
-    assert device.reports.last == failed
-    assert device.reports.last_failure == failed
+    failed = device.reports.record(
+        {"operation": "print", "success": False, "error": "cover"}
+    )
+    assert device.reports.of("print") is failed
+    assert device.reports.last_failure is failed
 
-    printed = {"operation": "print", "success": True}
-    file_session_report(device.reports, "print", printed, is_recorded_failure=False)
-    assert device.reports.last == printed
-    assert device.reports.last_failure == failed
-
-
-def test_a_report_that_cannot_be_built_clears_the_slot_it_owned():
-    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
-    device.reports.last = {"operation": "print", "success": True}
-    device.reports.last_failure = {"operation": "print", "error": "cover"}
-    file_session_report(device.reports, "print", None, is_recorded_failure=True)
-    assert device.reports.last is None
-    assert device.reports.last_failure is None
+    printed = device.reports.record({"operation": "print", "success": True})
+    assert device.reports.of("print") is printed
+    assert device.reports.last_failure is failed
+    assert device.reports.failures == 1
 
 
 def test_cover_open_has_its_own_sentence():
@@ -120,20 +127,20 @@ def test_report_carries_stages_radio_and_cause(monkeypatch):
 def test_failure_is_counted_and_kept_after_a_later_success():
     async def _test():
         device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        _record_sessions(device)
         _patch_link(device, None, fail=OSError("down"))
         with pytest.raises(OSError):
             await device.update_device(_Ble())  # type: ignore[arg-type]
-        assert device.error_count == 1
-        assert device.last_failure_operation == "update"
-        assert device.last_failure_at is not None
-        failed = device.last_failure_trace
-        assert failed is not None
+        assert device.reports.failures == 1
+        assert device.reports.last_failure["operation"] == "update"
+        assert device.reports.last_failure_at is not None
+        failed = device.reports.last_failure
 
         printer = _Printer()
         _patch_link(device, printer)
         assert await device.calibrate_height(_Ble()) is True  # type: ignore[arg-type]
-        assert device.error_count == 1
-        assert device.last_failure_trace is failed
+        assert device.reports.failures == 1
+        assert device.reports.last_failure is failed
 
     run(_test())
 
@@ -151,6 +158,7 @@ def test_print_failure_records_transfer_and_the_error_sensor_trace():
 
         printer.print_image = _print  # type: ignore[method-assign]
         _patch_link(device, printer)
+        _record_sessions(device)
 
         with pytest.raises(PrinterError):
             await device.print_image(
@@ -163,8 +171,9 @@ def test_print_failure_records_transfer_and_the_error_sensor_trace():
             )
 
         assert device.last_error == "LackPaper"
-        assert device.error_count == 1
-        assert device.last_failure_operation == "print"
+        assert device.reports.failures == 1
+        assert device.reports.last_failure["operation"] == "print"
+        assert device.last_error_report is device.reports.last_failure
         trace = device.last_print_trace
         assert trace is device.last_error_trace
         assert trace is not None
@@ -181,8 +190,7 @@ def test_asleep_poll_does_not_replace_the_last_real_failure():
         device.model = "B1"
         device.ble_data.model = "B1"
         device.ble_data.devicetype = "4096"
-        calls: list[str] = []
-        device.callback_session = lambda operation, _trace, _exc: calls.append(operation)
+        calls = _record_sessions(device)
 
         printer = _Printer()
 
@@ -200,8 +208,8 @@ def test_asleep_poll_does_not_replace_the_last_real_failure():
                 1,
                 label_type=1,
             )
-        failed = device.last_failure_trace
-        assert device.error_count == 1
+        failed = device.reports.last_failure
+        assert device.reports.failures == 1
         assert calls == ["print"]
 
         async def _asleep(_ble):
@@ -213,8 +221,8 @@ def test_asleep_poll_does_not_replace_the_last_real_failure():
         device._ensure_printer = _asleep  # type: ignore[method-assign]
         with pytest.raises(OSError):
             await device.update_device(_Ble())  # type: ignore[arg-type]
-        assert device.error_count == 1
-        assert device.last_failure_trace is failed
+        assert device.reports.failures == 1
+        assert device.reports.last_failure is failed
         assert calls == ["print"]
 
     run(_test())
@@ -303,13 +311,14 @@ def test_refresh_info_failure_is_attributed_to_info():
 
         device._load_printer_info = _load  # type: ignore[method-assign]
         _patch_link(device, _Printer())
+        _record_sessions(device)
         with pytest.raises(RuntimeError):
             await device.refresh_info(_Ble())  # type: ignore[arg-type]
-        trace = device.last_failure_trace
-        assert trace is not None
-        assert trace.failed_detail == "info"
-        assert device.last_failure_operation == "refresh_info"
-        assert device.error_count == 1
+        report = device.reports.last_failure
+        assert report is not None
+        assert report["failed_detail"] == "info"
+        assert report["operation"] == "refresh_info"
+        assert device.reports.failures == 1
 
     run(_test())
 
@@ -320,8 +329,7 @@ def test_refresh_info_connect_failure_is_a_real_failure():
 
     async def _test():
         device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
-        calls: list[str] = []
-        device.callback_session = lambda operation, _trace, _exc: calls.append(operation)
+        calls = _record_sessions(device)
 
         async def _asleep(_ble):
             trace = device._active_trace
@@ -337,8 +345,8 @@ def test_refresh_info_connect_failure_is_a_real_failure():
         device._release_printer = _release  # type: ignore[method-assign]
         with pytest.raises(OSError):
             await device.refresh_info(_Ble())  # type: ignore[arg-type]
-        assert device.error_count == 1
-        assert device.last_failure_operation == "refresh_info"
+        assert device.reports.failures == 1
+        assert device.reports.last_failure["operation"] == "refresh_info"
         assert calls == ["refresh_info"]
 
     run(_test())
@@ -591,3 +599,4 @@ def test_a_characteristic_under_another_service_is_still_accepted():
         assert CHARACTERISTIC_UUID in client.subscribed
 
     run(_test())
+

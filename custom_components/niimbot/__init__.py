@@ -31,7 +31,9 @@ from .const import (
 from .data import NiimbotRuntimeData
 from .niimprint import BLEData, NiimbotDevice
 from .services import async_setup_services
-from .session_report import build_session_report, file_session_report
+from blesession import fallback_report
+
+from .session_report import build_session_report
 from .types import NiimbotConfigEntry
 
 PLATFORMS: list[Platform] = [
@@ -130,7 +132,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         ``radio_facts`` reads RSSI and path count live, so rebuilding an older
         trace on a later poll would replace that session's radio with whatever
         the adapter sees now. Only the trace that just finished is rendered.
-        Diagnostics must not mask the session's own outcome.
+        Diagnostics must not mask the session's own outcome: a report that
+        cannot be built is replaced by ``fallback_report`` so the session is
+        still counted.
         """
         try:
             report = build_session_report(
@@ -142,20 +146,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
             )
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Building the session report failed: %s", err)
-            # Clear rather than keep: a stale report would describe an older
-            # session under this session's timestamp.
-            report = None
+            report = fallback_report(operation, trace=trace, exc=outcome)
         else:
             _LOGGER.debug("Session report (%s): %s", operation, report)
-        file_session_report(
-            niimbot.reports,
-            operation,
-            report,
-            is_recorded_failure=niimbot.last_failure_trace is trace,
-        )
+        # Before ``record``: it notifies the sensors, and Last Error's
+        # attributes must already be this session's by then.
         if niimbot.last_error_trace is trace:
             niimbot.last_error_report = report
-        niimbot._notify_session_listeners()
+        niimbot.reports.record(report)
 
     niimbot.callback_session = _publish_session_report
 

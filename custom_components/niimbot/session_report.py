@@ -17,7 +17,6 @@ from blesession import (
     Failure,
     GattMismatch,
     SessionDropped,
-    SessionReports,
     SessionTrace,
     WriteTimeout,
     build_report,
@@ -166,34 +165,6 @@ def _printer_cause(
     if where == "test_page":
         return "The printer did not print the test page."
     return None
-
-
-def file_session_report(
-    reports: SessionReports,
-    operation: str,
-    report: dict[str, Any] | None,
-    *,
-    is_recorded_failure: bool,
-) -> None:
-    """File one session into the two SessionReports slots.
-
-    A print goes through ``record``: ``last`` becomes this print, and
-    ``last_failure`` changes only when the print itself failed. Any other
-    counted failure updates ``last_failure`` alone, so the print breakdown
-    Print Duration reads from ``last`` stays put. An asleep status poll is
-    not filed; the caller already left it out. A report that could not be
-    built clears the slot this session owned rather than leaving a stale one.
-    """
-    if report is None:
-        if operation == "print":
-            reports.last = None
-        if is_recorded_failure:
-            reports.last_failure = None
-        return
-    if operation == "print":
-        reports.record(report)
-    elif report.get("error") is not None:
-        reports.last_failure = report
 
 
 def build_session_report(

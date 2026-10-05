@@ -49,3 +49,37 @@ async def test_unload_disconnects_and_leaves_the_other_printer(
     assert first.state is ConfigEntryState.NOT_LOADED
     assert second.state is ConfigEntryState.LOADED
     assert hass.services.has_service(DOMAIN, SERVICE_PRINT)
+
+
+async def test_a_session_is_recorded_and_a_report_that_cannot_be_built_still_counts(
+    hass: HomeAssistant, enable_bluetooth: None, monkeypatch
+) -> None:
+    """The published session lands in ``reports``; a builder that raises is
+    replaced by ``fallback_report`` so the failure is still counted and Last
+    Error still gets a report."""
+    from blesession import SessionTrace, stages
+
+    entry = await setup_entry(hass, address=ADDRESS)
+    device = entry.runtime_data.device
+    seen = []
+    device.reports.add_listener(lambda: seen.append(device.reports.last_kind))
+
+    trace = SessionTrace()
+    with trace.timed(stages.TRANSFER):
+        pass
+    device.callback_session("print", trace, None)
+    assert device.reports.of("print")["success"] is True
+    assert device.reports.failures == 0
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("radio")
+
+    monkeypatch.setattr("custom_components.niimbot.build_session_report", boom)
+    failed = SessionTrace()
+    device.last_error_trace = failed
+    device.callback_session("print", failed, OSError("down"))
+
+    assert device.reports.failures == 1
+    assert device.reports.last_failure["error"] == "down"
+    assert device.last_error_report is device.reports.last_failure
+    assert seen == ["ok", "failure"]
