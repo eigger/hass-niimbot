@@ -384,3 +384,91 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
                 assert asyncio.get_running_loop().time() - started < 1
 
     run(_test())
+
+
+def test_link_failures_keep_the_library_sentence_and_key(monkeypatch):
+    from blesession import SessionDropped, WriteTimeout
+
+    from custom_components.niimbot.session_report import build_session_report
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.session_report.radio_facts",
+        lambda *_args, **_kwargs: {},
+    )
+    trace = SessionTrace()
+    with trace.timed(stages.TRANSFER):
+        pass
+    cases = [
+        (WriteTimeout(10, step="printer command"), "write_timeout"),
+        (SessionDropped("The link dropped while waiting for a printer reply"), "link_lost"),
+    ]
+    for exc, key in cases:
+        report = build_session_report(
+            None, "aa:bb:cc:dd:ee:ff", operation="print", trace=trace, exc=exc
+        )
+        assert report["likely_cause_key"] == key
+        # The library's sentence wins over a printer error token in the text.
+        assert "printer error" not in report["likely_cause"].lower()
+
+
+def test_a_link_drop_while_waiting_for_a_reply_ends_the_command_at_once():
+    async def _test():
+        from blesession import SessionDropped, ble_session
+        from blesession import session as session_mod
+        from blesession.testing import FakeClient, FakeDevice, fake_connect
+
+        from custom_components.niimbot.niimprint.printer import (
+            BLETransport,
+            PrinterClient,
+            RequestCodeEnum,
+        )
+
+        client = FakeClient()
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(session_mod, "establish_connection", fake_connect(client))
+            async with ble_session(FakeDevice()):
+                printer = PrinterClient(transport=BLETransport(client))
+                await printer.start_notify()
+                asyncio.get_running_loop().call_later(0.05, client.drop)
+                started = asyncio.get_running_loop().time()
+                with pytest.raises(SessionDropped):
+                    await printer._transceive(
+                        RequestCodeEnum.HEARTBEAT, b"\x01", timeout=30
+                    )
+                assert asyncio.get_running_loop().time() - started < 1
+
+    run(_test())
+
+
+def test_a_hung_write_is_bounded():
+    async def _test():
+        from blesession import WriteTimeout, ble_session
+        from blesession import session as session_mod
+        from blesession.testing import FakeClient, FakeDevice, fake_connect
+
+        from custom_components.niimbot.niimprint.printer import BLETransport
+
+        client = FakeClient()
+        client.write_delay_s = 3600
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(session_mod, "establish_connection", fake_connect(client))
+            async with ble_session(FakeDevice()):
+                transport = BLETransport(client, write_timeout=0.05)
+                with pytest.raises(WriteTimeout):
+                    await asyncio.wait_for(transport.write(b"x", True), 5)
+
+    run(_test())
+
+
+def test_a_hung_disconnect_is_bounded(monkeypatch):
+    from blesession.testing import FakeClient
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.niimprint.parser.DISCONNECT_TIMEOUT_S", 0.05
+    )
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    client = FakeClient()
+    client.disconnect_delay_s = 3600
+    device.client = client
+    asyncio.run(asyncio.wait_for(device.disconnect(), 5))
+    assert device.client is client

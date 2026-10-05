@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from bleak import BleakClient, BleakError
-from blesession import Notifications, guarded_write
+from blesession import WRITE_TIMEOUT_S, Notifications, guarded_write
 from PIL import Image, ImageOps
 
 from .model import (
@@ -228,8 +228,9 @@ class BLETransport(BaseTransport):
     write and refuses one on a link that is already down.
     """
 
-    def __init__(self, client: BleakClient):
+    def __init__(self, client: BleakClient, write_timeout: float = WRITE_TIMEOUT_S):
         self._client = client
+        self._write_timeout = write_timeout
         self._notifications = Notifications(
             client, CHARACTERISTIC_UUID, settle=0.5, recover=True
         )
@@ -254,7 +255,12 @@ class BLETransport(BaseTransport):
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write data to the BLE characteristic."""
         await guarded_write(
-            self._client, uuid, data, step="printer command", response=response
+            self._client,
+            uuid,
+            data,
+            step="printer command",
+            response=response,
+            timeout=self._write_timeout,
         )
 
     async def start_notify(self, uuid: str):

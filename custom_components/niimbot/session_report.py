@@ -220,7 +220,11 @@ def build_session_report(
 
 
 def _cause(failure: Failure, operation: str) -> str | None:
-    """The ``cause`` callback: blesession 0.7+ hands one ``Failure``."""
-    return likely_cause(
+    """The ``cause`` callback: blesession 0.7+ hands one ``Failure``.
+
+    Only the printer's own reading is returned; on ``None`` ``build_report``
+    words the shared sentence itself and attaches ``likely_cause_key``.
+    """
+    return _printer_cause(
         failure.stage, failure.detail, failure.error, failure.facts, operation, failure.exc
     )
