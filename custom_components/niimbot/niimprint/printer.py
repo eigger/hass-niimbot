@@ -4,12 +4,12 @@ import logging
 import math
 import struct
 import time
-from asyncio import FIRST_COMPLETED, Event, create_task, sleep, wait, wait_for
+from asyncio import sleep
 from collections.abc import Callable
 from typing import Any, TypeVar
 
 from bleak import BleakClient, BleakError
-from blesession import SessionDropped, dropped_event
+from blesession import Notifications, guarded_write
 from PIL import Image, ImageOps
 
 from .model import (
@@ -193,9 +193,6 @@ HEARTBEAT_RESP_CODES = {
 # Default read budget for status/info commands. Print acknowledgements may
 # override with a longer timeout.
 DEFAULT_TRANSCEIVE_TIMEOUT = 5.0
-# Same wording Notifications uses, so a drop reads as link_lost from the
-# error text even where the cause callback is not handed the exception.
-_LINK_DROPPED = "The link dropped while waiting for a printer reply"
 
 
 def _packet_to_int(x):
@@ -223,12 +220,19 @@ class BaseTransport(metaclass=abc.ABCMeta):
 
 
 class BLETransport(BaseTransport):
-    _command_data: bytearray
+    """The printer link, on blesession's notification queue and guarded write.
+
+    ``Notifications`` ends a wait with ``SessionDropped`` the moment the link
+    goes (bytes already received are still delivered first) and recovers a
+    subscription a reused link still holds. ``guarded_write`` bounds every
+    write and refuses one on a link that is already down.
+    """
 
     def __init__(self, client: BleakClient):
         self._client = client
-        self._command_data = bytearray()
-        self._event = Event()
+        self._notifications = Notifications(
+            client, CHARACTERISTIC_UUID, settle=0.5, recover=True
+        )
 
     async def read(self, length: int, timeout: float = 30.0) -> bytes:
         return await self.read_notify(timeout)
@@ -237,70 +241,29 @@ class BLETransport(BaseTransport):
         return await self.write_ble(CHARACTERISTIC_UUID, data, response)
 
     async def read_notify(self, timeout: float) -> bytes:
-        """Wait for notification data, or end when the link drops.
+        """Every notification received so far, waiting up to ``timeout`` for the first.
 
-        ``ble_session`` registers ``dropped_event(client)``. A printer that
-        powers off mid-command used to sit here until ``timeout``; the drop
-        raises ``SessionDropped`` instead. Bytes already received are still
-        returned: the printer answered, then the link went.
+        The printer can emit several notifications in a burst (e.g. unsolicited
+        d3 status packets alongside the real reply); they are returned joined
+        so the packet buffer can resync on the 0x55 0x55 header.
         """
-        await self._wait_for_notify(timeout)
-        data = bytes(self._command_data)
-        self._command_data.clear()
-        self._event.clear()  # Reset the event for the next notification
-        return data
-
-    async def _wait_for_notify(self, timeout: float) -> None:
-        if self._event.is_set():
-            return
-        dropped = dropped_event(self._client)
-        if dropped is None:
-            await wait_for(self._event.wait(), timeout=timeout)
-            return
-        if dropped.is_set():
-            raise SessionDropped(_LINK_DROPPED)
-        data_wait = create_task(self._event.wait())
-        drop_wait = create_task(dropped.wait())
-        try:
-            done, _pending = await wait(
-                {data_wait, drop_wait},
-                timeout=timeout,
-                return_when=FIRST_COMPLETED,
-            )
-            if data_wait in done:
-                data_wait.result()
-                return
-            if drop_wait in done:
-                raise SessionDropped(_LINK_DROPPED)
-            raise TimeoutError
-        finally:
-            drop_wait.cancel()
-            if not data_wait.done():
-                data_wait.cancel()
+        return await self._notifications.next_burst(
+            timeout, step="printer reply", gap_s=0
+        )
 
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write data to the BLE characteristic."""
-        await self._client.write_gatt_char(uuid, data, response)
-
-    def _notification_handler(self, _: Any, data: bytearray):
-        """Handle incoming notifications and accumulate the received data.
-
-        The printer can emit several notifications in a burst (e.g. unsolicited
-        d3 status packets alongside the real reply). Accumulating instead of
-        overwriting prevents losing a packet that arrives before the previous
-        one is consumed, which would otherwise desync the packet buffer.
-        """
-        self._command_data.extend(data)
-        self._event.set()  # Notify the waiting coroutine that data has arrived
+        await guarded_write(
+            self._client, uuid, data, step="printer command", response=response
+        )
 
     async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic."""
-        await self._client.start_notify(uuid, self._notification_handler)
-        await sleep(0.5)
+        await self._notifications.__aenter__()
 
     async def stop_notify(self, uuid: str):
-        """Stop notifications from the BLE characteristic."""
-        await self._client.stop_notify(uuid)
+        """Stop notifications; best effort and bounded, never raises."""
+        await self._notifications.__aexit__(None, None, None)
 
 
 class PrinterClient:

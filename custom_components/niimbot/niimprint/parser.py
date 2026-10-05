@@ -9,7 +9,15 @@ from collections.abc import AsyncIterator, Callable
 from datetime import datetime, timezone
 
 from bleak.backends.device import BLEDevice
-from blesession import LinkInfo, SessionReports, SessionTrace, ble_session, stages
+from blesession import (
+    DISCONNECT_TIMEOUT_S,
+    LinkInfo,
+    SessionReports,
+    SessionTrace,
+    ble_session,
+    error_text,
+    stages,
+)
 
 # from logging import Logger
 from PIL import Image
@@ -615,7 +623,8 @@ class NiimbotDevice:
                 self._printer = None
         if self.client and self.client.is_connected:
             try:
-                await self.client.disconnect()
+                async with asyncio.timeout(DISCONNECT_TIMEOUT_S):
+                    await self.client.disconnect()
             except Exception:
                 pass
             self._link = None
@@ -928,7 +937,7 @@ class NiimbotDevice:
             _LOGGER.debug("Post-print status refresh failed: %s", err)
             if self._active_trace is not None:
                 self._active_trace.note(
-                    refresh_error=str(err) or type(err).__name__
+                    refresh_error=error_text(err)
                 )
 
     async def print_image(

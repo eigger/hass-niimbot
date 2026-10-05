@@ -369,17 +369,18 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
             async with ble_session(FakeDevice()):
                 transport = BLETransport(client)
                 printer = PrinterClient(transport=transport)
+                await printer.start_notify()
+                # A reply that already arrived is the answer, even if the
+                # link went away before it was read.
+                client.reply(b"\x55\x55")
                 client.drop()
+                assert await transport.read(8, timeout=30) == b"\x55\x55"
+
                 started = asyncio.get_running_loop().time()
                 with pytest.raises(SessionDropped, match="link dropped"):
                     await printer._transceive(
                         RequestCodeEnum.HEARTBEAT, b"\x01", timeout=30
                     )
                 assert asyncio.get_running_loop().time() - started < 1
-
-                # A reply that already arrived is the answer, even if the
-                # link went away before it was read.
-                transport._notification_handler(None, bytearray(b"\x55\x55"))
-                assert await transport.read(8, timeout=30) == b"\x55\x55"
 
     run(_test())
