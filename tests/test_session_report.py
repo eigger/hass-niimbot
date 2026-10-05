@@ -360,10 +360,13 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
         from custom_components.niimbot.niimprint.printer import (
             BLETransport,
             PrinterClient,
+            CHARACTERISTIC_UUID,
             RequestCodeEnum,
+            SERVICE_UUID,
         )
 
         client = FakeClient()
+        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID)
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(session_mod, "establish_connection", fake_connect(client))
             async with ble_session(FakeDevice()):
@@ -420,10 +423,13 @@ def test_a_link_drop_while_waiting_for_a_reply_ends_the_command_at_once():
         from custom_components.niimbot.niimprint.printer import (
             BLETransport,
             PrinterClient,
+            CHARACTERISTIC_UUID,
             RequestCodeEnum,
+            SERVICE_UUID,
         )
 
         client = FakeClient()
+        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID)
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(session_mod, "establish_connection", fake_connect(client))
             async with ble_session(FakeDevice()):
@@ -489,3 +495,24 @@ def test_an_unclassified_failure_still_carries_a_likely_cause(monkeypatch):
         exc=RuntimeError("boom"),
     )
     assert report["likely_cause"]
+
+
+def test_a_printer_without_the_characteristic_fails_as_a_gatt_mismatch():
+    async def _test():
+        from blesession import GattMismatch
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            SERVICE_UUID,
+            BLETransport,
+        )
+
+        client = FakeClient()
+        with pytest.raises(GattMismatch, match="service"):
+            await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        client.add_characteristic(SERVICE_UUID, CHARACTERISTIC_UUID, properties=("write",))
+        with pytest.raises(GattMismatch, match="notify"):
+            await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+
+    run(_test())

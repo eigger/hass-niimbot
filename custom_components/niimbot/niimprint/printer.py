@@ -8,8 +8,13 @@ from asyncio import sleep
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from bleak import BleakClient, BleakError
-from blesession import WRITE_TIMEOUT_S, Notifications, guarded_write
+from bleak import BleakClient
+from blesession import (
+    WRITE_TIMEOUT_S,
+    Notifications,
+    characteristic_or_raise,
+    guarded_write,
+)
 from PIL import Image, ImageOps
 
 from .model import (
@@ -45,14 +50,6 @@ PRINTER_STATUS_DATA_RESP = 0xB5
 ADAPTIVE_FAST_THRESHOLD = 0.012  # s (12 ms)
 ADAPTIVE_SLOW_THRESHOLD = 0.030  # s (30 ms)
 ADAPTIVE_EMA_ALPHA = 0.2         # EMA smoothing factor (higher = more reactive)
-
-
-class BleakCharacteristicMissing(BleakError):
-    """Raised when a characteristic is missing from a service."""
-
-
-class BleakServiceMissing(BleakError):
-    """Raised when a service is missing."""
 
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
@@ -264,7 +261,18 @@ class BLETransport(BaseTransport):
         )
 
     async def start_notify(self, uuid: str):
-        """Start notifications from the BLE characteristic."""
+        """Start notifications from the BLE characteristic.
+
+        A printer that does not expose it fails as ``GattMismatch`` (final, not
+        retried) instead of a bare bleak error from the subscribe.
+        """
+        characteristic_or_raise(
+            self._client,
+            SERVICE_UUID,
+            CHARACTERISTIC_UUID,
+            properties=("notify",),
+            label="printer",
+        )
         await self._notifications.__aenter__()
 
     async def stop_notify(self, uuid: str):
