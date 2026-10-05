@@ -1,6 +1,7 @@
 """Support for niimbot ble sensors."""
 
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 
 from .niimprint import NiimbotDevice, BLEData
@@ -623,7 +624,7 @@ class NiimbotPrintDurationSensor(
             "formatted": f"{minutes:02d}:{seconds:01d}",
             "is_printing": self._device.is_printing,
         }
-        report = self._device.reports.last
+        report = self._device.reports.of("print")
         if not self._device.is_printing and report:
             attrs.update(report)
         return attrs
@@ -701,14 +702,17 @@ class NiimbotLastFailureSensor(
         super().__init__(coordinator)
         self._device = device
         self._bind_printer(ble_data, "last_failure")
+        self._remove_session_listener: Callable[[], None] = lambda: None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._device.add_session_listener(self._handle_session_update)
+        self._remove_session_listener = self._device.reports.add_listener(
+            self._handle_session_update
+        )
 
     async def async_will_remove_from_hass(self) -> None:
         await super().async_will_remove_from_hass()
-        self._device.remove_session_listener(self._handle_session_update)
+        self._remove_session_listener()
 
     @callback
     def _handle_session_update(self) -> None:
@@ -716,14 +720,14 @@ class NiimbotLastFailureSensor(
 
     @property
     def native_value(self):
-        return self._device.last_failure_at
+        return self._device.reports.last_failure_at
 
     @property
     def extra_state_attributes(self) -> dict | None:
         """The breakdown of the session that failed at this time.
 
         ``reports.last_failure`` is kept until the next counted failure. A
-        later successful print replaces ``reports.last`` only.
+        later successful print replaces ``reports.of("print")`` only.
         """
         return self._device.reports.last_failure
 
@@ -751,14 +755,17 @@ class NiimbotErrorCountSensor(
         super().__init__(coordinator)
         self._device = device
         self._bind_printer(ble_data, "error_count")
+        self._remove_session_listener: Callable[[], None] = lambda: None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._device.add_session_listener(self._handle_session_update)
+        self._remove_session_listener = self._device.reports.add_listener(
+            self._handle_session_update
+        )
 
     async def async_will_remove_from_hass(self) -> None:
         await super().async_will_remove_from_hass()
-        self._device.remove_session_listener(self._handle_session_update)
+        self._remove_session_listener()
 
     @callback
     def _handle_session_update(self) -> None:
@@ -766,4 +773,4 @@ class NiimbotErrorCountSensor(
 
     @property
     def native_value(self) -> int:
-        return self._device.error_count
+        return self._device.reports.failures
