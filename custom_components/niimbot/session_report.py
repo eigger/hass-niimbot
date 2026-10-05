@@ -13,7 +13,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from blesession import SessionReports, SessionTrace, build_report, generic_cause, placement, stages
+from blesession import (
+    Failure,
+    GattMismatch,
+    SessionDropped,
+    SessionReports,
+    SessionTrace,
+    WriteTimeout,
+    build_report,
+    generic_cause,
+    placement,
+    stages,
+)
 from blesession.hass import radio_facts
 
 if TYPE_CHECKING:
@@ -56,6 +67,8 @@ _PRINTER_FAULTS: tuple[tuple[str, str], ...] = (
     ),
 )
 
+_FALLBACK_CAUSE = "The session failed before the first stage was reached; see error."
+
 
 def likely_cause(
     stage: str | None,
@@ -63,6 +76,7 @@ def likely_cause(
     error: str,
     facts: Mapping[str, Any],
     operation: str,
+    exc: BaseException | None = None,
 ) -> str:
     """One sentence on what a failed session most likely means.
 
@@ -71,13 +85,13 @@ def likely_cause(
     ``error`` keeps the exact detail. A ``None`` from the printer-specific
     table falls through to the shared sentences.
     """
-    text = _printer_cause(stage, detail, error, facts, operation)
+    text = _printer_cause(stage, detail, error, facts, operation, exc)
     if text is not None:
         return text
-    shared = generic_cause(stage or detail, error, facts, noun="printer")
+    shared = generic_cause(stage or detail, error, facts, exc=exc, noun="printer")
     if shared is not None:
         return shared
-    return "The session failed before the first stage was reached; see error."
+    return _FALLBACK_CAUSE
 
 
 def _printer_cause(
@@ -86,6 +100,7 @@ def _printer_cause(
     error: str,
     facts: Mapping[str, Any],
     operation: str,
+    exc: BaseException | None = None,
 ) -> str | None:
     """The printer's own reading, or None where the shared sentence is the one."""
     err = error.lower()
@@ -93,6 +108,10 @@ def _printer_cause(
         for token, sentence in _PRINTER_FAULTS:
             if token in err:
                 return sentence
+    # Link-level failures the library already words precisely (a hung write,
+    # a dropped link, a missing characteristic): its sentence and key win.
+    if isinstance(exc, (WriteTimeout, SessionDropped, GattMismatch)):
+        return None
     if "unsupported request" in err:
         return (
             "The printer rejected the command. This model or firmware may not "
@@ -197,8 +216,28 @@ def build_session_report(
         trace=trace,
         exc=exc,
         facts=radio_facts(hass, address, trace.link),
-        cause=lambda stage, detail, error, facts: likely_cause(
-            stage, detail, error, facts, operation
-        ),
+        cause=lambda failure: _cause(failure, operation),
         noun="printer",
     )
+
+
+def _cause(failure: Failure, operation: str) -> str | None:
+    """The ``cause`` callback: blesession 0.7+ hands one ``Failure``.
+
+    The printer's own reading is returned first. Where the shared sentence
+    applies, ``None`` lets ``build_report`` word it and attach
+    ``likely_cause_key``; a failure neither covers still gets the fallback.
+    """
+    text = _printer_cause(
+        failure.stage, failure.detail, failure.error, failure.facts, operation, failure.exc
+    )
+    if text is not None:
+        return text
+    shared = generic_cause(
+        failure.stage or failure.detail,
+        failure.error,
+        failure.facts,
+        exc=failure.exc,
+        noun="printer",
+    )
+    return None if shared is not None else _FALLBACK_CAUSE

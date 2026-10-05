@@ -344,6 +344,23 @@ def test_refresh_info_connect_failure_is_a_real_failure():
     run(_test())
 
 
+def _expose(client, service_uuid, char_uuid, **kwargs):
+    """``add_characteristic`` plus what bleak's real ``services`` also offers:
+    ``get_characteristic`` across services and ``service_uuid`` on the result."""
+    char = client.add_characteristic(service_uuid, char_uuid, **kwargs)
+    char.service_uuid = service_uuid
+
+    def get_characteristic(uuid):
+        for service in client.services.by_uuid.values():
+            found = service.get_characteristic(uuid)
+            if found is not None:
+                return found
+        return None
+
+    client.services.get_characteristic = get_characteristic
+    return char
+
+
 class _Printer:
     async def calibrate_height(self) -> bool:
         return True
@@ -360,16 +377,25 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
         from custom_components.niimbot.niimprint.printer import (
             BLETransport,
             PrinterClient,
+            CHARACTERISTIC_UUID,
             RequestCodeEnum,
+            SERVICE_UUID,
         )
 
         client = FakeClient()
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID)
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(session_mod, "establish_connection", fake_connect(client))
             async with ble_session(FakeDevice()):
                 transport = BLETransport(client)
                 printer = PrinterClient(transport=transport)
+                await printer.start_notify()
+                # A reply that already arrived is the answer, even if the
+                # link went away before it was read.
+                client.reply(b"\x55\x55")
                 client.drop()
+                assert await transport.read(8, timeout=30) == b"\x55\x55"
+
                 started = asyncio.get_running_loop().time()
                 with pytest.raises(SessionDropped, match="link dropped"):
                     await printer._transceive(
@@ -377,9 +403,191 @@ def test_a_dropped_link_ends_the_command_without_the_step_timeout():
                     )
                 assert asyncio.get_running_loop().time() - started < 1
 
-                # A reply that already arrived is the answer, even if the
-                # link went away before it was read.
-                transport._notification_handler(None, bytearray(b"\x55\x55"))
-                assert await transport.read(8, timeout=30) == b"\x55\x55"
+    run(_test())
+
+
+def test_link_failures_keep_the_library_sentence_and_key(monkeypatch):
+    from blesession import SessionDropped, WriteTimeout
+
+    from custom_components.niimbot.session_report import build_session_report
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.session_report.radio_facts",
+        lambda *_args, **_kwargs: {},
+    )
+    trace = SessionTrace()
+    with trace.timed(stages.TRANSFER):
+        pass
+    cases = [
+        (WriteTimeout(10, step="printer command"), "write_timeout"),
+        (SessionDropped("The link dropped while waiting for a printer reply"), "link_lost"),
+    ]
+    for exc, key in cases:
+        report = build_session_report(
+            None, "aa:bb:cc:dd:ee:ff", operation="print", trace=trace, exc=exc
+        )
+        assert report["likely_cause_key"] == key
+        # The library's sentence wins over a printer error token in the text.
+        assert "printer error" not in report["likely_cause"].lower()
+
+
+def test_a_link_drop_while_waiting_for_a_reply_ends_the_command_at_once():
+    async def _test():
+        from blesession import SessionDropped, ble_session
+        from blesession import session as session_mod
+        from blesession.testing import FakeClient, FakeDevice, fake_connect
+
+        from custom_components.niimbot.niimprint.printer import (
+            BLETransport,
+            PrinterClient,
+            CHARACTERISTIC_UUID,
+            RequestCodeEnum,
+            SERVICE_UUID,
+        )
+
+        client = FakeClient()
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID)
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(session_mod, "establish_connection", fake_connect(client))
+            async with ble_session(FakeDevice()):
+                printer = PrinterClient(transport=BLETransport(client))
+                await printer.start_notify()
+                asyncio.get_running_loop().call_later(0.05, client.drop)
+                started = asyncio.get_running_loop().time()
+                with pytest.raises(SessionDropped):
+                    await printer._transceive(
+                        RequestCodeEnum.HEARTBEAT, b"\x01", timeout=30
+                    )
+                assert asyncio.get_running_loop().time() - started < 1
+
+    run(_test())
+
+
+def test_a_hung_write_is_bounded():
+    async def _test():
+        from blesession import WriteTimeout, ble_session
+        from blesession import session as session_mod
+        from blesession.testing import FakeClient, FakeDevice, fake_connect
+
+        from custom_components.niimbot.niimprint.printer import BLETransport
+
+        client = FakeClient()
+        client.write_delay_s = 3600
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(session_mod, "establish_connection", fake_connect(client))
+            async with ble_session(FakeDevice()):
+                transport = BLETransport(client, write_timeout=0.05)
+                with pytest.raises(WriteTimeout):
+                    await asyncio.wait_for(transport.write(b"x", True), 5)
+
+    run(_test())
+
+
+def test_a_hung_disconnect_is_bounded(monkeypatch):
+    from blesession.testing import FakeClient
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.niimprint.parser.DISCONNECT_TIMEOUT_S", 0.05
+    )
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    client = FakeClient()
+    client.disconnect_delay_s = 3600
+    device.client = client
+    asyncio.run(asyncio.wait_for(device.disconnect(), 5))
+    assert device.client is client
+
+
+def test_an_unclassified_failure_still_carries_a_likely_cause(monkeypatch):
+    from custom_components.niimbot.session_report import build_session_report
+
+    monkeypatch.setattr(
+        "custom_components.niimbot.session_report.radio_facts",
+        lambda *_args, **_kwargs: {},
+    )
+    report = build_session_report(
+        None,
+        "aa:bb:cc:dd:ee:ff",
+        operation="print",
+        trace=SessionTrace(),
+        exc=RuntimeError("boom"),
+    )
+    assert report["likely_cause"]
+
+
+def test_a_printer_without_the_characteristic_fails_as_a_gatt_mismatch():
+    async def _test():
+        from blesession import GattMismatch
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            SERVICE_UUID,
+            BLETransport,
+        )
+
+        client = FakeClient()
+        _expose(client, "0000ffe0-0000-1000-8000-00805f9b34fb", "00002a00-0000-1000-8000-00805f9b34fb")
+        with pytest.raises(GattMismatch, match="service"):
+            await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID, properties=("write",))
+        with pytest.raises(GattMismatch, match="notify"):
+            await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+
+    run(_test())
+
+
+def test_services_not_discovered_yet_are_left_to_the_subscribe_recovery():
+    async def _test():
+        from bleak import BleakError
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            BLETransport,
+        )
+
+        class _Undiscovered(FakeClient):
+            @property
+            def services(self):
+                raise BleakError("Service Discovery has not been performed yet")
+
+            @services.setter
+            def services(self, _value):
+                pass
+
+        client = _Undiscovered()
+        await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        assert CHARACTERISTIC_UUID in client.subscribed
+
+    run(_test())
+
+
+def test_a_printer_error_is_a_device_error_and_reports_its_code_name():
+    from blesession import DeviceError
+
+    err = PrinterError(PrinterErrorCodeEnum.CoverOpen)
+    assert isinstance(err, DeviceError)
+    assert isinstance(err, ConnectionError)
+    assert str(err) == "Printer error: CoverOpen"
+    assert err.code is PrinterErrorCodeEnum.CoverOpen
+
+    device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+    device._apply_error(err)
+    assert device.last_error == "CoverOpen"
+
+
+def test_a_characteristic_under_another_service_is_still_accepted():
+    async def _test():
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            BLETransport,
+        )
+
+        client = FakeClient()
+        _expose(client, "0000ffe0-0000-1000-8000-00805f9b34fb", CHARACTERISTIC_UUID)
+        await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        assert CHARACTERISTIC_UUID in client.subscribed
 
     run(_test())
