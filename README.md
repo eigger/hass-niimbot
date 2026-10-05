@@ -1,140 +1,24 @@
 # hass-niimbot
+
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=home-assistant)](https://hacs.xyz/)
 [![GitHub Release](https://img.shields.io/github/release/eigger/hass-niimbot.svg)](https://github.com/eigger/hass-niimbot/releases)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot)](https://github.com/eigger/hass-niimbot/blob/main/LICENSE)
-![integration usage](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=%24.niimbot.total)
 
-Niimbot Label Printer Home Assistant Integration
-
-## Gallery
+Print labels with Niimbot printers from Home Assistant using [imagespec](https://github.com/eigger/imagespec) payloads over Bluetooth.
 
 | B1 / B1 Pro | B21 Pro | D110 |
-| :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="300" alt="B1 / B1 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="370" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="300" alt="D110"> |
+|---|---|---|
+| <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="280" alt="D110"> |
 
-## Feedback & Support
+## Install
 
-- A print failing? **[docs/troubleshooting.md](docs/troubleshooting.md)** — the failure sensors say where a session died and why.
-- Found a bug? [Open an issue](https://github.com/eigger/hass-niimbot/issues)
-- Questions or ideas? [Join the discussion](https://github.com/eigger/hass-niimbot/discussions)
+Install `eigger/hass-niimbot` through HACS as a custom repository, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
 
----
+An active Bluetooth proxy is recommended when the Home Assistant adapter has limited range. See [setup](docs/setup.md#bluetooth-connection).
 
-[Stash](https://github.com/eigger/stash) can print labels via this Home Assistant integration.
+## Quick start
 
-## Supported Models
-
-| Model | Status |
-|-------|--------|
-| B1 | confirmed |
-| B1 Pro | confirmed |
-| B2 Pro | confirmed |
-| B21 Pro | confirmed |
-| D110 | confirmed |
-| Other models with Bluetooth | may work |
-
-## Installation
-
-1. Install with HACS (custom repository required), or copy this repo into `custom_components/niimbot`.
-2. Restart Home Assistant.
-3. Go to **Settings** → **Integrations** and add **Niimbot**.
-4. Select a discovered printer from the list.
-
-## Important Notice
-
-It is **strongly recommended to use a Bluetooth proxy** instead of a built-in Bluetooth adapter for more stable connections and better range.
-
-> [!TIP]
-> Hardware recommendations: [Great ESP32 Board for an ESPHome Bluetooth Proxy](https://community.home-assistant.io/t/great-esp32-board-for-an-esphome-bluetooth-proxy/916767/31)
-
-When using a proxy, keep the scan interval reasonable. Example ESPHome config:
-
-```yaml
-esp32_ble_tracker:
-  scan_parameters:
-    active: true
-
-bluetooth_proxy:
-  active: true
-```
-
-## Options
-
-Configure via **Settings** → **Devices & Services** → **Niimbot** → **Configure**:
-
-| Option | Default | Range | Description |
-|--------|---------|-------|-------------|
-| **Scan Interval** | 600 | 10–9999 s | How often to poll printer status |
-| **Keep Connection** | Off | On/Off | Keep the BLE link open between polls and prints |
-
-Connection beep is a **Connection Sound** switch entity (not an option). Auto shutdown is an **Auto Shutdown** select entity.
-
----
-
-## Entities
-
-| Platform | Entity | Notes |
-|----------|--------|-------|
-| Sensor | Battery | Prefer heartbeat; PrinterInfo charge bucket as fallback |
-| Sensor | Labels Remaining / Used / Total, Consumable Usage, Label SKU | Label RFID models only |
-| Sensor | Ribbon Remaining / Used / Total, Ribbon Usage, Ribbon SKU | Ribbon RFID models only |
-| Sensor | Label Type | PrinterInfo, overridden by RFID tag type when present |
-| Sensor | Print Progress / Print Duration | Live during `niimbot.print` |
-| Sensor | Last Error, Last Failure, Error Count, Print Density, Print Speed, Protocol Version, Colour Support, Print Area | Diagnostic (some disabled by default) |
-| Binary sensor | Cover | Label bay cover — Open / Closed |
-| Binary sensor | Paper | Loaded / Empty |
-| Binary sensor | RFID | Tag readable / not readable |
-| Binary sensor | Connection | BLE connectivity |
-| Select | Auto Shutdown | Typical 15 / 30 / 45–60 / 60–never (model-dependent) |
-| Switch | Connection Sound | Bluetooth connect beep |
-| Image | Last Label Made | Updated on every print or preview |
-
----
-
-## Payload & rendering (`imagespec`)
-
-From version 2.0.0, labels are rendered with **[imagespec](https://github.com/eigger/imagespec)** — a declarative YAML/JSON list of drawing elements that becomes a bitmap sent to the printer.
-
-**Documentation (maintained in imagespec, not duplicated here):**
-
-| Topic | Link |
-|-------|------|
-| Element examples with preview images | [imagespec/docs/elements.md](https://github.com/eigger/imagespec/blob/main/docs/elements.md) |
-| All element fields & defaults | [imagespec README — Element Reference](https://github.com/eigger/imagespec#elements-reference) |
-| Layout, palette, LLM authoring guide | [imagespec/docs/authoring.md](https://github.com/eigger/imagespec/blob/main/docs/authoring.md) |
-| Dithering (per-element only) | [imagespec/docs/dithering.md](https://github.com/eigger/imagespec/blob/main/docs/dithering.md) |
-
-**Niimbot-specific behaviour:**
-
-- **Palette:** black & white only. Off-palette colors (e.g. `red`, `orange`) are quantized to the nearest supported color.
-- **Rotation:** `rotate: 90/180/270` rotates the drawing and **swaps output width/height** (label-printer mode).
-- **Default font:** `ppb.ttf` in `custom_components/niimbot/fonts/`. Custom fonts also work from `www/fonts/`.
-- **`plot` element:** reads history from Home Assistant **Recorder**.
-- **Dithering:** not a service option. Put `dither` on **photos and charts** in the payload — `dlimg`, `pie`, `diagram`, `plot`, `sparkline`, `progress_bar`, `gauge` — when they use off-palette colors. Leave text/QR/barcodes without `dither`. See [dithering.md](https://github.com/eigger/imagespec/blob/main/docs/dithering.md).
-- **Layout:** prefer `row` / `column` / `stack` for stacked content instead of hand-calculated coordinates.
-
----
-
-## Service: `niimbot.print`
-
-### Parameters
-
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `payload` | yes | — | List of [imagespec elements](https://github.com/eigger/imagespec/blob/main/docs/elements.md) |
-| `rotate` | no | `0` | `0`, `90`, `180`, or `270` |
-| `width` | no | `400` | Label width in pixels (10–1600) |
-| `height` | no | `240` | Label height in pixels (10–1600) |
-| `density` | no | model default (usually `3`) | Print density. Validated against the model range (typically 1–5; some up to 20) before connecting |
-| `label_type` | no | `1` | Paper type code (`1` WithGaps, `2` Black, `3` Continuous, …) |
-| `copies` | no | `1` | Number of copies in one print job |
-| `preview` | no | `false` | Render only; do not send to the printer |
-
-Use `response_variable` in scripts to receive the generated image as a `data:` URL when `preview: true`.
-
-There is also **`niimbot.refresh_info`** to re-read cached printer settings (density, label type, auto shutdown, battery bucket, protocol/area).
-
-### Basic example
+Run this from **Developer tools → Actions** and replace the target with your printer:
 
 ```yaml
 action: niimbot.print
@@ -144,257 +28,28 @@ data:
   payload:
     - type: text
       value: Hello World!
-      font: ppb.ttf
       x: 10
       y: 10
       size: 40
-    - type: qrcode
-      data: "https://www.home-assistant.io"
-      x: 280
-      y: 10
-      width: 80
-      height: 80
   width: 400
   height: 240
 ```
 
-### Per-element dither (photos / charts)
+See [examples](examples/README.md) for more print and automation recipes. See [Actions](docs/actions.md) for parameters and [imagespec's element reference](https://github.com/eigger/imagespec/blob/main/docs/elements.md) for payload syntax.
 
-Do **not** dither the whole label. Add `dither` on chart/media elements that use
-off-palette colors (`dlimg`, `pie`, `diagram`, `plot`, `sparkline`,
-`progress_bar`, `gauge`):
+## Supported printers
 
-```yaml
-action: niimbot.print
-target:
-  device_id: <your device>
-data:
-  payload:
-    - type: text
-      value: Product
-      x: 10
-      y: 8
-      size: 28
-    - type: dlimg
-      url: "https://example.com/photo.jpg"
-      x: 10
-      y: 40
-      xsize: 120
-      ysize: 90
-      dither: floyd
-    - type: pie
-      x: 150
-      y: 40
-      radius: 40
-      values: "A,40,orange;B,60,blue"
-      dither: atkinson
-    - type: diagram
-      x: 250
-      y: 40
-      width: 130
-      height: 90
-      bars:
-        values: "Mon,10;Tue,25;Wed,15;Thu,30"
-        color: orange
-      dither: bayer8
-```
+See the [device reference](docs/devices.md) for supported models and hardware limits. B1, B1 Pro, B2 Pro, B21 Pro and D110 are verified; other Bluetooth models may work.
 
-### Model-specific sizes
+## Documentation and support
 
-**D110** (small label, often rotated):
+- [Documentation index](docs/README.md)
+- [Setup and options](docs/setup.md)
+- [Troubleshooting](docs/troubleshooting.md) ([한국어](docs/ko/troubleshooting.md))
+- [Open an issue](https://github.com/eigger/hass-niimbot/issues) · [Discussions](https://github.com/eigger/hass-niimbot/discussions)
 
-```yaml
-action: niimbot.print
-target:
-  device_id: <your device>
-data:
-  payload:
-    - type: text
-      value: "Hello World!"
-      font: ppb.ttf
-      x: 10
-      y: 10
-      size: 30
-  rotate: 90
-  width: 240
-  height: 96
-```
+## Related
 
-**B21 Pro** (large label, high density):
-
-```yaml
-action: niimbot.print
-target:
-  area_id: kitchen
-data:
-  payload:
-    - type: rectangle
-      x_start: 0
-      x_end: 584
-      y_start: 0
-      y_end: 354
-      fill: black
-  width: 584
-  height: 354
-  density: 5
-```
-
-### Preview without printing
-
-Use **`preview: true`** while designing labels so nothing is sent to the printer. The **[Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)** can generate YAML via drag-and-drop — paste the result here and preview first.
-
-```yaml
-action: niimbot.print
-target:
-  device_id: <your device>
-data:
-  preview: true
-  payload:
-    - type: text
-      value: Preview Test
-      x: 10
-      y: 10
-      size: 30
-  width: 400
-  height: 240
-```
-
-Every print or preview updates `image.<device>_last_label_made` (disable in entity settings if unwanted).
-
----
-
-## Script: multiline address label
-
-`new_multiline` with `fit: true` shrinks text to fit the label box — useful for shipping addresses:
-
-```yaml
-alias: Print label with multiple lines of text
-fields:
-  contents:
-    selector:
-      text:
-        multiline: true
-    name: Contents
-    required: true
-sequence:
-  - action: niimbot.print
-    target:
-      area_id: kitchen
-    data:
-      payload:
-        - type: new_multiline
-          x: 0
-          y: 20
-          size: 100
-          width: 520
-          height: 300
-          fit: true
-          font: rbm.ttf
-          value: "{{ contents }}"
-      width: 584
-      height: 350
-      density: 5
-```
-
-See [`new_multiline` in imagespec](https://github.com/eigger/imagespec/blob/main/docs/elements.md#new_multiline) for `fit_width`, `fit_height`, and spacing options.
-
----
-
-BLE image data is sent in paced, no-response chunks; printer replies remain handled by the print protocol. Enabling **Keep Connection** also cuts reconnect overhead between jobs.
-
----
-
-## Preview on a dashboard
-
-With `preview: true` and `response_variable`, a script can save the rendered image to disk and show it on a dashboard camera card.
-
-1. Add to `configuration.yaml`:
-
-```yaml
-shell_command:
-  update_label: >-
-    bash -c 'set -o pipefail; echo "$0" | cut -d, -f2 | base64 -d >/config/www/label.png' {{ image_data }}
-```
-
-2. Add a **Local file** camera pointing at `/config/www/label.png`.
-
-3. Script to preview and update the file:
-
-```yaml
-alias: Iterate on a label
-fields:
-  payload:
-    selector:
-      object: {}
-    name: Payload
-sequence:
-  - action: niimbot.print
-    target:
-      device_id: <your device id>
-    data:
-      payload: "{{ payload }}"
-      width: 584
-      height: 350
-      density: 5
-      preview: true
-    response_variable: previewed
-  - action: shell_command.update_label
-    data:
-      image_data: "{{ previewed.image }}"
-```
-
----
-
-## Troubleshooting
-
-**[docs/troubleshooting.md](docs/troubleshooting.md)** ([한국어](docs/ko/troubleshooting.md)) — how to read the **Last Failure**, **Last Error** and **Print Duration** sensors' attributes (`failed_stage`, `likely_cause`, the radio, the per-stage timings), what each failed stage and printer error code means, and what to attach to an issue.
-
-- **`niimbot.print` fails instantly with "not supported for this printer"** — `density` or `label_type` is outside the model's range; the action validates before connecting. See [docs/devices.md](docs/devices.md).
-- **Error Count climbs while nothing is printing** — a poll connected and then failed; read Last Failure's `failed_stage`. An asleep printer does not count.
-- **Slow or failed prints** — inspect `transfer_s` and the radio details in [docs/troubleshooting.md](docs/troubleshooting.md).
-
----
-
-## Tools
-
-**[Niimbot Payload Layout Editor](https://eigger.github.io/Niimbot_Payload_Editor.html)** — drag-and-drop layout designer; exports YAML for `niimbot.print`.
-
----
-
-## Examples
-
-| Example | Description |
-|---------|-------------|
-| [examples/grocy/README.md](examples/grocy/README.md) | Print a Grocy product label via webhook |
-
----
-
-## Protocol documentation
-
-Reverse-engineered reference for the printers' BLE protocol.
-
-| Document | Contents |
-|----------|----------|
-| [docs/protocol.md](docs/protocol.md) | Transport, packet framing, full command ID tables, error codes |
-| [docs/device-info.md](docs/device-info.md) | Connect handshake, printer info fields, heartbeat variants, print status |
-| [docs/printing.md](docs/printing.md) | Image encoding, page setup, per-generation print sequences, completion detection |
-| [docs/rfid.md](docs/rfid.md) | Reading consumable info from label / ribbon RFID tags |
-| [docs/devices.md](docs/devices.md) | Model IDs, DPI, print widths, density ranges and RFID class per model |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Reading the Last Failure / Print Duration attributes, what each failed stage means, what to attach to an issue ([한국어](docs/ko/troubleshooting.md)) |
-| [docs/app-gap-analysis.md](docs/app-gap-analysis.md) | What the official app does that this integration does not, and why some of it is deliberately out of scope |
-| [docs/improvement-plan.md](docs/improvement-plan.md) | Open work, with what shipped in 3.0.0 recorded for context |
-| [docs/work-plan.md](docs/work-plan.md) | Task orders for that open work — files, changes, tests, acceptance criteria |
-
----
-
-## Custom fonts
-
-Place `.ttf` files in `custom_components/niimbot/fonts/` or `config/www/fonts/` and reference by filename (e.g. `ppb.ttf`, `rbm.ttf`).
-
----
-
-## References
-
-- [imagespec](https://github.com/eigger/imagespec) — rendering engine
-- [MultiMote/niimblue](https://github.com/MultiMote/niimblue)
-- [OpenEPaperLink](https://github.com/OpenEPaperLink/Home_Assistant_Integration)
+- [imagespec](https://github.com/eigger/imagespec) — payload renderer and element reference
+- [niimblue](https://github.com/MultiMote/niimblue) — Niimbot protocol implementation
+- [Stash](https://github.com/eigger/stash) — inventory manager with Niimbot printing support

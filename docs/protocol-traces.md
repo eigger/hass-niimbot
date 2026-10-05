@@ -1,5 +1,12 @@
+# Captured Print Protocol Traces
 
-```
+These examples supplement the [protocol reference](protocol.md) and [printing reference](printing.md).
+
+## Packet exchange
+
+Printer commands and responses captured during a print job.
+
+```text
 >> 55 55 21 01 03 23 aa aa (SetDensity)
 << 55 55 31 01 01 31 aa aa (In_SetDensity)
 >> 55 55 23 01 01 23 aa aa (SetLabelType)
@@ -57,9 +64,13 @@
 << 55 55 b3 0a 00 00 64 51 03 1e 00 01 00 00 90 aa aa (In_PrintStatus)
 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
 << 55 55 b3 0a 00 01 64 64 03 1e 00 01 00 00 a4 aa aa (In_PrintStatus)
+```
 
+## Detailed print transfer
 
+Serialized row data and print commands from a full label transfer.
 
+```text
 send: 55:55:21:01:02:22:aa:aa
 recv: 55:55:31:01:01:31:aa:aa
 
@@ -243,8 +254,13 @@ send: 55 55 01 07 00 01 00 00 00 00 00 07 aa aa
 send: 55 55 03 01 01 03 aa aa
 send: 55 55 13 06 00 f0 00 a0 00 01 44 aa aa
 send: 55 55 85 1a 00 23 00 00 00 01 00 00 00 00 07 ff ff ff ff ff ff ff ff ff ff ff e0 00 00 00 a5 aa aa
+```
 
+## Client console trace
 
+Connection, printer information and print-status notifications.
+
+```text
 index-Bl-bJOtw.js:794 new NiimbotBluetoothClient
 index-Bl-bJOtw.js:794 >> 03 55 55 c1 01 01 c1 aa aa (Connect)
 index-Bl-bJOtw.js:794 << 55 55 c2 01 03 c0 aa aa (In_Connect)
@@ -306,3 +322,4 @@ index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
 index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 00 64 5a 03 1e 00 01 00 00 9b aa aa (In_PrintStatus)
 index-Bl-bJOtw.js:794 >> 55 55 a3 01 01 a3 aa aa (PrintStatus)
 index-Bl-bJOtw.js:794 << 55 55 b3 0a 00 01 64 64 03 1e 00 01 00 00 a4 aa aa (In_PrintStatus)
+```

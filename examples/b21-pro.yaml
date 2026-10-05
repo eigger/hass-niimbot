@@ -1,0 +1,14 @@
+action: niimbot.print
+target:
+  area_id: kitchen
+data:
+  payload:
+    - type: rectangle
+      x_start: 0
+      x_end: 584
+      y_start: 0
+      y_end: 354
+      fill: black
+  width: 584
+  height: 354
+  density: 5

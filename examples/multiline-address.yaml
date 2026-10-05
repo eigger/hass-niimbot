@@ -1,0 +1,25 @@
+alias: Print label with multiple lines of text
+fields:
+  contents:
+    selector:
+      text:
+        multiline: true
+    name: Contents
+    required: true
+sequence:
+  - action: niimbot.print
+    target:
+      area_id: kitchen
+    data:
+      payload:
+        - type: new_multiline
+          x: 0
+          y: 20
+          size: 100
+          width: 520
+          height: 300
+          fit: true
+          value: "{{ contents }}"
+      width: 584
+      height: 350
+      density: 5

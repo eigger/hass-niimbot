@@ -9,6 +9,7 @@ Transport, packet framing and the full command ID table for NIIMBOT label printe
 | [printing.md](printing.md) | Image encoding, print sequences, completion detection |
 | [rfid.md](rfid.md) | Reading consumable info from RFID tags |
 | [devices.md](devices.md) | Per-model codes and hardware limits |
+| [protocol-traces.md](protocol-traces.md) | Captured command and response byte sequences |
 
 ## Status of this document
 

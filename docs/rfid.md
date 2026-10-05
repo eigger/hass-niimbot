@@ -66,11 +66,8 @@ The Advanced2 heartbeat reports paper and ribbon RFID success separately, which 
 tell which of the two tags failed. `heartbeat()` accepts `0xD9` and the parser reads both fields;
 `ribbon_rfidreadstate` is exposed as the Ribbon RFID binary sensor (Task T2).
 
-There is a third gate the app applies and this integration does not: RFID reading was shipped by
-firmware update, and the vendor's device database lists the firmware versions on which it does **not**
-work per model (`rfidNotSupportVersions`). See
-[app-gap-analysis.md](app-gap-analysis.md#a4-firmware-version-gated-capabilities-are-ignored) for the
-list. On those units every poll spends a full read timeout on a command that cannot be answered.
+RFID support can also depend on firmware version. The integration skips RFID reads for model and
+firmware combinations known not to support them.
 
 ## 2. Commands
 

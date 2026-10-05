@@ -1,0 +1,34 @@
+action: niimbot.print
+target:
+  device_id: <your device>
+data:
+  payload:
+    - type: text
+      value: Product
+      x: 10
+      y: 8
+      size: 28
+    - type: dlimg
+      url: "https://example.com/photo.jpg"
+      x: 10
+      y: 40
+      xsize: 120
+      ysize: 90
+      dither: floyd
+    - type: pie
+      x: 150
+      y: 40
+      radius: 40
+      values: "A,40,orange;B,60,blue"
+      dither: atkinson
+    - type: diagram
+      x: 250
+      y: 40
+      width: 130
+      height: 90
+      bars:
+        values: "Mon,10;Tue,25;Wed,15;Thu,30"
+        color: orange
+      dither: bayer8
+  width: 400
+  height: 160

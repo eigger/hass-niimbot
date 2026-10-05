@@ -1,0 +1,13 @@
+action: niimbot.print
+target:
+  device_id: <your device>
+data:
+  preview: true
+  payload:
+    - type: text
+      value: Preview Test
+      x: 10
+      y: 10
+      size: 30
+  width: 400
+  height: 240

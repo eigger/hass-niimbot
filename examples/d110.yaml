@@ -1,0 +1,13 @@
+action: niimbot.print
+target:
+  device_id: <your D110>
+data:
+  payload:
+    - type: text
+      value: Hello World!
+      x: 10
+      y: 10
+      size: 30
+  rotate: 90
+  width: 240
+  height: 96
