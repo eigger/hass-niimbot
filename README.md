@@ -39,10 +39,13 @@ See [examples](examples/README.md) for more print and automation recipes. See [A
 
 ## Supported printers
 
-| Support status | Representative models |
+| Model | Status |
 |---|---|
-| Verified | B1, B1 Pro, B2 Pro, B21 Pro, D110 |
-| Model profiles included | D11 series, D101, B21 series, B3S series |
+| B1 | Verified |
+| B1 Pro | Verified |
+| B2 Pro | Verified |
+| B21 Pro | Verified |
+| D110 | Verified |
 
 See the [device reference](docs/devices.md) for the full model list and hardware limits.
 
