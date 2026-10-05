@@ -11,6 +11,7 @@ from typing import Any, TypeVar
 from bleak import BleakClient
 from blesession import (
     WRITE_TIMEOUT_S,
+    GattMismatch,
     Notifications,
     characteristic_or_raise,
     guarded_write,
@@ -263,16 +264,23 @@ class BLETransport(BaseTransport):
     async def start_notify(self, uuid: str):
         """Start notifications from the BLE characteristic.
 
-        A printer that does not expose it fails as ``GattMismatch`` (final, not
-        retried) instead of a bare bleak error from the subscribe.
+        A printer that does not expose the service, characteristic or notify
+        property fails as a final ``GattMismatch`` instead of a bare bleak
+        error from the subscribe. A lookup that merely failed (services not
+        discovered yet) is left to ``Notifications``, which refreshes the
+        services and retries the subscribe.
         """
-        characteristic_or_raise(
-            self._client,
-            SERVICE_UUID,
-            CHARACTERISTIC_UUID,
-            properties=("notify",),
-            label="printer",
-        )
+        try:
+            characteristic_or_raise(
+                self._client,
+                SERVICE_UUID,
+                CHARACTERISTIC_UUID,
+                properties=("notify",),
+                label="printer",
+            )
+        except GattMismatch as err:
+            if not err.retryable:
+                raise
         await self._notifications.__aenter__()
 
     async def stop_notify(self, uuid: str):

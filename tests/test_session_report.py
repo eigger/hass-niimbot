@@ -516,3 +516,29 @@ def test_a_printer_without_the_characteristic_fails_as_a_gatt_mismatch():
             await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
 
     run(_test())
+
+
+def test_services_not_discovered_yet_are_left_to_the_subscribe_recovery():
+    async def _test():
+        from bleak import BleakError
+        from blesession.testing import FakeClient
+
+        from custom_components.niimbot.niimprint.printer import (
+            CHARACTERISTIC_UUID,
+            BLETransport,
+        )
+
+        class _Undiscovered(FakeClient):
+            @property
+            def services(self):
+                raise BleakError("Service Discovery has not been performed yet")
+
+            @services.setter
+            def services(self, _value):
+                pass
+
+        client = _Undiscovered()
+        await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
+        assert CHARACTERISTIC_UUID in client.subscribed
+
+    run(_test())
