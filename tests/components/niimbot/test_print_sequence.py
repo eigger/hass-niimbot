@@ -17,7 +17,7 @@ from custom_components.niimbot.niimprint.printer import (
     PrinterClient,
     RequestCodeEnum,
 )
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -39,7 +39,9 @@ def test_models_library_generation_assignments():
         model = meta["model"]
         gen = meta["generation"]
         if model in old_d11_models:
-            assert gen == PrintGeneration.OLD_D11, f"{model} expected OLD_D11, got {gen}"
+            assert gen == PrintGeneration.OLD_D11, (
+                f"{model} expected OLD_D11, got {gen}"
+            )
         elif model in d110_models:
             assert gen == PrintGeneration.D110, f"{model} expected D110, got {gen}"
         elif model in v5_models:
@@ -50,16 +52,16 @@ def test_models_library_generation_assignments():
 
 def _build_standard_responses():
     return [
-        NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY (0x21 + 16 = 49)
-        NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE (0x23 + 16 = 51)
-        NiimbotPacket(2, b"\x01"),    # START_PRINT (0x01 + 1 = 2)
-        NiimbotPacket(48, b"\x01"),   # ALLOW_PRINT_CLEAR (0x20 + 16 = 48)
-        NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT (0x03 + 1 = 4)
-        NiimbotPacket(20, b"\x01"),   # SET_DIMENSION (0x13 + 1 = 20)
-        NiimbotPacket(22, b"\x01"),   # SET_QUANTITY (0x15 + 1 = 22)
+        NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY (0x21 + 16 = 49)
+        NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE (0x23 + 16 = 51)
+        NiimbotPacket(2, b"\x01"),  # START_PRINT (0x01 + 1 = 2)
+        NiimbotPacket(48, b"\x01"),  # ALLOW_PRINT_CLEAR (0x20 + 16 = 48)
+        NiimbotPacket(4, b"\x01"),  # START_PAGE_PRINT (0x03 + 1 = 4)
+        NiimbotPacket(20, b"\x01"),  # SET_DIMENSION (0x13 + 1 = 20)
+        NiimbotPacket(22, b"\x01"),  # SET_QUANTITY (0x15 + 1 = 22)
         NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED (0x83 + 1 = 132)
         NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT (0xE3 + 1 = 228)
-        NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)), # Page index 1 complete
+        NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),  # Page index 1 complete
         NiimbotPacket(244, b"\x01"),  # END_PRINT (0xF3 + 1 = 244)
     ]
 
@@ -89,12 +91,12 @@ def test_print_sequence_old_d11():
 def test_print_sequence_d110():
     async def _test():
         responses = [
-            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
-            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
-            NiimbotPacket(2, b"\x01"),    # START_PRINT (1 byte b"\x01")
-            NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT
-            NiimbotPacket(20, b"\x01"),   # SET_DIMENSION
-            NiimbotPacket(22, b"\x01"),   # SET_QUANTITY
+            NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),  # START_PRINT (1 byte b"\x01")
+            NiimbotPacket(4, b"\x01"),  # START_PAGE_PRINT
+            NiimbotPacket(20, b"\x01"),  # SET_DIMENSION
+            NiimbotPacket(22, b"\x01"),  # SET_QUANTITY
             NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
@@ -116,7 +118,9 @@ def test_print_sequence_d110():
         assert RequestCodeEnum.ALLOW_PRINT_CLEAR not in sent_types
         assert RequestCodeEnum.SET_QUANTITY in sent_types
         start_print_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.START_PRINT
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.START_PRINT
         )
         assert len(start_print_pkt.data) == 1
 
@@ -126,11 +130,11 @@ def test_print_sequence_d110():
 def test_print_sequence_v4():
     async def _test():
         responses = [
-            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
-            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
-            NiimbotPacket(2, b"\x01"),    # START_PRINT (v4)
-            NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT
-            NiimbotPacket(20, b"\x01"),   # SET_DIMENSION
+            NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),  # START_PRINT (v4)
+            NiimbotPacket(4, b"\x01"),  # START_PAGE_PRINT
+            NiimbotPacket(20, b"\x01"),  # SET_DIMENSION
             NiimbotPacket(132, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
@@ -158,10 +162,10 @@ def test_print_sequence_v4():
 def test_print_sequence_v5():
     async def _test():
         responses = [
-            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
-            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
-            NiimbotPacket(2, b"\x01"),    # START_PRINT_9B
-            NiimbotPacket(20, b"\x01"),   # SET_PAGE_SIZE_9B
+            NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),  # START_PRINT_9B
+            NiimbotPacket(20, b"\x01"),  # SET_PAGE_SIZE_9B
             NiimbotPacket(134, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
@@ -179,7 +183,9 @@ def test_print_sequence_v5():
 
         # V5 start_print sends struct.pack(">HBBBBBBB", ...) -> 9 bytes payload
         start_print_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.START_PRINT
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.START_PRINT
         )
         assert len(start_print_pkt.data) == 9
 
@@ -196,10 +202,10 @@ def test_unknown_model_fallback_v5_via_protocol_version():
 
         responses = [
             NiimbotPacket(PRINTER_STATUS_DATA_RESP, bytes(status_payload)),
-            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
-            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
-            NiimbotPacket(2, b"\x01"),    # START_PRINT_9B
-            NiimbotPacket(20, b"\x01"),   # SET_PAGE_SIZE_9B
+            NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),  # START_PRINT_9B
+            NiimbotPacket(20, b"\x01"),  # SET_PAGE_SIZE_9B
             NiimbotPacket(134, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
@@ -216,7 +222,9 @@ def test_unknown_model_fallback_v5_via_protocol_version():
         )
 
         start_print_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.START_PRINT
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.START_PRINT
         )
         assert len(start_print_pkt.data) == 9
 
@@ -227,12 +235,12 @@ def test_unknown_model_fallback_default_v4():
     async def _test():
         # PrinterStatusData fails (NAK packet 0) -> falls back to V4 sequence
         responses = [
-            NiimbotPacket(0, b"\x00"),    # PrinterStatusData NAK
-            NiimbotPacket(49, b"\x01"),   # SET_LABEL_DENSITY
-            NiimbotPacket(51, b"\x01"),   # SET_LABEL_TYPE
-            NiimbotPacket(2, b"\x01"),    # START_PRINT (v4)
-            NiimbotPacket(4, b"\x01"),    # START_PAGE_PRINT
-            NiimbotPacket(20, b"\x01"),   # SET_DIMENSION
+            NiimbotPacket(0, b"\x00"),  # PrinterStatusData NAK
+            NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
+            NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
+            NiimbotPacket(2, b"\x01"),  # START_PRINT (v4)
+            NiimbotPacket(4, b"\x01"),  # START_PAGE_PRINT
+            NiimbotPacket(20, b"\x01"),  # SET_DIMENSION
             NiimbotPacket(134, b"\x01"),  # PRINT_BITMAP_ROW_INDEXED
             NiimbotPacket(228, b"\x01"),  # END_PAGE_PRINT
             NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
@@ -252,7 +260,9 @@ def test_unknown_model_fallback_default_v4():
         assert RequestCodeEnum.START_PRINT in sent_types
         # V4 start_print sends struct.pack(">HBBBBB", ...) -> 7 bytes data
         start_print_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.START_PRINT
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.START_PRINT
         )
         assert len(start_print_pkt.data) == 7
 

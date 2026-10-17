@@ -17,7 +17,7 @@ PLATFORM_MODULES = (
 
 @pytest.mark.parametrize("module_name", PLATFORM_MODULES)
 def test_platform_module_imports(module_name: str) -> None:
-    """Platform modules must import under the conftest HA stubs."""
+    """Platform modules must import against the installed Home Assistant."""
     mod = importlib.import_module(module_name)
     assert hasattr(mod, "async_setup_entry")
 

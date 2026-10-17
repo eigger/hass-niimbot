@@ -13,9 +13,7 @@ class FakeTransport(BaseTransport):
 
     def __init__(self, responses: list[NiimbotPacket] | None = None):
         self.written: list[bytes] = []
-        self._responses: deque[bytes] = deque(
-            p.to_bytes() for p in (responses or [])
-        )
+        self._responses: deque[bytes] = deque(p.to_bytes() for p in (responses or []))
 
     def queue(self, *packets: NiimbotPacket) -> None:
         for packet in packets:

@@ -1,5 +1,6 @@
 """The Niimbot BLE integration."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -11,7 +12,7 @@ from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .cloud import LabelCloudLookup
 from .const import (
@@ -54,6 +55,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> bool:
     """Set up Niimbot BLE device from a config entry."""
+    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     address = entry.unique_id
     # Legacy option — only seeds the Connection Sound switch until get_sound works.
     connection_sound_seed = entry.options.get(
@@ -61,7 +63,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
     )
     scan_interval = float(
         entry.options.get(
-            CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            CONF_SCAN_INTERVAL,
+            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
     )
     keep_connection = bool(
@@ -85,8 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
     ble_device = bluetooth.async_ble_device_from_address(hass, address)
     if not ble_device:
         _LOGGER.warning(
-            "Could not find Niimbot device with address %s during setup; continuing without initial data",
-            address,
+            "Niimbot printer is not visible during setup; wake it and check Bluetooth connectivity",
         )
 
     niimbot = NiimbotDevice(
@@ -114,10 +116,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
                 exc=outcome,
             )
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Building the session report failed: %s", err)
+            _LOGGER.debug(
+                "Building the session report failed (%s); using fallback",
+                type(err).__name__,
+            )
             report = fallback_report(operation, trace=trace, exc=outcome)
         else:
-            _LOGGER.debug("Session report (%s): %s", operation, report)
+            _LOGGER.debug(
+                "Session completed: operation=%s success=%s failed_stage=%s",
+                operation,
+                report.get("success"),
+                report.get("failed_stage"),
+            )
         # Before ``record``: it notifies the sensors, and Last Error's
         # attributes must already be this session's by then.
         if niimbot.last_error_trace is trace:
@@ -125,6 +135,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         niimbot.reports.record(report)
 
     niimbot.callback_session = _publish_session_report
+    cloud_tasks: set[asyncio.Task] = set()
+
+    async def _async_cleanup() -> None:
+        """Stop entry-owned lookups before releasing the BLE connection."""
+        tasks = tuple(cloud_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        await coordinator.async_shutdown()
+        await niimbot.disconnect()
 
     async def _refresh_cloud_label_info(barcode: str) -> None:
         """Resolve a label barcode via the cloud catalogue and push the result.
@@ -144,16 +165,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
             "barcode": barcode,
             "requested_at": requested_at,
         }
-        coordinator.async_set_updated_data(niimbot.ble_data)
+        coordinator.async_update_listeners()
 
         try:
             info = await cloud_lookup.get(barcode)
         except Exception as err:  # noqa: BLE001 — never leave the sensor on pending
             _LOGGER.warning(
-                "Cloud label lookup for %s raised %s",
-                barcode,
-                f"{type(err).__name__}: {err!r}",
-                exc_info=True,
+                "Cloud label lookup failed (%s); check network access and retry",
+                type(err).__name__,
             )
             if niimbot._cloud_lookup_barcode == barcode:
                 niimbot._cloud_lookup_barcode = None
@@ -161,9 +180,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
                 "status": "error",
                 "barcode": barcode,
                 "requested_at": requested_at,
-                "error": f"{type(err).__name__}: {err!r}",
+                "error": type(err).__name__,
             }
-            coordinator.async_set_updated_data(niimbot.ble_data)
+            coordinator.async_update_listeners()
             return
 
         if not cloud_lookup.last_result_definitive:
@@ -178,7 +197,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
             if cloud_lookup.last_error:
                 state["error"] = cloud_lookup.last_error
             niimbot._cloud_lookup_state = state
-            coordinator.async_set_updated_data(niimbot.ble_data)
+            coordinator.async_update_listeners()
             return
 
         if info:
@@ -202,20 +221,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         niimbot._cloud_lookup_state = state
         if new_attrs != niimbot._cloud_label_attrs:
             niimbot._cloud_label_attrs = new_attrs
-        coordinator.async_set_updated_data(niimbot.ble_data)
+        coordinator.async_update_listeners()
 
     async def _async_update_method() -> BLEData:
         """Get data from Niimbot BLE."""
         ble_device = bluetooth.async_ble_device_from_address(hass, address)
         if ble_device is None:
-            _LOGGER.warning("BLE device not available for address %s; returning last known data", address)
-            return niimbot.ble_data
+            raise UpdateFailed(
+                "Printer is not visible to a connectable Bluetooth adapter; wake it and check the proxy"
+            )
 
         try:
             data = await niimbot.update_device(ble_device)
         except Exception as err:
-            _LOGGER.warning("Unable to fetch data from %s: %s; returning last known data", address, err)
-            data = niimbot.ble_data
+            raise UpdateFailed(
+                f"Unable to fetch printer data ({type(err).__name__}); wake the printer and check Bluetooth connectivity"
+            ) from err
         finally:
             # Fire roll-change events even when the rest of the poll failed
             # after RFID data was already applied.
@@ -228,7 +249,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         if cloud_lookup is not None:
             barcode = data.sensors.get("label_sku")
             if barcode and barcode != niimbot._cloud_lookup_barcode:
-                hass.async_create_task(_refresh_cloud_label_info(barcode))
+                task = entry.async_create_background_task(
+                    hass, _refresh_cloud_label_info(barcode), "Niimbot label lookup"
+                )
+                cloud_tasks.add(task)
+                task.add_done_callback(cloud_tasks.discard)
 
         return data
 
@@ -240,11 +265,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         update_interval=timedelta(seconds=scan_interval),
     )
     coordinator.data = niimbot.ble_data
-    await coordinator.async_refresh()
+    try:
+        await coordinator.async_refresh()
+    except BaseException:
+        await _async_cleanup()
+        raise
     if not coordinator.last_update_success:
         _LOGGER.warning(
-            "Initial update failed for %s; entities will start as unavailable: %s",
-            address,
+            "Initial printer update failed; entities will start as unavailable: %s",
             coordinator.last_exception,
         )
 
@@ -263,13 +291,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
         coordinator=coordinator,
         image_coordinator=image_coordinator,
         cloud_lookup=cloud_lookup,
+        cloud_tasks=cloud_tasks,
     )
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except BaseException:
+        try:
+            await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+        finally:
+            await _async_cleanup()
+        raise
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> bool:
     """Unload a config entry."""
-    await entry.runtime_data.device.disconnect()
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+    data = entry.runtime_data
+    tasks = tuple(data.cloud_tasks)
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    await data.coordinator.async_shutdown()
+    await data.device.disconnect()
+    return True
+
+
+async def _async_reload_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> None:
+    """Reload options through the API supported by the minimum HA version."""
+    await hass.config_entries.async_reload(entry.entry_id)

@@ -1,0 +1,20 @@
+name: Update dependencies
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: eigger/hass-repo-standards/.github/workflows/dependency-update.yml@7acd9cab6ac774e4695f2c962e3d88b5faa4620d # reviewed shared standards
+    with:
+      domain: niimbot
+      packages: '["imagespec", "blesession"]'
+      python-version: '3.14'
+      test-profile: ha
+      ha-components: bluetooth bluetooth_adapters recorder
+      validation-command: python -m ruff check . && python -m ruff format --check . && python -m pytest tests/components/niimbot/ -v --timeout 120

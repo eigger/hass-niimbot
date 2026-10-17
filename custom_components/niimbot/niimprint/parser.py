@@ -54,6 +54,7 @@ def _battery_percentage(
         return max(0, min(100, round(powerlevel)))
     return round(float(powerlevel) * 25.0)
 
+
 _LOGGER = logging.getLogger(__name__)
 
 EVENT_ROLL_CHANGED = "niimbot_roll_changed"
@@ -108,9 +109,7 @@ class BLEData:
     languagetype: int | None = None
     autoshutdowntime: int | None = None
     devicetype: str = ""
-    sensors: dict[str, str | float | None] = dataclasses.field(
-        default_factory=dict
-    )
+    sensors: dict[str, str | float | None] = dataclasses.field(default_factory=dict)
 
 
 # pylint: disable=too-many-locals
@@ -118,7 +117,9 @@ class BLEData:
 class NiimbotDevice:
     """Data for Niimbot BLE sensors."""
 
-    def __init__(self, address, keep_connection=False, connection_sound_seed: bool | None = True):
+    def __init__(
+        self, address, keep_connection=False, connection_sound_seed: bool | None = True
+    ):
         self.address = address
         self.keep_connection = keep_connection
         self.lock = asyncio.Lock()
@@ -143,7 +144,7 @@ class NiimbotDevice:
                 "labeltype": None,
                 "print_progress": 0.0,
                 "connection_sound": self.connection_sound,
-            }
+            },
         )
         self.client = None
         self._printer: PrinterClient | None = None
@@ -669,16 +670,12 @@ class NiimbotDevice:
                     self.ble_data.autoshutdowntime = int(index)
             return self.ble_data
 
-    async def set_connection_sound(
-        self, ble_device: BLEDevice, on: bool
-    ) -> BLEData:
+    async def set_connection_sound(self, ble_device: BLEDevice, on: bool) -> BLEData:
         """Write Bluetooth connection beep and update the local cache."""
         async with self.lock:
             async with self._operation(ble_device, "settings") as printer:
                 with self._active_trace.timed("settings"):
-                    ok = await printer.set_sound(
-                        SoundEnum.BluetoothConnectionSound, on
-                    )
+                    ok = await printer.set_sound(SoundEnum.BluetoothConnectionSound, on)
                     if not ok:
                         raise RuntimeError("Printer rejected connection sound setting")
                     self._apply_connection_sound(on)
@@ -740,10 +737,13 @@ class NiimbotDevice:
                     with self._active_trace.timed("info"):
                         await self._read_device_state(printer)
             except PrinterTimeout as err:
-                _LOGGER.warning("Printer timed out during update: %s", err)
+                _LOGGER.debug(
+                    "Printer status poll timed out (%s); check power and Bluetooth path",
+                    type(err).__name__,
+                )
                 raise
 
-            _LOGGER.debug("Obtained BLEData: %s", self.ble_data)
+            _LOGGER.debug("Printer status updated")
             return self.ble_data
 
     async def _read_device_state(self, printer: PrinterClient) -> None:
@@ -753,21 +753,15 @@ class NiimbotDevice:
                 await printer.get_info(InfoEnum.DEVICESERIAL)
             )
         if not self.ble_data.hw_version:
-            self.ble_data.hw_version = str(
-                await printer.get_info(InfoEnum.HARDVERSION)
-            )
+            self.ble_data.hw_version = str(await printer.get_info(InfoEnum.HARDVERSION))
         if not self.ble_data.sw_version:
-            self.ble_data.sw_version = str(
-                await printer.get_info(InfoEnum.SOFTVERSION)
-            )
+            self.ble_data.sw_version = str(await printer.get_info(InfoEnum.SOFTVERSION))
         if not self.ble_data.devicetype:
             device_type = await printer.get_info(InfoEnum.DEVICETYPE)
             if device_type is not None:
                 self.ble_data.devicetype = device_type
                 meta = get_printer_meta_by_id(int(device_type))
-                self.ble_data.model = (
-                    meta["model"].name if meta else str(device_type)
-                )
+                self.ble_data.model = meta["model"].name if meta else str(device_type)
                 self.model = self.ble_data.model
 
         await self._load_printer_info(printer)
@@ -855,7 +849,9 @@ class NiimbotDevice:
         try:
             info = await printer.get_rfid()
         except Exception as err:
-            _LOGGER.debug("RFID read failed; retaining previous values: %s", err)
+            _LOGGER.debug(
+                "RFID read failed; retaining previous values (%s)", type(err).__name__
+            )
             return
 
         self._apply_rfid_info(info)
@@ -877,7 +873,9 @@ class NiimbotDevice:
         try:
             info = await printer.get_rfid2()
         except Exception as err:
-            _LOGGER.debug("Ribbon RFID read failed; retaining previous: %s", err)
+            _LOGGER.debug(
+                "Ribbon RFID read failed; retaining previous (%s)", type(err).__name__
+            )
             return
 
         self._apply_ribbon_rfid_info(info)
@@ -901,11 +899,12 @@ class NiimbotDevice:
             await self._maybe_read_rfid(printer, heartbeat, force=True)
             await self._maybe_read_ribbon_rfid(printer)
         except Exception as err:
-            _LOGGER.debug("Post-print status refresh failed: %s", err)
+            _LOGGER.debug(
+                "Post-print status refresh failed (%s); retry status lookup",
+                type(err).__name__,
+            )
             if self._active_trace is not None:
-                self._active_trace.note(
-                    refresh_error=error_text(err)
-                )
+                self._active_trace.note(refresh_error=error_text(err))
 
     async def print_image(
         self,
@@ -931,7 +930,9 @@ class NiimbotDevice:
                     try:
                         with trace.timed("prepare"):
                             if not self.model:
-                                device_type = await printer.get_info(InfoEnum.DEVICETYPE)
+                                device_type = await printer.get_info(
+                                    InfoEnum.DEVICETYPE
+                                )
                                 if device_type is not None:
                                     meta = get_printer_meta_by_id(int(device_type))
                                     self.model = (

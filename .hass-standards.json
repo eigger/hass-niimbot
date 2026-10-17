@@ -1,0 +1,16 @@
+{
+  "repository": "eigger/hass-niimbot",
+  "default_branch": "master",
+  "hacs": "custom",
+  "release": true,
+  "readmes": [
+    "README.md",
+    "README.ko.md"
+  ],
+  "installation_links": {
+    "README.md": "#installation",
+    "README.ko.md": "#설치"
+  },
+  "tests_workflow": "tests.yml",
+  "validate_workflow": "validate.yml"
+}

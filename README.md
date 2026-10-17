@@ -1,20 +1,32 @@
 # hass-niimbot
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=home-assistant)](https://hacs.xyz/)
-[![GitHub Release](https://img.shields.io/github/release/eigger/hass-niimbot.svg)](https://github.com/eigger/hass-niimbot/releases)
-[![License](https://img.shields.io/github/license/eigger/hass-niimbot)](https://github.com/eigger/hass-niimbot/blob/main/LICENSE)
+<!-- hass-standards:badges:start -->
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square)](#installation)
+[![Release](https://img.shields.io/github/v/release/eigger/hass-niimbot?style=flat-square)](https://github.com/eigger/hass-niimbot/releases)
+[![Home Assistant minimum](https://img.shields.io/badge/HA-%E2%89%A5%202025.1.0-41BDF5?style=flat-square)](hacs.json)
+[![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat-square&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
+[![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat-square&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
+[![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat-square)](LICENSE)
+[![Analytics reporting installs](https://img.shields.io/badge/dynamic/json?style=flat-square&color=41BDF5&label=Usage&query=%24.niimbot.total&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json)](https://analytics.home-assistant.io/)
+<!-- hass-standards:badges:end -->
 
-Print labels with Niimbot printers from Home Assistant using [imagespec](https://github.com/eigger/imagespec) payloads over Bluetooth.
+[한국어](README.ko.md)
+
+Print labels with Niimbot printers from Home Assistant (HACS custom integration) using [imagespec](https://github.com/eigger/imagespec) payloads over Bluetooth.
 
 | B1 / B1 Pro | B21 Pro | D110 |
 |---|---|---|
-| <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="https://raw.githubusercontent.com/eigger/hass-niimbot/master/docs/images/d110.jpg" width="280" alt="D110"> |
+| <img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="280" alt="D110"> |
 
-## Install
+## Requirements
+
+Home Assistant **2025.1.0 or later**, **Python 3.13 or later** (required by the existing runtime dependencies), a supported Niimbot BLE printer and a connectable Home Assistant Bluetooth adapter or active ESPHome Bluetooth proxy are required. HA 2025.1 installations running Python 3.12 cannot install these dependency versions; use a compatible Python runtime. The HA minimum remains unchanged.
+
+## Installation
 
 Install `eigger/hass-niimbot` through HACS as a custom repository, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
 
-An active Bluetooth proxy is recommended when the Home Assistant adapter has limited range. See [setup](docs/setup.md#bluetooth-connection).
+Turn the printer on, wake it from sleep and disconnect the NIIMBOT phone app before setup or printing. See [Bluetooth proxy setup and recommended devices (한국어)](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
 
 ## Quick start
 
@@ -35,33 +47,25 @@ data:
 
 See [examples](examples/README.md) for more print and automation recipes. See [Actions](docs/actions.md) for parameters and [imagespec's element reference](https://github.com/eigger/imagespec/blob/main/docs/elements.md) for payload syntax.
 
-## Supported printers
+## Important limits
 
-These representative models have been verified. Sizes below are **manual action settings for the example label**, not fixed sizes for every roll.
+B1, B1 Pro, B2 Pro, B21 Pro and D110 are the representative verified models; other models and firmware may behave differently. See [model settings and label sizing](docs/label-sizing.md) and the [full device reference](docs/devices.md).
 
-| Model | Resolution | Label example | `width` | `height` | `rotate` | Density (default) |
-|---|---|---|---|---|---|---|
-| B1 | 203 DPI | 40×30 mm | `320` | `240` | `0` | 1–5 (3) |
-| B1 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
-| B2 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
-| B21 Pro | 300 DPI | 40×30 mm | `472` | `354` | `0` | 1–5 (3) |
-| D110 | 203 DPI | 30×12 mm | `240` | `96` | `90` | 1–3 (2) |
-
-For other label sizes, calculate pixels with `round(mm × DPI / 25.4)` and allow for the label's printable margins. `width` and `height` describe the canvas before rotation; `90` or `270` swaps the output dimensions. The [D110 example](examples/d110.yaml) renders 240×96 px and sends a 96×240 px image.
-
-**Automatic label sizing:** Enable **Fetch Label Info Online** in the integration options. Once **Cloud Label Info** has successfully resolved the loaded label, omit `width`, `height` and `label_type` from the print action to use that label's dimensions and paper type automatically. The lookup already accounts for the catalogue orientation; leave `rotate` at `0` unless you want to rotate the content further. Explicit action values override the lookup. If lookup is unavailable, the size falls back to `400×240` px; this legacy fallback is not a universal label size.
-
-See the [device reference](docs/devices.md) for the full model list and supported label types, and [Actions](docs/actions.md) for sizing and rotation.
+Online label lookup is optional and off by default. When enabled, only the label product barcode is sent to NIIMBOT's catalogue. If lookup fails, specify dimensions explicitly: the legacy `400×240` px fallback does not fit every roll. A reported BLE success does not verify physical print quality.
 
 ## Documentation and support
 
 - [Documentation index](docs/README.md)
 - [Setup and options](docs/setup.md)
 - [Troubleshooting](docs/troubleshooting.md) ([한국어](docs/ko/troubleshooting.md))
-- [Open an issue](https://github.com/eigger/hass-niimbot/issues) · [Discussions](https://github.com/eigger/hass-niimbot/discussions)
+- [Development and tests](CONTRIBUTING.md)
+- [License](LICENSE)
+- [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
 
 ## Related
 
 - [imagespec](https://github.com/eigger/imagespec) — payload renderer and element reference
 - [niimblue](https://github.com/MultiMote/niimblue) — Niimbot protocol implementation
 - [Stash](https://github.com/eigger/stash) — inventory manager with Niimbot printing support
+
+The Usage badge counts installations participating in opt-in Home Assistant Analytics; missing data does not mean zero installations.

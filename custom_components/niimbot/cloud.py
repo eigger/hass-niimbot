@@ -167,11 +167,9 @@ def parse_label_data(data: dict) -> LabelInfo:
 
 
 def _format_error(err: BaseException) -> str:
-    """Human-readable error for logs/attributes (str(err) is often empty)."""
-    text = str(err).strip()
-    if text:
-        return f"{type(err).__name__}: {text}"
-    return f"{type(err).__name__}: {err!r}"
+    """Safe error category for logs and attributes; omit remote exception text."""
+    # Network exceptions can embed request URLs, credentials and local paths.
+    return type(err).__name__
 
 
 class LabelCloudLookup:
@@ -252,44 +250,45 @@ class LabelCloudLookup:
                 ) as resp:
                     if resp.status != 200:
                         self.last_error = f"HTTP {resp.status}"
-                        _LOGGER.warning(
-                            "Cloud label lookup for %s: %s", barcode, self.last_error
+                        _LOGGER.debug(
+                            "Cloud label lookup failed (%s); check network access and retry",
+                            self.last_error,
                         )
                         return None, False
                     body = await resp.json(content_type=None)
         except TimeoutError as err:
             self.last_error = _format_error(err)
-            _LOGGER.warning(
-                "Cloud label lookup for %s timed out: %s", barcode, self.last_error
+            _LOGGER.debug(
+                "Cloud label lookup timed out (%s); check network access and retry",
+                self.last_error,
             )
             return None, False
         except (aiohttp.ClientError, OSError) as err:
             self.last_error = _format_error(err)
-            _LOGGER.warning(
-                "Cloud label lookup for %s failed: %s",
-                barcode,
+            _LOGGER.debug(
+                "Cloud label lookup failed (%s); check network access and retry",
                 self.last_error,
-                exc_info=True,
             )
             return None, False
         except Exception as err:  # noqa: BLE001 — never raise into the poll loop
             self.last_error = _format_error(err)
-            _LOGGER.warning(
-                "Cloud label lookup for %s unexpected error: %s",
-                barcode,
+            _LOGGER.debug(
+                "Cloud label lookup failed (%s); check network access and retry",
                 self.last_error,
-                exc_info=True,
             )
             return None, False
 
         if not isinstance(body, dict):
             self.last_error = "bad response: not a dict"
-            _LOGGER.warning("Cloud label lookup for %s: %s", barcode, self.last_error)
+            _LOGGER.debug(
+                "Cloud label lookup failed (%s); check network access and retry",
+                self.last_error,
+            )
             return None, False
 
         data = body.get("data")
         if not data:
-            _LOGGER.debug("Cloud label lookup for %s: no match", barcode)
+            _LOGGER.debug("Cloud label lookup: no catalogue match")
             return None, True
 
         return parse_label_data(data), True

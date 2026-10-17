@@ -249,9 +249,7 @@ async def async_setup_entry(
             )
         elif key == "battery":
             entities.append(
-                NiimbotBatterySensor(
-                    coordinator, coordinator.data, description, device
-                )
+                NiimbotBatterySensor(coordinator, coordinator.data, description, device)
             )
         else:
             entities.append(NiimbotSensor(coordinator, coordinator.data, description))
@@ -296,9 +294,7 @@ async def async_setup_entry(
             if key in created_keys:
                 continue
             if key in coordinator.data.sensors:
-                added.append(
-                    NiimbotSensor(coordinator, coordinator.data, description)
-                )
+                added.append(NiimbotSensor(coordinator, coordinator.data, description))
                 created_keys.add(key)
         return added
 
@@ -351,13 +347,11 @@ async def async_setup_entry(
 
             if new_entities:
                 async_add_entities(new_entities)
-            label_done = (
-                "labels_remaining" in created_keys
-                or (meta is not None and not device.supports_label_rfid())
+            label_done = "labels_remaining" in created_keys or (
+                meta is not None and not device.supports_label_rfid()
             )
-            ribbon_done = (
-                "ribbon_remaining" in created_keys
-                or (meta is not None and not device.supports_ribbon_rfid())
+            ribbon_done = "ribbon_remaining" in created_keys or (
+                meta is not None and not device.supports_ribbon_rfid()
             )
             adv2_done = all(
                 k in created_keys for k in ADVANCED2_SENSOR_DESCRIPTIONS

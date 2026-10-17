@@ -3,7 +3,7 @@
 Network and storage are faked at the module level (custom_components.niimbot.cloud
 imports Store and async_get_clientsession by name, so patching those names is
 enough) rather than exercising real aiohttp or Home Assistant's Store — this repo's
-tests never require a network connection or a real Home Assistant install.
+unit tests complement the real Home Assistant lifecycle tests.
 """
 
 import asyncio
@@ -78,7 +78,9 @@ class FakeSession:
         return self._responder(json["oneCode"])
 
 
-def _lookup_with(monkeypatch, session: FakeSession, store: FakeStore) -> LabelCloudLookup:
+def _lookup_with(
+    monkeypatch, session: FakeSession, store: FakeStore
+) -> LabelCloudLookup:
     monkeypatch.setattr(
         "custom_components.niimbot.cloud.async_get_clientsession",
         lambda hass: session,
@@ -195,7 +197,9 @@ def test_parse_label_data_swaps_print_size_when_rotated():
 
 def test_get_returns_none_for_empty_barcode(monkeypatch):
     async def _test():
-        lookup = _lookup_with(monkeypatch, FakeSession(lambda barcode: None), FakeStore())
+        lookup = _lookup_with(
+            monkeypatch, FakeSession(lambda barcode: None), FakeStore()
+        )
         assert await lookup.get("") is None
         assert await lookup.get(None) is None
 
@@ -303,7 +307,7 @@ def test_get_returns_none_on_empty_oserror(monkeypatch):
 
         assert await lookup.get("02282280") is None
         assert lookup.last_result_definitive is False
-        assert lookup.last_error == "OSError: OSError()"
+        assert lookup.last_error == "OSError"
         assert store.saved == []
 
     run(_test())
@@ -366,3 +370,25 @@ def test_get_uses_preloaded_cache_without_any_network_call(monkeypatch):
         assert session.calls == []
 
     run(_test())
+
+
+def test_cloud_error_omits_credentials_and_private_request_data(monkeypatch, caplog):
+    """Remote exception messages must not escape into HA attributes or logs."""
+    import logging
+
+    private = "https://user:secret@example.test/private-label?token=hidden"
+    barcode = "PRIVATE-BARCODE-123"
+    caplog.set_level(logging.DEBUG, logger="custom_components.niimbot.cloud")
+
+    async def _test():
+        lookup = _lookup_with(
+            monkeypatch, FakeSession(RaisingResponse(OSError(private))), FakeStore()
+        )
+        assert await lookup.get(barcode) is None
+        assert lookup.last_error == "OSError"
+
+    run(_test())
+    assert private not in caplog.text
+    assert barcode not in caplog.text
+    assert "secret" not in caplog.text
+    assert "OSError" in caplog.text

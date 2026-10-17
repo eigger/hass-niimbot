@@ -12,7 +12,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.core import callback
 from homeassistant.config_entries import (
     ConfigFlow,
-    OptionsFlowWithReload,
+    OptionsFlow,
     ConfigFlowResult,
 )
 from homeassistant.const import CONF_ADDRESS, CONF_SCAN_INTERVAL
@@ -47,9 +47,7 @@ OPTIONS_SCHEMA = {
         )
     ),
     vol.Required(CONF_KEEP_CONNECTION, default=DEFAULT_KEEP_CONNECTION): bool,
-    vol.Required(
-        CONF_USE_CLOUD_LABEL_INFO, default=DEFAULT_USE_CLOUD_LABEL_INFO
-    ): bool,
+    vol.Required(CONF_USE_CLOUD_LABEL_INFO, default=DEFAULT_USE_CLOUD_LABEL_INFO): bool,
 }
 
 
@@ -115,7 +113,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfo
     ) -> ConfigFlowResult:
         """Handle the bluetooth discovery step."""
-        _LOGGER.debug("Discovered BT device: %s", discovery_info)
+        _LOGGER.debug("Discovered a Niimbot Bluetooth advertisement")
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
@@ -195,7 +193,7 @@ class NiimbotConfigFlow(ConfigFlow, domain=DOMAIN):
         return OptionsFlowHandler()
 
 
-class OptionsFlowHandler(OptionsFlowWithReload):
+class OptionsFlowHandler(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:

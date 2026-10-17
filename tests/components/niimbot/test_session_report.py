@@ -7,7 +7,10 @@ import pytest
 from blesession import SessionTrace, fallback_report, stages
 
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
-from custom_components.niimbot.niimprint.printer import PrinterError, PrinterErrorCodeEnum
+from custom_components.niimbot.niimprint.printer import (
+    PrinterError,
+    PrinterErrorCodeEnum,
+)
 from custom_components.niimbot.session_report import (
     build_session_report,
     likely_cause,
@@ -38,7 +41,9 @@ def _record_sessions(device: NiimbotDevice) -> list[str]:
     return calls
 
 
-def _patch_link(device: NiimbotDevice, printer, *, fail: BaseException | None = None) -> None:
+def _patch_link(
+    device: NiimbotDevice, printer, *, fail: BaseException | None = None
+) -> None:
     async def _ensure(_ble):
         if fail is not None:
             raise fail
@@ -81,9 +86,7 @@ def test_a_successful_print_keeps_the_previous_failure():
 
 
 def test_cover_open_has_its_own_sentence():
-    text = likely_cause(
-        stages.TRANSFER, None, "Printer error: CoverOpen", {}, "print"
-    )
+    text = likely_cause(stages.TRANSFER, None, "Printer error: CoverOpen", {}, "print")
     assert "cover" in text.lower()
 
 
@@ -423,7 +426,10 @@ def test_link_failures_keep_the_library_sentence_and_key(monkeypatch):
         pass
     cases = [
         (WriteTimeout(10, step="printer command"), "write_timeout"),
-        (SessionDropped("The link dropped while waiting for a printer reply"), "link_lost"),
+        (
+            SessionDropped("The link dropped while waiting for a printer reply"),
+            "link_lost",
+        ),
     ]
     for exc, key in cases:
         report = build_session_report(
@@ -529,7 +535,11 @@ def test_a_printer_without_the_characteristic_fails_as_a_gatt_mismatch():
         )
 
         client = FakeClient()
-        _expose(client, "0000ffe0-0000-1000-8000-00805f9b34fb", "00002a00-0000-1000-8000-00805f9b34fb")
+        _expose(
+            client,
+            "0000ffe0-0000-1000-8000-00805f9b34fb",
+            "00002a00-0000-1000-8000-00805f9b34fb",
+        )
         with pytest.raises(GattMismatch, match="service"):
             await BLETransport(client).start_notify(CHARACTERISTIC_UUID)
         _expose(client, SERVICE_UUID, CHARACTERISTIC_UUID, properties=("write",))

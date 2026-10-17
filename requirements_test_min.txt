@@ -1,0 +1,3 @@
+# Historical supported minimum, Python 3.13 (required by the integration libraries). Keep separate from current updates.
+pytest-homeassistant-custom-component==0.13.201
+homeassistant==2025.1.0

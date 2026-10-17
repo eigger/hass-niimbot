@@ -21,7 +21,13 @@ from custom_components.niimbot.const import (
 )
 
 MANIFEST_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "custom_components", "niimbot", "manifest.json"
+    os.path.dirname(__file__),
+    "..",
+    "..",
+    "..",
+    "custom_components",
+    "niimbot",
+    "manifest.json",
 )
 
 
@@ -111,6 +117,7 @@ def test_name_looks_like_niimbot_guards_mac_address_and_avoids_false_positives()
 
 def test_async_step_user_filters_by_service_uuid_and_name():
     """Test that async_step_user includes valid Niimbot devices and excludes non-Niimbot devices."""
+
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
@@ -167,10 +174,13 @@ def test_async_step_user_filters_by_service_uuid_and_name():
             xiaomi_sensor,
         ]
 
-        with patch(
-            "custom_components.niimbot.config_flow.async_discovered_service_info",
-            return_value=discovered,
-        ), patch.object(flow, "_async_current_ids", return_value=set()):
+        with (
+            patch(
+                "custom_components.niimbot.config_flow.async_discovered_service_info",
+                return_value=discovered,
+            ),
+            patch.object(flow, "_async_current_ids", return_value=set()),
+        ):
             result = await flow.async_step_user()
 
         assert result["type"] == "form"
@@ -187,7 +197,10 @@ def test_async_step_user_filters_by_service_uuid_and_name():
         assert flow._discovered_devices["AA:BB:CC:DD:EE:03"].name == "B21-123456"
 
         assert "AA:BB:CC:DD:EE:04" in flow._discovered_devices
-        assert flow._discovered_devices["AA:BB:CC:DD:EE:04"].name == "Niimbot (AA:BB:CC:DD:EE:04)"
+        assert (
+            flow._discovered_devices["AA:BB:CC:DD:EE:04"].name
+            == "Niimbot (AA:BB:CC:DD:EE:04)"
+        )
 
         # Random nameless rotating MACs and non-Niimbot devices must be filtered out
         assert "23:07:04:37:39:E5" not in flow._discovered_devices
@@ -200,6 +213,7 @@ def test_async_step_user_filters_by_service_uuid_and_name():
 
 def test_async_step_user_no_devices_found():
     """Test abort when no Niimbot devices match."""
+
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
@@ -215,10 +229,13 @@ def test_async_step_user_no_devices_found():
             service_uuids=[],
         )
 
-        with patch(
-            "custom_components.niimbot.config_flow.async_discovered_service_info",
-            return_value=[samsung_tv, random_nameless_mac],
-        ), patch.object(flow, "_async_current_ids", return_value=set()):
+        with (
+            patch(
+                "custom_components.niimbot.config_flow.async_discovered_service_info",
+                return_value=[samsung_tv, random_nameless_mac],
+            ),
+            patch.object(flow, "_async_current_ids", return_value=set()),
+        ):
             result = await flow.async_step_user()
 
         assert result["type"] == "abort"
@@ -229,6 +246,7 @@ def test_async_step_user_no_devices_found():
 
 def test_async_step_user_creates_entry():
     """Test user selecting a device creates config entry."""
+
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
@@ -242,7 +260,9 @@ def test_async_step_user_creates_entry():
             name="D11_BF25_BLE",
             service_uuids=[NIIMBOT_SERVICE_UUID],
         )
-        flow._discovered_devices = {"AA:BB:CC:DD:EE:01": Discovery("D11_BF25_BLE", info)}
+        flow._discovered_devices = {
+            "AA:BB:CC:DD:EE:01": Discovery("D11_BF25_BLE", info)
+        }
 
         user_input = {
             CONF_ADDRESS: "AA:BB:CC:DD:EE:01",
@@ -253,8 +273,12 @@ def test_async_step_user_creates_entry():
 
         result = await flow.async_step_user(user_input=user_input)
 
-        flow.async_set_unique_id.assert_awaited_once_with("AA:BB:CC:DD:EE:01", raise_on_progress=False)
-        flow.async_create_entry.assert_called_once_with(title="D11_BF25_BLE", data=user_input)
+        flow.async_set_unique_id.assert_awaited_once_with(
+            "AA:BB:CC:DD:EE:01", raise_on_progress=False
+        )
+        flow.async_create_entry.assert_called_once_with(
+            title="D11_BF25_BLE", data=user_input
+        )
         assert result == {"type": "create_entry"}
 
     asyncio.run(_test())
@@ -262,13 +286,16 @@ def test_async_step_user_creates_entry():
 
 def test_async_step_bluetooth():
     """Test bluetooth automatic discovery step."""
+
     async def _test():
         flow = NiimbotConfigFlow()
         flow.hass = MagicMock()
         flow.context = {}
         flow.async_set_unique_id = AsyncMock()
         flow._abort_if_unique_id_configured = MagicMock()
-        flow.async_show_form = MagicMock(return_value={"type": "form", "step_id": "bluetooth_confirm"})
+        flow.async_show_form = MagicMock(
+            return_value={"type": "form", "step_id": "bluetooth_confirm"}
+        )
 
         info = _make_discovery_info(
             "AA:BB:CC:DD:EE:01",
@@ -286,3 +313,63 @@ def test_async_step_bluetooth():
     asyncio.run(_test())
 
 
+async def test_flow_manager_creates_and_loads_printer(hass, enable_bluetooth):
+    """User discovery goes through HA's flow manager into actual entry setup."""
+    from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
+    from custom_components.niimbot.const import DOMAIN
+
+    info = _make_discovery_info("AA:BB:CC:DD:EE:01", name="B1-1234")
+    with patch(
+        "custom_components.niimbot.config_flow.async_discovered_service_info",
+        return_value=[info],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+        assert result["type"] == "form"
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_ADDRESS: info.address,
+                CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+                CONF_KEEP_CONNECTION: DEFAULT_KEEP_CONNECTION,
+                CONF_USE_CLOUD_LABEL_INFO: DEFAULT_USE_CLOUD_LABEL_INFO,
+            },
+        )
+        await hass.async_block_till_done()
+    assert result["type"] == "create_entry"
+    assert result["result"].state is ConfigEntryState.LOADED
+    assert result["result"].unique_id == info.address
+
+
+async def test_flow_manager_aborts_when_discovery_is_empty(hass, enable_bluetooth):
+    """No external device leaves no entry behind."""
+    from homeassistant.config_entries import SOURCE_USER
+    from custom_components.niimbot.const import DOMAIN
+
+    with patch(
+        "custom_components.niimbot.config_flow.async_discovered_service_info",
+        return_value=[],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+    assert result["type"] == "abort"
+    assert result["reason"] == "no_devices_found"
+    assert not hass.config_entries.async_entries(DOMAIN)
+
+
+async def test_flow_manager_rejects_duplicate_bluetooth_printer(hass, enable_bluetooth):
+    """Bluetooth discovery of a configured address aborts through HA."""
+    from homeassistant.config_entries import SOURCE_BLUETOOTH
+    from tests.components.niimbot.conftest import ADDRESS, setup_entry
+    from custom_components.niimbot.const import DOMAIN
+
+    await setup_entry(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=_make_discovery_info(ADDRESS, name="B1-1234"),
+    )
+    assert result["type"] == "abort"
+    assert result["reason"] == "already_configured"

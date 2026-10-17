@@ -6,7 +6,7 @@ from custom_components.niimbot.niimprint.model import rfid_supported_on_firmware
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterClient, RequestCodeEnum
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -52,8 +52,8 @@ def _rfid_payload():
     data.append(len(serial))
     data.extend(serial)
     data.extend((100).to_bytes(2, "big"))  # total_len
-    data.extend((10).to_bytes(2, "big"))   # used_len
-    data.append(1)                        # type
+    data.extend((10).to_bytes(2, "big"))  # used_len
+    data.append(1)  # type
     return bytes(data)
 
 

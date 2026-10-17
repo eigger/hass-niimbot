@@ -51,7 +51,21 @@ SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
 CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
 # niimblue: models where lidClosed state is inverted
-INVERTED_LID_MODELS = [512, 514, 513, 2304, 1792, 3584, 5120, 2560, 3840, 4352, 272, 273, 274]
+INVERTED_LID_MODELS = [
+    512,
+    514,
+    513,
+    2304,
+    1792,
+    3584,
+    5120,
+    2560,
+    3840,
+    4352,
+    272,
+    273,
+    274,
+]
 
 
 class InfoEnum(enum.IntEnum):
@@ -251,9 +265,13 @@ class BLETransport(BaseTransport):
 
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write a command or paced image-data chunks to the BLE characteristic."""
-        chunks = [data] if response else (
-            data[offset : offset + BLE_WRITE_CHUNK_SIZE]
-            for offset in range(0, len(data), BLE_WRITE_CHUNK_SIZE)
+        chunks = (
+            [data]
+            if response
+            else (
+                data[offset : offset + BLE_WRITE_CHUNK_SIZE]
+                for offset in range(0, len(data), BLE_WRITE_CHUNK_SIZE)
+            )
         )
         for chunk in chunks:
             await guarded_write(
@@ -398,7 +416,7 @@ class PrinterClient:
             else:
                 return await self.print_image_v4(**kwargs)
         except PrinterJobCancelled as err:
-            _LOGGER.info("Print job cancelled: %s", err)
+            _LOGGER.info("Print job cancelled: %s", type(err).__name__)
             return {"status": "cancelled"}
         finally:
             _LOGGER.debug("Print of page took %.2f s", time.time() - start)
@@ -414,7 +432,7 @@ class PrinterClient:
         copies: int = 1,
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
-        _LOGGER.debug("print_image_old_d11: %s", locals())
+        _LOGGER.debug("print_image_old_d11")
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
         await self.start_print()
@@ -440,7 +458,7 @@ class PrinterClient:
         density_max: int = 5,
         copies: int = 1,
     ):
-        _LOGGER.debug("print_image_v4: %s", locals())
+        _LOGGER.debug("print_image_v4")
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
         await self.start_print_v4(total_pages=1)
@@ -464,7 +482,7 @@ class PrinterClient:
         density_max: int = 5,
         copies: int = 1,
     ):
-        _LOGGER.debug("print_image_d110: %s", locals())
+        _LOGGER.debug("print_image_d110")
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
         await self.start_print()
@@ -489,7 +507,7 @@ class PrinterClient:
         density_max: int = 5,
         copies: int = 1,
     ):
-        _LOGGER.debug("print_image_v5: %s", locals())
+        _LOGGER.debug("print_image_v5")
         if not await self.set_label_density(density, density_min, density_max):
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(label_type):
@@ -645,7 +663,7 @@ class PrinterClient:
             )
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
             # Not all firmwares answer; keep transferring rather than abort.
-            _LOGGER.debug("PrinterCheckLine(%s) skipped: %s", line, err)
+            _LOGGER.debug("PrinterCheckLine(%s) skipped: %s", line, type(err).__name__)
 
     async def set_empty_row(
         self,
@@ -707,8 +725,9 @@ class PrinterClient:
         await self._transport.write(packet.to_bytes(), response=response)
 
     def _log_buffer(self, prefix: str, buff: bytes):
-        msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
-        _LOGGER.debug(f"{prefix}({len(buff)}): {msg}")
+        # Payloads can contain serial numbers, RFID identifiers and label pixels.
+        command = f"0x{buff[2]:02x}" if len(buff) > 2 else "unknown"
+        _LOGGER.debug("%s: command=%s length=%s", prefix, command, len(buff))
 
     async def _transceive(
         self,
@@ -744,7 +763,7 @@ class PrinterClient:
                     # (e.g. B1 rejects PRINTSPEED key 2 with 55 55 00 01 01 …).
                     raise PrinterCommandUnsupported(
                         f"Unsupported request 0x{int(reqcode):02x} "
-                        f"(payload={data.hex()})"
+                        f"(payload_length={len(data)})"
                     )
                 elif packet.type in resp_codes:
                     resp = packet
@@ -779,7 +798,7 @@ class PrinterClient:
                 RequestCodeEnum.GET_INFO, bytes((key,)), key
             )
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
-            _LOGGER.debug("get_info(%s) unavailable: %s", key, err)
+            _LOGGER.debug("get_info(%s) unavailable: %s", key, type(err).__name__)
             return None
         match key:
             case InfoEnum.DEVICESERIAL:
@@ -787,7 +806,9 @@ class PrinterClient:
                 if len(packet.data) < 4:
                     return "-1"
                 elif len(packet.data) >= 8:
-                    return bytes.fromhex(packet.data.hex()).decode("ascii", errors="replace")
+                    return bytes.fromhex(packet.data.hex()).decode(
+                        "ascii", errors="replace"
+                    )
                 else:
                     return packet.data[:4].hex().upper()
             case InfoEnum.SOFTVERSION:
@@ -835,7 +856,7 @@ class PrinterClient:
                 resp_codes={PRINTER_STATUS_DATA_RESP},
             )
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
-            _LOGGER.debug("PrinterStatusData unavailable: %s", err)
+            _LOGGER.debug("PrinterStatusData unavailable: %s", type(err).__name__)
             return None
         data = packet.data
         if len(data) <= 12:
@@ -918,9 +939,8 @@ class PrinterClient:
                 closingstate = data[8]
             case _:
                 _LOGGER.debug(
-                    "Unrecognized Advanced1 heartbeat length %s: %s",
+                    "Unrecognized Advanced1 heartbeat length %s",
                     len(data),
-                    data.hex(),
                 )
 
         if closingstate is not None and model_id is not None:
@@ -938,9 +958,7 @@ class PrinterClient:
     def _parse_heartbeat_advanced2(self, data: bytes) -> dict:
         """Parse Advanced2 (0xD9) fixed-offset heartbeat. Inverted-lid list does not apply."""
         if len(data) < 9:
-            _LOGGER.debug(
-                "Advanced2 heartbeat too short (%s): %s", len(data), data.hex()
-            )
+            _LOGGER.debug("Advanced2 heartbeat too short (%s)", len(data))
             return {
                 "closingstate": None,
                 "powerlevel": None,
@@ -1002,7 +1020,9 @@ class PrinterClient:
                 )
             except PrinterTimeout as err:
                 _LOGGER.debug(
-                    "Heartbeat payload %s timed out: %s", payload.hex(), err
+                    "Heartbeat payload %s timed out: %s",
+                    payload.hex(),
+                    type(err).__name__,
                 )
                 last_error = err
                 continue
@@ -1042,7 +1062,7 @@ class PrinterClient:
         return bool(packet.data[0])
 
     async def start_print_9b(self, total_pages=1, page_color=0, quality=0, someflag=0):
-        _LOGGER.debug("Start print 9 bytes: %s", locals())
+        _LOGGER.debug("Start print 9 bytes")
         packet = await self._transceive(
             RequestCodeEnum.START_PRINT,
             struct.pack(
@@ -1103,7 +1123,7 @@ class PrinterClient:
         some_size=0,
         is_divide=0,
     ):
-        _LOGGER.debug("Set page size 9 bytes: %s", locals())
+        _LOGGER.debug("Set page size 9 bytes")
         packet = await self._transceive(
             RequestCodeEnum.SET_DIMENSION,
             struct.pack(
@@ -1126,9 +1146,7 @@ class PrinterClient:
     async def set_sound(self, key, on: bool):
         packet = await self._transceive(
             RequestCodeEnum.SET_SOUND,
-            struct.pack(
-                ">BBB", SoundSettingsType.SetSound, key, 0x01 if on else 0x00
-            ),
+            struct.pack(">BBB", SoundSettingsType.SetSound, key, 0x01 if on else 0x00),
             16,
         )
         return bool(packet.data[0])
@@ -1142,7 +1160,7 @@ class PrinterClient:
                 16,
             )
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
-            _LOGGER.debug("get_sound(%s) unavailable: %s", key, err)
+            _LOGGER.debug("get_sound(%s) unavailable: %s", key, type(err).__name__)
             return None
         if len(packet.data) < 3:
             return None
@@ -1158,7 +1176,9 @@ class PrinterClient:
                 16,
             )
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
-            _LOGGER.debug("set_auto_shutdown_time(%s) failed: %s", index, err)
+            _LOGGER.debug(
+                "set_auto_shutdown_time(%s) failed: %s", index, type(err).__name__
+            )
             return False
         return bool(packet.data[0]) if packet.data else False
 

@@ -307,5 +307,3 @@ def test_missing_model_ids_resolution():
         for model_id in m["id"]
     }
     assert estimated_ids == expected_estimated_ids
-
-
