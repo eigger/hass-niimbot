@@ -128,9 +128,9 @@ remaining bytes. On a model that appends the optional `capacity` field there are
 raises `struct.error`. Slice explicitly and treat anything beyond as optional:
 
 ```python
-total_len, used_len, type_ = struct.unpack(">HHB", data[idx:idx + 5])
+total_len, used_len, type_ = struct.unpack(">HHB", data[idx : idx + 5])
 idx += 5
-capacity = struct.unpack(">H", data[idx:idx + 2])[0] if len(data) >= idx + 2 else None
+capacity = struct.unpack(">H", data[idx : idx + 2])[0] if len(data) >= idx + 2 else None
 ```
 
 ### Units of `total_len` / `used_len`
