@@ -73,6 +73,7 @@ NIIMBOT_NAME_PREFIXES = (
     "B21",
     "B3S",
     "D11",
+    "M2_",
     "N1-",
     "T2S",
     "NIIMBOT",
