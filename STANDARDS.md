@@ -25,7 +25,7 @@
 | HA-12 | 자동 로그의 식별자/원문 덤프는 제거했지만, 기존 로컬 진단 센서의 via/advertised_via 경로와 error/refresh_error 원문은 장애 경로 비교·기존 사용자 계약을 위해 보존. 공개 제출 전 수동 비식별화 필요. diagnostics 다운로드/자동 공개 기능 없음. | eigger | diagnostics export·공개 이슈 자동첨부·공통 redaction helper 도입 또는 진단 속성 계약 변경 시 |
 
 이 범위예외는 독립 리뷰 `independent_review`가 원문 규칙과 비교해 확인했습니다.
-PR: https://github.com/eigger/hass-niimbot/pull/126 (구현 커밋 e4a1334). 브랜치를 push하고 Tests·Validate를 실행 중입니다.
-HACS/Hassfest와 실제 원격 CI 결과는 점검표에 기록하며 updater 쓰기·릴리스는 실행하지 않았습니다.
+PR: https://github.com/eigger/hass-niimbot/pull/126 (구현 커밋 e4a1334). 브랜치를 push하고 ae3c4ea의 Tests·Validate 전체 성공을 독립 확인했습니다.
+HACS9개·Hassfest 및 HA4조합 각151passed를 점검표에 기록했습니다. updater 쓰기·릴리스는 실행하지 않았습니다.
 실물 프린터·Bluetooth proxy·HA UI 검증은 로컬 pytest 성공과 별도입니다.
-전체 채택 상태는 원격 반영/검증 전까지 `진행 중`으로 유지합니다.
+전체 채택 상태는 기본 브랜치 병합·해당 커밋 검증 전까지 `진행 중`으로 유지합니다.

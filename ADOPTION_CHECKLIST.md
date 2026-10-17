@@ -19,7 +19,7 @@
 | 최소 테스트 HA / 호환 Python·플러그인 | HA2025.1.0 / Python3.13 / plugin0.13.201 (실제3.13.14) |
 | profile / 테스트 경로 | integration / ha; tests/components/niimbot/ |
 | 이전 검토 기록 | 최초 채택; 기존 실제 HA fixture/entry 로딩 회귀 테스트 보존 |
-| 채택 판정 | 로컬 구현·독립 검증 완료 / 전체 이관 진행 중: HA-12 예외, 원격 기본 브랜치·CI/validator·중앙 원격 반영 대기 |
+| 채택 판정 | 로컬 구현·독립 검증 완료 / 전체 이관 진행 중: HA-12 예외, 기본 브랜치·중앙 원격 반영 대기; PR ae3c4ea Tests/Validate PASS |
 
 상태: `TODO` = 미확인·미충족, `PASS` = 근거로 확인, `EXCEPTION` = 적용 대상의 기록된 예외, `N/A` = 적용 조건에 해당 없음. 최초 기록은 미확인으로 시작했고 아래 상태는 실제 근거로 갱신했습니다. `TODO`를 해당 없음으로 처리하지 않습니다. 묶은 규칙의 결과가 다르면 행을 나눕니다. 권장 항목은 별도로 표시했으며 미채택 이유를 기록합니다.
 
@@ -71,11 +71,11 @@
 | 규칙 ID | 확인 항목 | 상태 | 근거 / 남은 작업 |
 |---|---|---|---|
 | HACS-01, HACS-02 | 루트 README/LICENSE/hacs.json, 검증한 최소 HA, 실제 배포 구조와 필요한 옵션 일치 | PASS | 루트 hacs.json/README/LICENSE, custom_components/niimbot 배포 유지; 최소2025.1.0/Python3.13 조건 명시. 불필요 패키징 필드 없음. |
-| HACS-03, HACS-05 | Default 여부는 목록 근거로 확인, [로컬 brand/icon.png 또는 원격 brands 근거](https://github.com/eigger/hass-repo-standards/blob/7acd9cab6ac774e4695f2c962e3d88b5faa4620d/docs/hacs.md)와 HACS/Hassfest 실제 실행, ignore는 이유·해제 조건 기록 | TODO | HACS Custom 표기/원격 brands icon.png·logo.png 확인; HACS/Hassfest caller 설치, ignore없음. 이 변경 tree 원격 validator 미실행. |
+| HACS-03, HACS-05 | Default 여부는 목록 근거로 확인, [로컬 brand/icon.png 또는 원격 brands 근거](https://github.com/eigger/hass-repo-standards/blob/7acd9cab6ac774e4695f2c962e3d88b5faa4620d/docs/hacs.md)와 HACS/Hassfest 실제 실행, ignore는 이유·해제 조건 기록 | PASS | HACS Custom 표기/원격 brands icon.png·logo.png 확인; HACS/Hassfest caller 설치, ignore없음. ae3c4ea의 Validate39074311918 HACS9개/brands·Hassfest Invalid integrations0 독립 PASS. |
 | HACS-06 (권장) | description·topics·issue 경로·brands 및 사용하는 HACS 필드 지원 확인 | PASS | GitHub metadata description/topics/Issues/Discussions 및 원격 brands icon/logo 존재 확인. |
 | CI-01, CI-02 | Validate/Python Tests 공통화, 확장 job 유지, PR·실제 기본 브랜치 push·dispatch 및 필요한 schedule | PASS | SHA-pinned tests.yml/validate.yml/update-dependencies.yml; master push/PR/dispatch, Validate 및 updater schedule. |
 | CI-03, CI-05, CI-08 | 최소 권한·checkout 자격증명 비보존·timeout·concurrency, full SHA·갱신 관리, 비신뢰 입력·secrets 경계 | PASS | caller read-only, updater job write scoped; 중앙 full SHA 하위 checkout credential=false/timeout/concurrency; Dependabot 설정. |
-| CI-04, CI-07, CI-12 | 실패를 숨기지 않는 실제 `ha` 필수 테스트, 버전별 환경·cache·Ruff 설정과 required checks 이름 확인 | PASS | ha profile current/minimum 별도 matrix 및 라이브러리 current/minimum; lint/test 독립실행·실패숨김없음. 실제 branch protection 없음 확인. 원격 job 성공은 미검증. |
+| CI-04, CI-07, CI-12 | 실패를 숨기지 않는 실제 `ha` 필수 테스트, 버전별 환경·cache·Ruff 설정과 required checks 이름 확인 | PASS | ha profile current/minimum 별도 matrix 및 라이브러리 current/minimum; lint/test 독립실행·실패숨김없음. 실제 branch protection 없음 확인. ae3c4ea의 Tests39074311974 전체6job 성공 독립 확인. |
 | DEP-03, DEP-04, CI-09 | updater의 선택 package·연산자/extras/marker 보존, 안정 버전·major 정책, 실제 기본 브랜치·단일 bot branch·PR만 제안 | PASS | 선택 imagespec/blesession; pinned 공통 updater의 extras/연산자/marker·안정버전·major거절·실제defaultbranch·단일botbranch/PR 계약 독립검토. |
 | CI-09, CI-10, DEP-08 | 변경 tree의 새 하한·실제 HA 검증 후 PR 동기화, 실패 시 중단·변경 없음 시 기존 PR 정리, 후속 required checks 충족 방식 확인 | PASS | 독립 updater PyPI dryrun exit0 Requirements are current/no change. 코드의 exact-new-minimum 검증·failureguard·변경없음PR정리 확인. CONTRIBUTING에 GITHUB_TOKEN 후속 Tests/Validate botbranch 수동dispatch 절차; 실제 write/PR동작 미실행. |
 
@@ -142,12 +142,23 @@
 - 독립 실행 로그: `/tmp/niimbot-independent-current-pytest-final.log`, `/tmp/niimbot-independent-minimum313-pytest-final.log`.
 - 독립 updater dry-run: 중앙 `actions/update-manifest/update.py`를 niimbot manifest와 packages imagespec/blesession으로 실행, exit0 `Requirements are current; no change`. 쓰기·PR 생성 미실행.
 - 설정 flow는 발견·중복·options 저장을 실제 HA manager로 검증. 별도 GATT 인증 handshake 기능은 없으며 초기 poll 실패도 잠든 프린터를 허용해 unavailable로 로딩하는 기존 정책을 유지. 인증 계정/reauth 및 schema migration 변경 없음.
-- 독립 리뷰 결과: 수정 후 새 필수 코드 결함 없음. HA-12 로컬 진단 속성 범위예외 유지. HACS/Hassfest 및 해당 tree 원격 CI·실물·중앙 원격 반영은 수행하지 않았으며 PASS로 간주하지 않음.
+- 독립 리뷰 결과: 수정 후 새 필수 코드 결함 없음. HA-12 로컬 진단 속성 범위예외 유지. 원격 CI는 아래 ae3c4ea 증거로 별도 갱신. 실물·중앙 원격 반영은 수행하지 않음.
 
 최종 기록도 independent_review가 확인했으며, HA-11/HA-12 상태 분리와 공개 제보 절차 범위 명시 지적을 반영했습니다.
 
 ## 원격 PR 검증 진행
 
 - PR: [#126](https://github.com/eigger/hass-niimbot/pull/126), branch `codex/adopt-shared-standards` → `master`.
-- 구현 커밋: `e4a1334`; 원격 Tests [39074283274](https://github.com/eigger/hass-niimbot/actions/runs/39074283274), Validate [39074283178](https://github.com/eigger/hass-niimbot/actions/runs/39074283178) 실행 시작.
+- 구현 커밋: `e4a1334`; 초기 Tests39074283274/Validate39074283178는 후속 커밋 검증으로 대체하여 취소(실패 아님).
 - 최종 문서 커밋을 포함한 head의 실제 CI 결과를 별도로 확인합니다. 기본 브랜치 병합은 이 작업에 포함하지 않습니다.
+
+### PR 원격 CI 성공 증거
+
+- 검증 커밋: `ae3c4ea45e1d4f699bebf7fe7519115bf2b16a76`; 주 에이전트와 independent_review가 실제 job 로그를 확인.
+- [Tests39074311974](https://github.com/eigger/hass-niimbot/actions/runs/39074311974): HA×library4조합 각각151passed, skip0; 두 lint job 성공; 각 환경 pip check PASS.
+- current Python3.14.8 / HA2026.10.2 / plugin0.13.373: current libs151passed6.35s, minimum libs151passed7.70s.
+- minimum Python3.13.16 / HA2025.1.0 / plugin0.13.201: current libs151passed9.25s, minimum libs151passed8.28s.
+- 양 HA의 current/minimum 모두 실제 blesession0.9.0 / imagespec[datamatrix]1.1.0.
+- [Validate39074311918](https://github.com/eigger/hass-niimbot/actions/runs/39074311918): HACS9개 검사(brands포함) PASS, Hassfest Invalid integrations0 PASS.
+- 원격 버전은 위 로컬 Python3.14.5/3.13.14와 구분합니다. 로그는 `/tmp/niimbot-independent-remote-{current-current,current-minimum,minimum-current,minimum-minimum}.log`.
+- 이 결과는 ae3c4ea의 증거입니다. 이 기록을 추가한 후속 문서 커밋도 PR의 Checks에서 별도로 확인합니다. 미병합 상태이며 기본 브랜치 완료로 기록하지 않습니다.
