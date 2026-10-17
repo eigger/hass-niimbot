@@ -19,7 +19,7 @@ from custom_components.niimbot.niimprint.printer import (
     PrinterClient,
     RequestCodeEnum,
 )
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -64,9 +64,7 @@ def test_get_printer_status_data():
     async def _test():
         # 13+ bytes; colour at [10], version parts at [11]/[12]
         payload = bytes([0] * 10 + [1, 3, 5])  # raw = 3*100+5 = 305 => v5
-        transport = FakeTransport(
-            [NiimbotPacket(PRINTER_STATUS_DATA_RESP, payload)]
-        )
+        transport = FakeTransport([NiimbotPacket(PRINTER_STATUS_DATA_RESP, payload)])
         client = PrinterClient(transport=transport)
         data = await client.get_printer_status_data()
         assert data["support_color"] == 1
@@ -108,9 +106,7 @@ def test_ribbon_capability_helpers():
 
 def test_wait_print_complete_via_page_index():
     async def _test():
-        transport = FakeTransport(
-            [NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1))]
-        )
+        transport = FakeTransport([NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1))])
         client = PrinterClient(transport=transport)
         status = await client.wait_print_complete(copies=1, timeout=2.0)
         assert status["page"] == 1
@@ -129,15 +125,15 @@ def test_set_image_sends_check_line_every_200_rows():
         height = CHECK_LINE_INTERVAL
         img = Image.new("L", (16, height), color=255)
         # Queue one CheckLine ACK (0xD3).
-        transport = FakeTransport(
-            [NiimbotPacket(PRINTER_CHECK_LINE_RESP, b"\x01")]
-        )
+        transport = FakeTransport([NiimbotPacket(PRINTER_CHECK_LINE_RESP, b"\x01")])
         client = PrinterClient(transport=transport)
         await client.set_image(img, printhead_pixels=96)
         types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.PRINTER_CHECK_LINE in types
         check = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.PRINTER_CHECK_LINE
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.PRINTER_CHECK_LINE
         )
         line, flag = struct.unpack(">HB", check.data)
         assert line == CHECK_LINE_INTERVAL - 1

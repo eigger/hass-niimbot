@@ -13,6 +13,7 @@ usb, and usb's aiousbwatcher pin is not on the bluetooth manifest.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -24,13 +25,15 @@ requirements: set[str] = set()
 
 def collect(name: str, seen: set[str]) -> None:
     """Add one component's requirements and those of its dependencies."""
+    if not re.fullmatch(r"[a-z0-9_]+", name):
+        raise ValueError(f"Invalid Home Assistant component: {name}")
     if name in seen:
         return
     seen.add(name)
     manifest_path = components_dir / name / "manifest.json"
     if not manifest_path.is_file():
-        return
-    manifest = json.loads(manifest_path.read_text())
+        raise FileNotFoundError(manifest_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     requirements.update(manifest.get("requirements", []))
     for dependency in manifest.get("dependencies", []):
         collect(dependency, seen)

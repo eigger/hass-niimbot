@@ -72,7 +72,5 @@ class NiimbotConnectionSoundSwitch(
         try:
             data = await self._device.set_connection_sound(ble_device, on)
         except Exception as err:
-            raise HomeAssistantError(
-                f"Failed to set connection sound: {err}"
-            ) from err
+            raise HomeAssistantError(f"Failed to set connection sound: {err}") from err
         self.coordinator.async_set_updated_data(data)

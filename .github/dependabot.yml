@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    # Keep historical support environments fixed; adapt paths if such files exist.
+    exclude-paths:
+      - requirements_test_min.txt
+      - constraints/homeassistant-min.txt
+    groups:
+      home-assistant-tests:
+        patterns:
+          - homeassistant
+          - pytest-homeassistant-custom-component

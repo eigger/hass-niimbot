@@ -15,7 +15,7 @@ from custom_components.niimbot.niimprint.model import (
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.niimprint.printer import PrinterClient, RequestCodeEnum
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -56,12 +56,17 @@ def test_supports_calibration_helper():
 
 def test_calibrate_label_position_command():
     async def _test():
-        transport = FakeTransport([NiimbotPacket(143, b"\x01")])  # 0x8E + 1 = 0x8F (143)
+        transport = FakeTransport(
+            [NiimbotPacket(143, b"\x01")]
+        )  # 0x8E + 1 = 0x8F (143)
         client = PrinterClient(transport=transport)
         res = await client.calibrate_label_position()
         assert res is True
         assert len(transport.written_packets) == 1
-        assert transport.written_packets[0].type == RequestCodeEnum.LABEL_POSITIONING_CALIBRATION
+        assert (
+            transport.written_packets[0].type
+            == RequestCodeEnum.LABEL_POSITIONING_CALIBRATION
+        )
 
     run(_test())
 
@@ -100,7 +105,9 @@ def test_device_paper_calibration_sets_label_type_first():
 
 def test_calibrate_height_command():
     async def _test():
-        transport = FakeTransport([NiimbotPacket(105, b"\x01")])  # 0x59 + 16 = 0x69 (105)
+        transport = FakeTransport(
+            [NiimbotPacket(105, b"\x01")]
+        )  # 0x59 + 16 = 0x69 (105)
         client = PrinterClient(transport=transport)
         res = await client.calibrate_height()
         assert res is True
@@ -112,7 +119,9 @@ def test_calibrate_height_command():
 
 def test_cancel_print_command():
     async def _test():
-        transport = FakeTransport([NiimbotPacket(208, b"\x00")])  # 0xDA - 10 = 0xD0 (208)
+        transport = FakeTransport(
+            [NiimbotPacket(208, b"\x00")]
+        )  # 0xDA - 10 = 0xD0 (208)
         client = PrinterClient(transport=transport)
         res = await client.cancel_print()
         assert res is True
@@ -136,7 +145,9 @@ def test_printer_reset_command():
 
 def test_print_test_page_command():
     async def _test():
-        transport = FakeTransport([NiimbotPacket(106, b"\x01")])  # 0x5A + 16 = 0x6A (106)
+        transport = FakeTransport(
+            [NiimbotPacket(106, b"\x01")]
+        )  # 0x5A + 16 = 0x6A (106)
         client = PrinterClient(transport=transport)
         res = await client.print_test_page()
         assert res is True
@@ -150,11 +161,11 @@ def test_in_flight_print_cancellation():
     async def _test():
         # Setup fake responses for a print job on B1 (V4)
         responses = [
-            NiimbotPacket(49, b"\x01"),   # set_label_density (33 + 16 = 49)
-            NiimbotPacket(51, b"\x01"),   # set_label_type (35 + 16 = 51)
-            NiimbotPacket(2, b"\x01"),    # start_print_v4 (1 + 1 = 2)
-            NiimbotPacket(4, b"\x01"),    # start_page_print (3 + 1 = 4)
-            NiimbotPacket(20, b"\x01"),   # set_page_size (19 + 1 = 20)
+            NiimbotPacket(49, b"\x01"),  # set_label_density (33 + 16 = 49)
+            NiimbotPacket(51, b"\x01"),  # set_label_type (35 + 16 = 51)
+            NiimbotPacket(2, b"\x01"),  # start_print_v4 (1 + 1 = 2)
+            NiimbotPacket(4, b"\x01"),  # start_page_print (3 + 1 = 4)
+            NiimbotPacket(20, b"\x01"),  # set_page_size (19 + 1 = 20)
             NiimbotPacket(208, b"\x00"),  # cancel_print (0xD0)
         ]
         transport = FakeTransport(responses)
@@ -165,7 +176,10 @@ def test_in_flight_print_cancellation():
         async def _write_with_cancel(packet_bytes, response=True):
             await orig_write(packet_bytes, response=response)
             # When page size command (0x13 / 19) is written, trigger cancel_requested
-            if len(packet_bytes) >= 3 and packet_bytes[2] == RequestCodeEnum.SET_DIMENSION:
+            if (
+                len(packet_bytes) >= 3
+                and packet_bytes[2] == RequestCodeEnum.SET_DIMENSION
+            ):
                 client.cancel_requested = True
 
         transport.write = _write_with_cancel

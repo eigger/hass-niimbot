@@ -15,7 +15,7 @@ from custom_components.niimbot.niimprint.printer import (
     RequestCodeEnum,
 )
 from custom_components.niimbot.niimprint.parser import _battery_percentage
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -299,5 +299,18 @@ def test_get_print_status_keeps_separate_progress_fields():
     run(_test())
 
 
+def test_packet_debug_logs_omit_serial_and_label_payload(caplog):
+    """Wire logging records the command and size without printer data."""
+    import logging
 
-
+    caplog.set_level(
+        logging.DEBUG, logger="custom_components.niimbot.niimprint.printer"
+    )
+    private = b"PRIVATE-LABEL-SERIAL-1234"
+    packet = NiimbotPacket(0x40, private)
+    client = PrinterClient(transport=FakeTransport())
+    client._log_buffer("send", packet.to_bytes())
+    assert "command=0x40" in caplog.text
+    assert "length=" in caplog.text
+    assert private.decode() not in caplog.text
+    assert private.hex() not in caplog.text.replace(" ", "")

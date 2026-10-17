@@ -4,6 +4,21 @@ English | **[한국어](ko/troubleshooting.md)**
 
 When a label does not print, the integration has usually already recorded why. This page is the order to look in: first the sensors that hold the last BLE session's breakdown, then the cases those sensors cannot see, then what to attach to an issue.
 
+## Prepare the printer and Bluetooth path
+
+Start with the [shared connection checks and proxy recommendations (Korean)](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md). Wake the printer with its power button, charge it, load the matching roll and close the cover. Close the NIIMBOT phone app and other BLE clients: an occupied printer may advertise but refuse connections. Discovery is advertisement reception, not proof of GATT connection or a successful print.
+
+The config flow does not request an account, PIN or bonding. Additional model/firmware authentication is unverified; report the exact model and firmware. Transport options are polling interval and **Keep Connection**; ESL-specific retry/debounce options are not provided.
+
+| Model / condition | Check |
+|---|---|
+| B1 / B1 Pro / B2 Pro / B21 Pro | Choose the actual model DPI and roll dimensions from [label sizing](label-sizing.md). A 203 DPI B1 setting differs from a 300 DPI Pro setting. |
+| D110 | The [D110 example](../examples/d110.yaml) rotates its 240 by 96 px canvas and sends 96 by 240 px. Use dimensions matching your roll. |
+| Other models / firmware | The model list is a protocol reference, not hardware verification. Unsupported commands or estimated print widths need model/firmware evidence. |
+| Sleep / automatic shutdown | Wake before discovery or retry. **Auto Shutdown** and **Keep Connection** affect readiness between jobs. |
+
+For connection failures check `bluetooth_proxy.active`, free slots and other clients. For transfer failures check distance, printer battery, proxy power and network. **Keep Connection** occupies a finite connection slot; turn it off to compare stale-link failures. After restoring the path, use `niimbot.refresh_info` or one small print to reconnect. Check whether the previous label already printed before resending it. Local adapter/proxy combinations were not physically retested during standards adoption.
+
 ## Where to look
 
 Open the printer's device page (**Settings → Devices & services → Niimbot → the printer**). Under *Diagnostic* there are four entities to read, in this order:
@@ -98,7 +113,7 @@ The label was sent; only the status read afterwards (RFID remaining, heartbeat) 
 ### Quick checks
 
 - **`rssi` is low but `paths` is 2 or more** — another radio might do better; Home Assistant connects through the strongest advertisement, so the alternative is only used after a failure. Check `via` to see which one was used.
-- **Everything fails at `connect` right after adding a proxy** — the proxy must be `active: true` in both `esp32_ble_tracker` and `bluetooth_proxy` (see the [README](../README.md#important-notice)); a passive proxy sees the printer but cannot connect.
+- **Everything fails at `connect` after adding a proxy** - check `bluetooth_proxy.active: true` for GATT connection support. Tracker active scanning controls scan responses; passive scanning alone does not prevent connections. See [setup](setup.md#bluetooth-connection).
 - **`error: ConnectFailed` on a print while the phone app is open** — most models accept one client. Close the app.
 - **`reused: true` and then `transfer` failures** — a link kept open across a long idle can go stale on some proxies. Turn **Keep Connection** off and compare.
 - **Error Count climbs while nothing is printing** — a poll connected and then failed (`failed_stage: session`, `failed_detail: info`) — usually the proxy, see above; or a `refresh_info` action in an automation is running while the printer is off (it *is* counted, unlike the poll).
@@ -111,7 +126,7 @@ Three kinds of problem never reach the failure sensors, because the session did 
 
 **The action itself errored before any BLE traffic.** A payload that does not render, a `density` or `label_type` outside the model's range (*is not supported for this printer*), or a printer no radio currently sees (*could not find printer with address …*): the action fails immediately with that message, and nothing is recorded on the session sensors. Check the action trace or the error shown in the UI.
 
-**No session was attempted.** The status poll returns the cached values when no radio sees the printer, and logs a warning only. The sensors keep their last values; **Connection** stays off. Turn the printer on and wait one scan interval, or call `niimbot.refresh_info`.
+**No session was attempted.** When no radio sees the printer or polling fails, the coordinator retains its previous data internally and marks polled entities unavailable. It does not treat cached values as a successful refresh. Diagnostic session history remains useful. **Connection** is off when disconnected. Turn the printer on and wait one scan interval, or call `niimbot.refresh_info`.
 
 ## Intermittent failures
 
@@ -125,3 +140,7 @@ A print that fails only sometimes is the reason Last Failure keeps its attribute
 4. For a wrong-looking label: the **Last Label Made** image and a photo of the print.
 
 Debug logging is rarely needed; if asked, add `custom_components.niimbot: debug` under `logger:` and reproduce once.
+
+Include HA, integration, blesession (if known) and ESPHome versions, proxy model/revision, printer firmware, failure time and reproduction steps. Remove Bluetooth/MAC addresses, printer names/serial numbers, internal IPs/hostnames, tokens and private label contents from attributes, logs and images. This integration provides diagnostic entity attributes, not a diagnostics-download action. Enable only `custom_components.niimbot` for the relevant reproduction interval and disable debug logging afterward.
+
+Session entity attributes intentionally retain the actual Bluetooth route and error detail so an operator can distinguish printers, proxies and transport failures. They are local operational state, not an automatically redacted export. Review and redact them before sharing; the integration logs only session stages and outcomes, not the complete report or packet payloads.

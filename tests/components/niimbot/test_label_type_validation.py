@@ -18,7 +18,7 @@ from custom_components.niimbot.niimprint.printer import (
     PrinterClient,
     RequestCodeEnum,
 )
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):
@@ -28,11 +28,11 @@ def run(coro):
 def _make_v4_responses():
     """Minimal V4 print sequence responses."""
     return [
-        NiimbotPacket(49, b"\x01"),   # set_label_density
-        NiimbotPacket(51, b"\x01"),   # set_label_type
-        NiimbotPacket(2, b"\x01"),    # start_print_v4
-        NiimbotPacket(4, b"\x01"),    # start_page_print
-        NiimbotPacket(20, b"\x01"),   # set_page_size
+        NiimbotPacket(49, b"\x01"),  # set_label_density
+        NiimbotPacket(51, b"\x01"),  # set_label_type
+        NiimbotPacket(2, b"\x01"),  # start_print_v4
+        NiimbotPacket(4, b"\x01"),  # start_page_print
+        NiimbotPacket(20, b"\x01"),  # set_page_size
         NiimbotPacket(228, b"\x01"),  # end_page_print
         NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", 1)),
         NiimbotPacket(244, b"\x01"),  # end_print
@@ -103,7 +103,9 @@ def test_print_image_rejects_unsupported_label_type():
         img = Image.new("1", (96, 10))
 
         # B1 supports [1, 2, 5]; passing label_type=3 (Continuous) must raise ValueError locally
-        with pytest.raises(ValueError, match="Label type 3 is not supported for printer model B1"):
+        with pytest.raises(
+            ValueError, match="Label type 3 is not supported for printer model B1"
+        ):
             await client.print_image(
                 model=PrinterModel.B1,
                 image=img,
@@ -116,6 +118,7 @@ def test_print_image_rejects_unsupported_label_type():
 
 def test_print_image_defaults_p1_to_pvc_tag():
     """P1 supports only PvcTag (6); omitting label_type must send 0x06."""
+
     async def _test():
         transport = FakeTransport(_make_v4_responses())
         client = PrinterClient(transport=transport)
@@ -129,7 +132,9 @@ def test_print_image_defaults_p1_to_pvc_tag():
         )
 
         set_label_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.SET_LABEL_TYPE
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.SET_LABEL_TYPE
         )
         assert set_label_pkt.data == b"\x06"
 
@@ -138,6 +143,7 @@ def test_print_image_defaults_p1_to_pvc_tag():
 
 def test_print_image_defaults_b1_to_with_gaps():
     """B1 supports [1, 2, 5]; omitting label_type must keep sending 0x01 (WithGaps) — no regression."""
+
     async def _test():
         transport = FakeTransport(_make_v4_responses())
         client = PrinterClient(transport=transport)
@@ -151,7 +157,9 @@ def test_print_image_defaults_b1_to_with_gaps():
         )
 
         set_label_pkt = next(
-            p for p in transport.written_packets if p.type == RequestCodeEnum.SET_LABEL_TYPE
+            p
+            for p in transport.written_packets
+            if p.type == RequestCodeEnum.SET_LABEL_TYPE
         )
         # Must still be 1 (WithGaps), same as the hardcoded default that existed before T7
         assert set_label_pkt.data == b"\x01"

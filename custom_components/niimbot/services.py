@@ -41,7 +41,9 @@ SERVICE_PRINT = "print"
 SERVICE_REFRESH_INFO = "refresh_info"
 
 
-async def _extract_config_entry_ids(hass: HomeAssistant, service: ServiceCall) -> set[str]:
+async def _extract_config_entry_ids(
+    hass: HomeAssistant, service: ServiceCall
+) -> set[str]:
     """Extract entry ids with the signature this Home Assistant has.
 
     2025.1 through 2025.9 require hass as the first argument. 2025.10 reads
@@ -85,7 +87,9 @@ async def async_targeted_entries(
         for entry in hass.config_entries.async_loaded_entries(DOMAIN)
     }
     if entry_ids:
-        targets = [loaded[entry_id] for entry_id in sorted(entry_ids) if entry_id in loaded]
+        targets = [
+            loaded[entry_id] for entry_id in sorted(entry_ids) if entry_id in loaded
+        ]
         if not targets:
             raise HomeAssistantError(
                 "No loaded Niimbot printer matches the service target; "
@@ -139,6 +143,13 @@ async def _async_print(hass: HomeAssistant, service: ServiceCall) -> ServiceResp
     return await _run_targets(hass, service, partial(_print_one, hass, service))
 
 
+def _encode_png(image) -> bytes:
+    """Encode the image in the executor, including Pillow's lazy work."""
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 async def _print_one(
     hass: HomeAssistant, service: ServiceCall, entry: NiimbotConfigEntry
 ) -> ServiceResponse:
@@ -159,10 +170,7 @@ async def _print_one(
     except Exception as err:
         raise ServiceValidationError("Failed to create image: %s" % err) from err
 
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    buffer.seek(0)
-    raw = buffer.read()
+    raw = await hass.async_add_executor_job(_encode_png, image)
     data.image_coordinator.async_set_updated_data(
         (Image(content_type="image/png", content=raw), data.coordinator.data)
     )
@@ -223,12 +231,16 @@ async def _print_one(
         raise HomeAssistantError("Failed to print: %s" % err) from err
 
 
-async def _async_refresh_info(hass: HomeAssistant, service: ServiceCall) -> ServiceResponse:
+async def _async_refresh_info(
+    hass: HomeAssistant, service: ServiceCall
+) -> ServiceResponse:
     """Re-read printer info on every targeted printer."""
     return await _run_targets(hass, service, partial(_refresh_one, hass))
 
 
-async def _refresh_one(hass: HomeAssistant, entry: NiimbotConfigEntry) -> ServiceResponse:
+async def _refresh_one(
+    hass: HomeAssistant, entry: NiimbotConfigEntry
+) -> ServiceResponse:
     """Re-read one printer. Raises HomeAssistantError on failure."""
     data = entry.runtime_data
     device = data.device

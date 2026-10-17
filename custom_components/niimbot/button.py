@@ -59,9 +59,7 @@ def _reraise_action_error(action: str, err: Exception) -> None:
     if isinstance(err, HomeAssistantError):
         raise err
     if isinstance(err, PrinterCommandUnsupported):
-        raise HomeAssistantError(
-            f"This printer does not support {action}"
-        ) from err
+        raise HomeAssistantError(f"This printer does not support {action}") from err
     raise HomeAssistantError(f"Failed to {action}: {err}") from err
 
 

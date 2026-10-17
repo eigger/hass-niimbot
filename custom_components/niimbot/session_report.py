@@ -202,7 +202,12 @@ def _cause(failure: Failure, operation: str) -> str | None:
     ``likely_cause_key``; a failure neither covers still gets the fallback.
     """
     text = _printer_cause(
-        failure.stage, failure.detail, failure.error, failure.facts, operation, failure.exc
+        failure.stage,
+        failure.detail,
+        failure.error,
+        failure.facts,
+        operation,
+        failure.exc,
     )
     if text is not None:
         return text

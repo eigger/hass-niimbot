@@ -9,7 +9,7 @@ from imagespec import render, RenderContext, RenderError
 def _make_context(hass, *, default_font, palette):
     def font_resolver(name):
         base_name = os.path.basename(name)
-        
+
         # 1. Check local niimbot components fonts/ directory
         local_font_dir = os.path.join(os.path.dirname(__file__), "fonts")
         local_path = os.path.join(local_font_dir, base_name)

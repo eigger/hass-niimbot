@@ -9,7 +9,13 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from bleak.backends.device import BLEDevice
-from conftest import ADDRESS, ADDRESS_2, device_of, setup_entry
+from tests.components.niimbot.conftest import (
+    ADDRESS,
+    ADDRESS_2,
+    device_of,
+    setup_entry,
+    make_ble_device,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 import pytest
@@ -18,11 +24,20 @@ from custom_components.niimbot.const import DOMAIN
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
 from custom_components.niimbot.services import SERVICE_PRINT, SERVICE_REFRESH_INFO
 
-PAYLOAD = [{"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "black"}]
+PAYLOAD = [
+    {
+        "type": "rectangle",
+        "x_start": 0,
+        "y_start": 0,
+        "x_end": 10,
+        "y_end": 10,
+        "fill": "black",
+    }
+]
 
 
 def _ble_device(address: str) -> BLEDevice:
-    return BLEDevice(address, "Niimbot", {})
+    return make_ble_device(address)
 
 
 async def test_print_targets_the_selected_printer(

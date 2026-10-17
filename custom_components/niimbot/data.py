@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from asyncio import Task
+from dataclasses import dataclass, field
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -20,3 +21,4 @@ class NiimbotRuntimeData:
     coordinator: DataUpdateCoordinator[BLEData]
     image_coordinator: DataUpdateCoordinator[ImageAndBLEData]
     cloud_lookup: LabelCloudLookup | None
+    cloud_tasks: set[Task] = field(default_factory=set)

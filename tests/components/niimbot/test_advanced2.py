@@ -8,7 +8,7 @@ from custom_components.niimbot.niimprint.printer import (
     HEARTBEAT_RESP_ADVANCED2,
     PrinterClient,
 )
-from tests.fake_transport import FakeTransport
+from tests.components.niimbot.fake_transport import FakeTransport
 
 
 def run(coro):

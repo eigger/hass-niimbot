@@ -1,5 +1,3 @@
-# Test environment, pinned so CI is reproducible.
-# The integration's own requirements come from manifest.json and the Home
-# Assistant component requirements from scripts/ha_component_requirements.py
-# (see .github/workflows/tests.yml).
-pytest-homeassistant-custom-component==0.13.366
+# Current HA/Python 3.14 environment, independent of minimum support.
+pytest-homeassistant-custom-component==0.13.373
+homeassistant==2026.10.2

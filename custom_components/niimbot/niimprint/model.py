@@ -8,9 +8,11 @@ class PrintGeneration(Enum):
     V4 = "V4"
     V5 = "V5"
 
+
 class PrintDirection(Enum):
     TOP = "top"
     LEFT = "left"
+
 
 class LabelType(Enum):
     WITH_GAPS = "WithGaps"
@@ -22,11 +24,13 @@ class LabelType(Enum):
     PVC_TAG = "PvcTag"
     PERFORATED = "Perforated"
 
+
 class RfidClass(Enum):
     NONE = "none"
     LABEL = "label"
     RIBBON = "ribbon"
     LABEL_RIBBON = "label_ribbon"
+
 
 class PrinterModel(Enum):
     UNKNOWN = "UNKNOWN"
@@ -111,6 +115,7 @@ class PrinterModel(Enum):
     K4 = "K4"
     A1_PRO = "A1_PRO"
 
+
 class PrinterModelMeta(TypedDict):
     model: PrinterModel
     id: list[int]
@@ -126,6 +131,7 @@ class PrinterModelMeta(TypedDict):
     printheadPixelsEstimated: NotRequired[bool]
     isSupportCalibration: NotRequired[bool]
 
+
 modelsLibrary: list[PrinterModelMeta] = [
     {
         "model": PrinterModel.B3S_P,
@@ -134,7 +140,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 576,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.T2S,
@@ -185,7 +196,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 591,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B2_PRO,
@@ -236,7 +252,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 567,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.CONTINUOUS, LabelType.BLACK],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.CONTINUOUS,
+            LabelType.BLACK,
+        ],
     },
     {
         "model": PrinterModel.HI_D110,
@@ -263,7 +284,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 591,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK,
+            LabelType.BLACK_MARK_GAP,
+        ],
     },
     {
         "model": PrinterModel.A20,
@@ -344,7 +370,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B21_L2B,
@@ -461,7 +492,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.CONTINUOUS, LabelType.TRANSPARENT, LabelType.BLACK],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK,
+        ],
     },
     {
         "model": PrinterModel.Z401,
@@ -507,7 +543,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.JC_M90,
@@ -516,7 +557,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.JCB3S,
@@ -525,7 +571,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 576,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B203,
@@ -543,7 +594,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.D110,
@@ -561,7 +617,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.D101,
@@ -606,7 +667,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.B50W,
@@ -615,7 +681,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.T7,
@@ -624,7 +695,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.T8,
@@ -633,7 +709,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 567,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.B3S,
@@ -642,7 +723,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 576,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B3,
@@ -651,7 +737,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 600,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B18,
@@ -693,7 +784,13 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 384,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+            LabelType.TRANSPARENT,
+        ],
     },
     {
         "model": PrinterModel.B50,
@@ -702,7 +799,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 400,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.BLACK, LabelType.CONTINUOUS, LabelType.PERFORATED],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.BLACK,
+            LabelType.CONTINUOUS,
+            LabelType.PERFORATED,
+        ],
     },
     {
         "model": PrinterModel.ET10,
@@ -740,7 +842,11 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 203,
         "printDirection": PrintDirection.LEFT,
         "printheadPixels": 96,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.CONTINUOUS, LabelType.TRANSPARENT],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.CONTINUOUS,
+            LabelType.TRANSPARENT,
+        ],
         "printheadPixelsEstimated": True,
     },
     {
@@ -750,7 +856,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 591,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK,
+            LabelType.BLACK_MARK_GAP,
+        ],
         "printheadPixelsEstimated": True,
     },
     {
@@ -800,7 +911,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 851,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK,
+            LabelType.BLACK_MARK_GAP,
+        ],
         "printheadPixelsEstimated": True,
     },
     {
@@ -810,7 +926,12 @@ modelsLibrary: list[PrinterModelMeta] = [
         "dpi": 300,
         "printDirection": PrintDirection.TOP,
         "printheadPixels": 851,
-        "paperTypes": [LabelType.WITH_GAPS, LabelType.TRANSPARENT, LabelType.BLACK, LabelType.BLACK_MARK_GAP],
+        "paperTypes": [
+            LabelType.WITH_GAPS,
+            LabelType.TRANSPARENT,
+            LabelType.BLACK,
+            LabelType.BLACK_MARK_GAP,
+        ],
         "printheadPixelsEstimated": True,
     },
     {
@@ -1187,6 +1308,7 @@ def get_printer_meta_by_id(printer_id: int) -> PrinterModelMeta | None:
             return _enrich_meta(model)
     return None
 
+
 def get_printer_meta_by_model(model: PrinterModel) -> PrinterModelMeta | None:
     for m in modelsLibrary:
         if m["model"] == model:
@@ -1197,16 +1319,53 @@ def get_printer_meta_by_model(model: PrinterModel) -> PrinterModelMeta | None:
 # Note: D41 / D61 / Dxx also have rfidNotSupportVersions in the vendor database,
 # but lack protocol model IDs so they cannot be keyed by ID in this table.
 _RFID_UNSUPPORTED_FIRMWARE: dict[int, frozenset[str]] = {
-    512: frozenset({
-        "1.01", "1.04", "1.05", "1.06", "1.07", "1.08", "1.09",
-        "2.02", "2.03", "2.08", "2.09", "2.14", "2.15", "2.16",
-    }),
-    777: frozenset({
-        "1.01", "1.02", "1.03", "1.04", "2.01", "2.02", "2.03", "2.04",
-        "2.05", "2.06", "2.07", "2.08", "2.09", "3.01", "5.01", "5.02",
-        "6.00", "10.01", "20.01", "21.01", "30.01", "31.01", "32.01",
-        "33.01", "35.01",
-    }),
+    512: frozenset(
+        {
+            "1.01",
+            "1.04",
+            "1.05",
+            "1.06",
+            "1.07",
+            "1.08",
+            "1.09",
+            "2.02",
+            "2.03",
+            "2.08",
+            "2.09",
+            "2.14",
+            "2.15",
+            "2.16",
+        }
+    ),
+    777: frozenset(
+        {
+            "1.01",
+            "1.02",
+            "1.03",
+            "1.04",
+            "2.01",
+            "2.02",
+            "2.03",
+            "2.04",
+            "2.05",
+            "2.06",
+            "2.07",
+            "2.08",
+            "2.09",
+            "3.01",
+            "5.01",
+            "5.02",
+            "6.00",
+            "10.01",
+            "20.01",
+            "21.01",
+            "30.01",
+            "31.01",
+            "32.01",
+            "33.01",
+            "35.01",
+        }
+    ),
 }
 _RFID_UNSUPPORTED_FIRMWARE[771] = _RFID_UNSUPPORTED_FIRMWARE[777]
 _RFID_UNSUPPORTED_FIRMWARE[775] = _RFID_UNSUPPORTED_FIRMWARE[777]
@@ -1236,4 +1395,3 @@ def rfid_supported_on_firmware(
         ver_str = f"{int(v)}.{round((v - int(v)) * 100):02d}"
 
     return ver_str not in unsupported
-

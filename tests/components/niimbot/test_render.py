@@ -9,12 +9,19 @@ def test_render_image_simple():
     service = MagicMock()
     service.data = {
         "payload": [
-            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 100, "y_end": 50, "fill": "black"}
+            {
+                "type": "rectangle",
+                "x_start": 0,
+                "y_start": 0,
+                "x_end": 100,
+                "y_end": 50,
+                "fill": "black",
+            }
         ],
         "width": 400,
         "height": 240,
         "rotate": 0,
-        "background": "white"
+        "background": "white",
     }
 
     hass = MagicMock()
@@ -35,12 +42,18 @@ def test_render_image_render_error():
     # Payload with an invalid element option or structure to trigger RenderError
     service.data = {
         "payload": [
-            {"type": "rectangle", "x_start": "invalid_coord", "y_start": 0, "x_end": 100, "y_end": 50}
+            {
+                "type": "rectangle",
+                "x_start": "invalid_coord",
+                "y_start": 0,
+                "x_end": 100,
+                "y_end": 50,
+            }
         ],
         "width": 400,
         "height": 240,
         "rotate": 0,
-        "background": "white"
+        "background": "white",
     }
 
     hass = MagicMock()
@@ -59,7 +72,15 @@ def test_render_image_per_element_dither():
     service_flat = MagicMock()
     service_flat.data = {
         "payload": [
-            {"type": "rectangle", "x_start": 0, "y_start": 0, "x_end": 10, "y_end": 10, "fill": "#808080", "outline": "#808080"}
+            {
+                "type": "rectangle",
+                "x_start": 0,
+                "y_start": 0,
+                "x_end": 10,
+                "y_end": 10,
+                "fill": "#808080",
+                "outline": "#808080",
+            }
         ],
         "width": 10,
         "height": 10,
