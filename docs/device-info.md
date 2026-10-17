@@ -81,7 +81,7 @@ The single-byte case must be shifted, not used directly:
 
 ```python
 if len(data) == 1:
-    model_id = data[0] << 8      # 0x02 -> 512 (D11), not 2
+    model_id = data[0] << 8  # 0x02 -> 512 (D11), not 2
 else:
     model_id = int.from_bytes(data[:2], "big")
 ```
@@ -94,7 +94,7 @@ rather than an error.
 Two bytes, but **the format is not consistent across models.** Two readings are plausible:
 
 ```python
-v1 = data[0] + data[1] / 100          # 03 1D -> 3.29
+v1 = data[0] + data[1] / 100  # 03 1D -> 3.29
 v2 = (data[0] * 256 + data[1]) / 100  # 03 1D -> 7.81
 ```
 
