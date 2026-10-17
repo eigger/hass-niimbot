@@ -8,7 +8,7 @@
 |---|---|
 | 통합 리포 / 실제 기본 브랜치 | eigger/hass-niimbot / master (`git ls-remote --symref origin HEAD`) |
 | domain / 구현 경로 | niimbot / custom_components/niimbot |
-| 검토 대상 통합 커밋 / 채택 PR | d5686890c76fbc74171484de13383537772a10f3 기반 로컬 변경 / PR 없음 |
+| 검토 대상 통합 커밋 / 채택 PR | d5686890c76fbc74171484de13383537772a10f3 기반 구현 e4a1334 / [PR #126](https://github.com/eigger/hass-niimbot/pull/126) |
 | 검토한 표준 전체 커밋 SHA | 7acd9cab6ac774e4695f2c962e3d88b5faa4620d (`git ls-remote` 확인) |
 | 검토일 / 조율 담당 | 2026-10-18 / root(niimbot-20261018) |
 | 구현 서브 에이전트 / 독립 리뷰·검증 서브 에이전트 | tests_ci / integration_docs; independent_review |
@@ -28,8 +28,8 @@
 | 규칙 ID | 확인 항목 | 상태 | 근거 / 남은 작업 |
 |---|---|---|---|
 | GOV-01, GOV-02 | `STANDARDS.md`에 표준 SHA·profile·실제 기본 브랜치·예외 기록, workflow/action은 검토 SHA로 고정 | PASS | STANDARDS.md의 전체 SHA 및 ha profile; 공통 caller 모두 해당 SHA 고정. |
-| GOV-03 | 새 표준 채택 변경의 영향·이관 방법과 명시적 채택 PR 확인. 규칙 자체를 변경하면 공통 CHANGELOG 기록 | TODO | 최초 채택 이관 영향은 아래 기록. 로컬 작업이며 채택 PR/기본 브랜치 반영은 미수행. |
-| GOV-04 | 중앙 표에 작업 시작·단계 변경·종료 상태, 담당·적용 내용·검증/리뷰 근거·남은 작업 갱신, 타 리포 기록 보존 | TODO | 중앙 checkout niimbot 행 시작/구현/검증 마감 갱신 완료. 중앙 원격에는 미반영(커밋/push 요청 없음). |
+| GOV-03 | 새 표준 채택 변경의 영향·이관 방법과 명시적 채택 PR 확인. 규칙 자체를 변경하면 공통 CHANGELOG 기록 | TODO | 최초 채택 이관 영향은 아래 기록. [PR #126](https://github.com/eigger/hass-niimbot/pull/126) 생성, 브랜치 push. 기본 브랜치 미반영. |
+| GOV-04 | 중앙 표에 작업 시작·단계 변경·종료 상태, 담당·적용 내용·검증/리뷰 근거·남은 작업 갱신, 타 리포 기록 보존 | TODO | 중앙 checkout niimbot 행 시작/구현/검증 마감 갱신 완료. 중앙 원격에는 미반영; 대상 PR 생성 및 원격 CI 검증 단계. |
 | GOV-05 | 구현과 독립 리뷰·검증을 별도 서브 에이전트에게 위임, 지적 수정·재검증 및 결과 취합 | PASS | 구현 tests_ci/integration_docs; 별도 independent_review가 지적 반환→수정 후 두 독립 HA환경151PASS. 아래 최종 명령·버전·로그 참조. |
 | HA-01, HA-13 | `custom_components/<domain>/`와 domain 일치, 필요한 모듈·공개 API·생명주기는 Core 대응 구조 | PASS | domain/const/manifest 일치; config flow·typed runtime_data·entity·platform·protocol 역할 유지, 실제 Core entry 생명주기 사용. |
 | HA-02 | manifest 필드·정렬·동작 선언 확인, 공식 품질 등급 자가 표기 없음 | PASS | manifest domain/name 이후 정렬, config_flow/Bluetooth/dependencies/version4.2.2 기존 동작 선언 보존; quality_scale 자가등급 없음. |
@@ -102,7 +102,7 @@
 
 | 규칙 ID / TODO | 남은 작업 / issue·PR | 담당자 | 완료 근거 |
 |---|---|---|---|
-| GOV-03/04, HACS-05, CI-09/10 | 로컬 변경의 원격 반영·CI/validator/updater 검증 및 중앙 원격 상태 갱신 | eigger | 해당 커밋과 원격 run 링크 확보 시 |
+| GOV-03/04, HACS-05, CI-09/10 | PR #126의 CI/validator 확인·기본 브랜치 반영 및 중앙 원격 상태 갱신 | eigger | 해당 커밋과 원격 run 링크 확보 시 |
 
 최종 검토 시 적용 대상 필수 `TODO`와 `EXCEPTION`, 이유가 있는 `N/A`, 권장 미채택을 구분해 적습니다. CI 성공만으로 실물 기기 검증을 주장하지 않습니다. 실물 검증을 수행했다면 모델·펌웨어·어댑터/proxy·연결 경로와 결과를 별도로 기록합니다.
 
@@ -134,7 +134,7 @@
 
 ## 최종 독립 검증 (2026-10-18)
 
-- 대상: 시작 커밋 `d5686890c76fbc74171484de13383537772a10f3` 기반 로컬 변경. 미커밋 tree이며 커밋/PR/원격 CI 링크 없음. 기록을 고친 이후 통합/테스트 코드 변경 없음.
+- 대상: 시작 커밋 `d5686890c76fbc74171484de13383537772a10f3` 기반 구현 커밋 `e4a1334`, 이후 검증기록 문서 변경. PR #126. 기록을 고친 이후 통합/테스트 코드 변경 없음.
 - 구현: tests_ci / integration_docs; 독립 리뷰: independent_review. setup/unload 부분 실패, HA2025.1의 OptionsFlowWithReload/AddConfigEntryEntitiesCallback 미지원, 테스트 BLEDevice/registry 버전 차이, 연결 실패 상태, 민감 디버그 로그 지적을 수정 후 재검증.
 - 명령: 각 독립 venv의 `python -m pytest tests/components/niimbot/ -q --timeout 120`, `python -m pip check`; `python -m ruff check .`, `python -m ruff format --check .`; actionlint1.7.12; `git diff --check`.
 - Ruff0.14.14 check/format 48files는 구현·독립 모두 PASS, actionlint1.7.12는 구현 담당 실행 PASS(독립 실행 아님). 배지 `python3 ../hass-repo-standards/scripts/sync_badges.py . --check` PASS. README/CONTRIBUTING/docs/examples 상대링크21문서 PASS.
@@ -145,3 +145,9 @@
 - 독립 리뷰 결과: 수정 후 새 필수 코드 결함 없음. HA-12 로컬 진단 속성 범위예외 유지. HACS/Hassfest 및 해당 tree 원격 CI·실물·중앙 원격 반영은 수행하지 않았으며 PASS로 간주하지 않음.
 
 최종 기록도 independent_review가 확인했으며, HA-11/HA-12 상태 분리와 공개 제보 절차 범위 명시 지적을 반영했습니다.
+
+## 원격 PR 검증 진행
+
+- PR: [#126](https://github.com/eigger/hass-niimbot/pull/126), branch `codex/adopt-shared-standards` → `master`.
+- 구현 커밋: `e4a1334`; 원격 Tests [39074283274](https://github.com/eigger/hass-niimbot/actions/runs/39074283274), Validate [39074283178](https://github.com/eigger/hass-niimbot/actions/runs/39074283178) 실행 시작.
+- 최종 문서 커밋을 포함한 head의 실제 CI 결과를 별도로 확인합니다. 기본 브랜치 병합은 이 작업에 포함하지 않습니다.
