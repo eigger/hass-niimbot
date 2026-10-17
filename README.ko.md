@@ -26,7 +26,7 @@ Home Assistant **2025.1.0 이상**, **Python 3.13 이상**(기존 런타임 의�
 
 HACS의 사용자 지정 저장소에 `eigger/hass-niimbot`을 추가하여 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
 
-프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth proxy 설정과 추천 기기](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/ko/troubleshooting.md)을 확인하세요.
+프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth 프록시 설정](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.ko.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/ko/troubleshooting.md)을 확인하세요.
 
 ## 빠른 시작
 

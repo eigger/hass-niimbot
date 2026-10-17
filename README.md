@@ -26,7 +26,7 @@ Home Assistant **2025.1.0 or later**, **Python 3.13 or later** (required by the 
 
 Install `eigger/hass-niimbot` through HACS as a custom repository, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
 
-Turn the printer on, wake it from sleep and disconnect the NIIMBOT phone app before setup or printing. See [Bluetooth proxy setup and recommended devices (한국어)](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
+Turn the printer on, wake it from sleep and disconnect the NIIMBOT phone app before setup or printing. See [Bluetooth proxy setup](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
 
 ## Quick start
 

@@ -6,7 +6,7 @@ When a label does not print, the integration has usually already recorded why. T
 
 ## Prepare the printer and Bluetooth path
 
-Start with the [shared connection checks and proxy recommendations (Korean)](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md). Wake the printer with its power button, charge it, load the matching roll and close the cover. Close the NIIMBOT phone app and other BLE clients: an occupied printer may advertise but refuse connections. Discovery is advertisement reception, not proof of GATT connection or a successful print.
+Start with the [Bluetooth proxy setup](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md). Wake the printer with its power button, charge it, load the matching roll and close the cover. Close the NIIMBOT phone app and other BLE clients: an occupied printer may advertise but refuse connections. Discovery is advertisement reception, not proof of GATT connection or a successful print.
 
 The config flow does not request an account, PIN or bonding. Additional model/firmware authentication is unverified; report the exact model and firmware. Transport options are polling interval and **Keep Connection**; ESL-specific retry/debounce options are not provided.
 
