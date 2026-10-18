@@ -181,6 +181,10 @@ class PrinterTimeout(RuntimeError):
     """Raised when the printer does not answer a request in time."""
 
 
+class PrinterCompletionTimeout(PrinterTimeout):
+    """Raised when completion of the requested copies cannot be confirmed."""
+
+
 class PrinterCommandUnsupported(RuntimeError):
     """Raised when the printer replies with packet type 0x00 (unsupported)."""
 
@@ -415,6 +419,17 @@ class PrinterClient:
                 return await self.print_image_v5(**kwargs)
             else:
                 return await self.print_image_v4(**kwargs)
+        except PrinterCompletionTimeout:
+            # Release the device's print task, but preserve the incomplete-job
+            # error if cleanup also fails (for example after a BLE disconnect).
+            try:
+                if not await self.end_print():
+                    _LOGGER.warning("Printer rejected cleanup after completion timeout")
+            except Exception:
+                _LOGGER.warning(
+                    "Could not end print after completion timeout", exc_info=True
+                )
+            raise
         except PrinterJobCancelled as err:
             _LOGGER.info("Print job cancelled: %s", type(err).__name__)
             return {"status": "cancelled"}
@@ -461,7 +476,7 @@ class PrinterClient:
         _LOGGER.debug("print_image_v4")
         await self.set_label_density(density, density_min, density_max)
         await self.set_label_type(label_type)
-        await self.start_print_v4(total_pages=1)
+        await self.start_print_v4(total_pages=copies)
         await self.start_page_print()
         await self.set_page_size_v3(image.height, image.width, copies_count=copies)
         await self.set_image(
@@ -512,7 +527,7 @@ class PrinterClient:
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(label_type):
             raise RuntimeError(f"Could not set label type to {label_type}")
-        if not await self.start_print_9b(total_pages=1):
+        if not await self.start_print_9b(total_pages=copies):
             raise RuntimeError("Could not start print")
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
         await self.heartbeat(await_for_response=False)
@@ -1229,10 +1244,11 @@ class PrinterClient:
 
         Multi-copy jobs require ``page >= copies``; progress alone must not
         end the wait after the first label. Timeout scales with ``copies``.
+        Raise PrinterCompletionTimeout if completion cannot be confirmed.
         """
         if timeout is None:
             timeout = max(30.0, 15.0 * max(1, copies))
-        start_time = time.time()
+        start_time = time.monotonic()
         started = False
         status: dict = {}
         while True:
@@ -1269,16 +1285,12 @@ class PrinterClient:
             # Printers that never bump the page counter (single-copy only).
             if started and copies <= 1 and progress >= 100:
                 break
-            if time.time() - start_time > timeout:
-                _LOGGER.warning(
-                    "Print completion not confirmed within %.0fs "
-                    "(copies=%s, last status: %s, page_index=%s)",
-                    timeout,
-                    copies,
-                    status,
-                    self._last_page_index,
+            if time.monotonic() - start_time > timeout:
+                raise PrinterCompletionTimeout(
+                    f"Print completion not confirmed within {timeout:.0f}s "
+                    f"(copies={copies}, last status: {status}, "
+                    f"page_index={self._last_page_index})"
                 )
-                break
             await sleep(poll_interval)
         return status
 
