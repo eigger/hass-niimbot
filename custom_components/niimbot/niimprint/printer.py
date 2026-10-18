@@ -1,10 +1,9 @@
 import abc
 import enum
 import logging
-import math
 import struct
 import time
-from asyncio import sleep
+from asyncio import CancelledError, sleep
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -173,12 +172,26 @@ class PrinterError(DeviceError):
 
     code: PrinterErrorCodeEnum
 
-    def __init__(self, code: PrinterErrorCodeEnum):
-        super().__init__(f"Printer error: {code.name}", code=code)
+    def __init__(self, code: PrinterErrorCodeEnum | int):
+        self.raw_code = int(code)
+        try:
+            known_code = PrinterErrorCodeEnum(code)
+        except ValueError:
+            known_code = PrinterErrorCodeEnum.Unknown
+        detail = (
+            f" (0x{self.raw_code:02x})"
+            if known_code == PrinterErrorCodeEnum.Unknown
+            else ""
+        )
+        super().__init__(f"Printer error: {known_code.name}{detail}", code=known_code)
 
 
 class PrinterTimeout(RuntimeError):
     """Raised when the printer does not answer a request in time."""
+
+
+class PrinterCompletionTimeout(PrinterTimeout):
+    """Raised when completion of the requested copies cannot be confirmed."""
 
 
 class PrinterCommandUnsupported(RuntimeError):
@@ -343,6 +356,7 @@ class PrinterClient:
         # Latest unsolicited 0xE0 page index (0 = none seen this job).
         self._last_page_index: int = 0
         self.cancel_requested: bool = False
+        self._print_task_active = False
 
     @property
     def heartbeat_payload(self) -> bytes | None:
@@ -367,8 +381,8 @@ class PrinterClient:
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
-            if copies < 1:
-                raise ValueError(f"copies must be >= 1, got {copies}")
+            if not isinstance(copies, int) or not 1 <= copies <= 65535:
+                raise ValueError(f"copies must be an integer in 1-65535, got {copies}")
             meta = get_printer_meta_by_model(model)
             supported_types = get_supported_label_type_codes(meta)
             if label_type is None:
@@ -418,8 +432,29 @@ class PrinterClient:
         except PrinterJobCancelled as err:
             _LOGGER.info("Print job cancelled: %s", type(err).__name__)
             return {"status": "cancelled"}
+        except (Exception, CancelledError):
+            # A failed transfer can leave a task open on a retained BLE link.
+            # Preserve the original error if the best-effort cleanup fails.
+            if self._print_task_active:
+                try:
+                    if not await self.end_print():
+                        _LOGGER.warning("Printer rejected cleanup after print failure")
+                except Exception:
+                    _LOGGER.warning("Could not end failed print", exc_info=True)
+            raise
         finally:
             _LOGGER.debug("Print of page took %.2f s", time.time() - start)
+
+    @staticmethod
+    def _require_print_ack(accepted: bool, action: str) -> None:
+        if not accepted:
+            raise RuntimeError(f"Printer rejected {action}")
+
+    async def _check_print_cancelled(self) -> None:
+        if self.cancel_requested:
+            await self.cancel_print()
+            self.cancel_requested = False
+            raise PrinterJobCancelled("Print job cancelled by request")
 
     async def print_image_old_d11(
         self,
@@ -433,20 +468,26 @@ class PrinterClient:
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
         _LOGGER.debug("print_image_old_d11")
-        await self.set_label_density(density, density_min, density_max)
-        await self.set_label_type(label_type)
-        await self.start_print()
-        await self.allow_print_clear()
-        await self.start_page_print()
-        await self.set_page_size_v2(image.height, 0)  # D11_V1 only sends height
-        await self.set_quantity(copies)
+        self._require_print_ack(
+            await self.set_label_density(density, density_min, density_max),
+            "label density",
+        )
+        self._require_print_ack(await self.set_label_type(label_type), "label type")
+        self._require_print_ack(await self.start_print(), "print start")
+        self._require_print_ack(await self.allow_print_clear(), "print clear")
+        self._require_print_ack(await self.start_page_print(), "page start")
+        # D11_V1 only sends height.
+        self._require_print_ack(
+            await self.set_page_size_v2(image.height, 0), "page size"
+        )
+        self._require_print_ack(await self.set_quantity(copies), "copy count")
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
         )
-        await self.end_page_print()
+        self._require_print_ack(await self.end_page_print(), "page end")
         await self.wait_print_complete(copies=copies)
-        await self.end_print()
+        self._require_print_ack(await self.end_print(), "print end")
 
     async def print_image_v4(
         self,
@@ -459,18 +500,26 @@ class PrinterClient:
         copies: int = 1,
     ):
         _LOGGER.debug("print_image_v4")
-        await self.set_label_density(density, density_min, density_max)
-        await self.set_label_type(label_type)
-        await self.start_print_v4(total_pages=1)
-        await self.start_page_print()
-        await self.set_page_size_v3(image.height, image.width, copies_count=copies)
+        self._require_print_ack(
+            await self.set_label_density(density, density_min, density_max),
+            "label density",
+        )
+        self._require_print_ack(await self.set_label_type(label_type), "label type")
+        self._require_print_ack(
+            await self.start_print_v4(total_pages=copies), "print start"
+        )
+        self._require_print_ack(await self.start_page_print(), "page start")
+        self._require_print_ack(
+            await self.set_page_size_v3(image.height, image.width, copies_count=copies),
+            "page size and copy count",
+        )
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
         )
-        await self.end_page_print()
+        self._require_print_ack(await self.end_page_print(), "page end")
         await self.wait_print_complete(copies=copies)
-        await self.end_print()
+        self._require_print_ack(await self.end_print(), "print end")
 
     async def print_image_d110(
         self,
@@ -483,19 +532,24 @@ class PrinterClient:
         copies: int = 1,
     ):
         _LOGGER.debug("print_image_d110")
-        await self.set_label_density(density, density_min, density_max)
-        await self.set_label_type(label_type)
-        await self.start_print()
-        await self.start_page_print()
-        await self.set_page_size_v2(image.height, image.width)
-        await self.set_quantity(copies)
+        self._require_print_ack(
+            await self.set_label_density(density, density_min, density_max),
+            "label density",
+        )
+        self._require_print_ack(await self.set_label_type(label_type), "label type")
+        self._require_print_ack(await self.start_print(), "print start")
+        self._require_print_ack(await self.start_page_print(), "page start")
+        self._require_print_ack(
+            await self.set_page_size_v2(image.height, image.width), "page size"
+        )
+        self._require_print_ack(await self.set_quantity(copies), "copy count")
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
         )
-        await self.end_page_print()
+        self._require_print_ack(await self.end_page_print(), "page end")
         await self.wait_print_complete(copies=copies)
-        await self.end_print()
+        self._require_print_ack(await self.end_print(), "print end")
 
     async def print_image_v5(
         self,
@@ -512,11 +566,14 @@ class PrinterClient:
             raise RuntimeError(f"Could not set label density to {density}")
         if not await self.set_label_type(label_type):
             raise RuntimeError(f"Could not set label type to {label_type}")
-        if not await self.start_print_9b(total_pages=1):
+        if not await self.start_print_9b(total_pages=copies):
             raise RuntimeError("Could not start print")
         # https://github.com/MultiMote/niimbluelib/commit/20f3e42b1e457cad5ff3dfe3c9b86e602abc6f44#diff-c9930b13a15bc967ad905fd73c84d631918a2f5b701b9f95ff3fd50c9af37c43
         await self.heartbeat(await_for_response=False)
-        await self.set_page_size_9b(image.height, image.width, copies_count=copies)
+        self._require_print_ack(
+            await self.set_page_size_9b(image.height, image.width, copies_count=copies),
+            "page size and copy count",
+        )
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
@@ -539,13 +596,15 @@ class PrinterClient:
         """Build the three counter bytes for a bitmap / indexed row header."""
         chunk_size = printhead_pixels // 8 // 3
         if chunk_size > 0 and len(row_bytes) <= chunk_size * 3:
-            return bytes(
-                (
-                    self._countbitsofbytes(row_bytes[0:chunk_size]),
-                    self._countbitsofbytes(row_bytes[chunk_size : chunk_size * 2]),
-                    self._countbitsofbytes(row_bytes[chunk_size * 2 : chunk_size * 3]),
-                )
+            counts = (
+                self._countbitsofbytes(row_bytes[0:chunk_size]),
+                self._countbitsofbytes(row_bytes[chunk_size : chunk_size * 2]),
+                self._countbitsofbytes(row_bytes[chunk_size * 2 : chunk_size * 3]),
             )
+            if max(counts) <= 255:
+                return bytes(counts)
+        # Wide heads can have more than 255 black pixels in one split. The
+        # total-count representation stores a 16-bit count instead.
         total = self._countbitsofbytes(row_bytes)
         return bytes((0x00, total & 0xFF, (total >> 8) & 0xFF))
 
@@ -618,16 +677,10 @@ class PrinterClient:
             await self.check_line(y)
 
         for y in range(img.height):
-            if self.cancel_requested:
-                _LOGGER.info("Print job cancelled by request")
-                await self.cancel_print()
-                self.cancel_requested = False
-                raise PrinterJobCancelled("Print job cancelled by request")
-            line_data = [img.getpixel((x, y)) for x in range(img.width)]
-            line_data_bytes = "".join("0" if pix == 0 else "1" for pix in line_data)
-            line_data_ints = int(line_data_bytes, 2).to_bytes(
-                math.ceil(img.width / 8), "big"
-            )
+            await self._check_print_cancelled()
+            # Pillow pads the unused low bits of the final byte. Converting a
+            # row to an integer instead would pad on the left and shift pixels.
+            line_data_ints = img.crop((0, y, img.width, y + 1)).tobytes()
             if all(byte == 0 for byte in line_data_ints):
                 await flush_pending_bitmap()
                 if empty_row_count == 0:
@@ -757,7 +810,7 @@ class PrinterClient:
                     continue
                 if packet.type == 219:
                     # We will assume a single byte error.
-                    raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
+                    raise PrinterError(packet.data[0])
                 elif packet.type == 0:
                     # Printer NAK / unsupported command or info key
                     # (e.g. B1 rejects PRINTSPEED key 2 with 55 55 00 01 01 …).
@@ -1051,18 +1104,23 @@ class PrinterClient:
         return bool(packet.data[0])
 
     async def start_print(self):
+        self._print_task_active = True
         packet = await self._transceive(RequestCodeEnum.START_PRINT, b"\x01")
-        return bool(packet.data[0])
+        self._print_task_active = bool(packet.data[0])
+        return self._print_task_active
 
     async def start_print_v4(self, total_pages=1, page_color=0):
+        self._print_task_active = True
         packet = await self._transceive(
             RequestCodeEnum.START_PRINT,
             struct.pack(">HBBBBB", total_pages, 0x00, 0x00, 0x00, 0x00, page_color),
         )
-        return bool(packet.data[0])
+        self._print_task_active = bool(packet.data[0])
+        return self._print_task_active
 
     async def start_print_9b(self, total_pages=1, page_color=0, quality=0, someflag=0):
         _LOGGER.debug("Start print 9 bytes")
+        self._print_task_active = True
         packet = await self._transceive(
             RequestCodeEnum.START_PRINT,
             struct.pack(
@@ -1077,10 +1135,14 @@ class PrinterClient:
                 someflag,
             ),
         )
-        return bool(packet.data[0])
+        self._print_task_active = bool(packet.data[0])
+        return self._print_task_active
 
     async def end_print(self):
         _LOGGER.debug("End print")
+        # Mark the attempt before sending so a failed EndPrint is not retried
+        # by the outer error handler on a disconnected or rejecting device.
+        self._print_task_active = False
         packet = await self._transceive(RequestCodeEnum.END_PRINT, b"\x01")
         return bool(packet.data[0])
 
@@ -1192,6 +1254,13 @@ class PrinterClient:
         )
         if not await_for_response:
             return
+        if len(packet.data) < 4:
+            raise ValueError(
+                f"Invalid print status response: {len(packet.data)} bytes (expected at least 4)"
+            )
+        # The extended A3 response carries an error in addition to progress.
+        if len(packet.data) == 10 and packet.data[6]:
+            raise PrinterError(packet.data[6])
         page, progress1, progress2 = struct.unpack(">HBB", packet.data[:4])
         _LOGGER.debug(
             "Print status: page=%s progress1=%s progress2=%s",
@@ -1223,19 +1292,22 @@ class PrinterClient:
         """Wait until all copies finish via 0xE0, with 0xA3 poll as fallback.
 
         Many models retain the previous job's progress=100 / page count right
-        after ``end_page_print``. Wait until progress drops below 100 before
-        treating completion as real — otherwise a leftover page count or a
-        stale 100% can call ``end_print()`` before imaging starts.
+        after ``end_page_print``. Require an in-progress value or a page-counter
+        increase observed during this wait before trusting a polled completion.
+        A short label can finish between polls without a sub-100 value.
 
         Multi-copy jobs require ``page >= copies``; progress alone must not
         end the wait after the first label. Timeout scales with ``copies``.
+        Raise PrinterCompletionTimeout if completion cannot be confirmed.
         """
         if timeout is None:
             timeout = max(30.0, 15.0 * max(1, copies))
-        start_time = time.time()
+        start_time = time.monotonic()
         started = False
+        previous_page: int | None = None
         status: dict = {}
         while True:
+            await self._check_print_cancelled()
             # Drain any unsolicited 0xE0 that arrived between polls.
             for packet in await self._recv(timeout=0.05):
                 if packet.type == PAGE_INDEX_CMD:
@@ -1248,8 +1320,9 @@ class PrinterClient:
                             "progress": 100,
                         }
                 elif packet.type == 219:
-                    raise PrinterError(PrinterErrorCodeEnum(packet.data[0]))
+                    raise PrinterError(packet.data[0])
 
+            await self._check_print_cancelled()
             if self._last_page_index >= copies:
                 return {
                     "page": self._last_page_index,
@@ -1259,26 +1332,24 @@ class PrinterClient:
                 }
 
             status = await self.get_print_status()
+            await self._check_print_cancelled()
             _LOGGER.debug("Status: %s", status)
             page = status.get("page", 0)
             progress = status.get("progress", 0)
-            if progress < 100:
+            if progress < 100 or (previous_page is not None and page > previous_page):
                 started = True
+            previous_page = page
             if started and page >= copies:
                 break
             # Printers that never bump the page counter (single-copy only).
             if started and copies <= 1 and progress >= 100:
                 break
-            if time.time() - start_time > timeout:
-                _LOGGER.warning(
-                    "Print completion not confirmed within %.0fs "
-                    "(copies=%s, last status: %s, page_index=%s)",
-                    timeout,
-                    copies,
-                    status,
-                    self._last_page_index,
+            if time.monotonic() - start_time > timeout:
+                raise PrinterCompletionTimeout(
+                    f"Print completion not confirmed within {timeout:.0f}s "
+                    f"(copies={copies}, last status: {status}, "
+                    f"page_index={self._last_page_index})"
                 )
-                break
             await sleep(poll_interval)
         return status
 
@@ -1307,6 +1378,7 @@ class PrinterClient:
             b"\x01",
             resp_codes={208},
         )
+        self._print_task_active = False
         return True
 
     async def printer_reset(self) -> bool:
