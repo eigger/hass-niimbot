@@ -1,13 +1,16 @@
 """Tests for row encoding and model capability helpers."""
 
 import asyncio
+import struct
 
 from PIL import Image
+import pytest
 
 from custom_components.niimbot.niimprint.model import (
     RfidClass,
     get_printer_meta_by_id,
     supports_label_rfid,
+    modelsLibrary,
 )
 from custom_components.niimbot.niimprint.printer import (
     INDEXED_BLACK_PIXEL_LIMIT,
@@ -130,3 +133,45 @@ def test_set_image_falls_back_to_bitmap_above_six_pixels():
         assert RequestCodeEnum.PRINT_BITMAP_ROW_INDEXED not in types
 
     run(_test())
+
+
+@pytest.mark.parametrize("width", [9, 178, 567, 591, 851])
+@pytest.mark.parametrize("dense", [False, True])
+async def test_unaligned_rows_keep_pixel_positions(width, dense):
+    positions = sorted(
+        set(([0, width - 1] if not dense else list(range(7)) + [width - 1]))
+    )
+    image = Image.new("L", (width, 1), color=255)
+    for x in positions:
+        image.putpixel((x, 0), 0)
+    transport = FakeTransport()
+    await PrinterClient(transport=transport).set_image(image, printhead_pixels=width)
+    (packet,) = transport.written_packets
+    if dense:
+        assert packet.type == RequestCodeEnum.PRINT_BITMAP_ROW
+        expected = bytearray((width + 7) // 8)
+        for x in positions:
+            expected[x // 8] |= 1 << (7 - x % 8)
+        assert packet.data[6:] == expected
+    else:
+        assert packet.type == RequestCodeEnum.PRINT_BITMAP_ROW_INDEXED
+        assert list(struct.unpack(f">{len(positions)}H", packet.data[6:])) == positions
+
+
+@pytest.mark.parametrize("meta", modelsLibrary, ids=lambda meta: meta["model"].name)
+@pytest.mark.parametrize("native_width", [False, True])
+async def test_solid_rows_encode_for_every_model(meta, native_width):
+    width = meta["printheadPixels"] if native_width else 400
+    transport = FakeTransport()
+    await PrinterClient(transport=transport).set_image(
+        Image.new("L", (width, 1), color=0), printhead_pixels=meta["printheadPixels"]
+    )
+    (packet,) = transport.written_packets
+    assert packet.type == RequestCodeEnum.PRINT_BITMAP_ROW
+    assert sum(byte.bit_count() for byte in packet.data[6:]) == width
+
+
+@pytest.mark.parametrize("head_width", [832, 984, 1248])
+def test_wide_heads_use_total_count_when_split_overflows(head_width):
+    client = PrinterClient(transport=FakeTransport())
+    assert client._row_counter_bytes(bytes([255]) * 50, head_width) == b"\x00\x90\x01"

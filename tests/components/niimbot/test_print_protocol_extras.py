@@ -4,6 +4,7 @@ import asyncio
 import struct
 
 from PIL import Image
+import pytest
 
 from custom_components.niimbot.niimprint.model import (
     RfidClass,
@@ -72,6 +73,25 @@ def test_get_printer_status_data():
         assert data["raw_version"] == 305
 
     run(_test())
+
+
+@pytest.mark.parametrize("length", [4, 8, 10])
+async def test_print_status_response_lengths(length):
+    payload = struct.pack(">HBB", 2, 80, 40) + bytes(length - 4)
+    transport = FakeTransport(
+        [NiimbotPacket(RequestCodeEnum.GET_PRINT_STATUS + 16, payload)]
+    )
+    status = await PrinterClient(transport=transport).get_print_status()
+    assert status["page"] == 2
+    assert status["progress"] == 80
+
+
+async def test_truncated_print_status_is_a_clear_error():
+    transport = FakeTransport(
+        [NiimbotPacket(RequestCodeEnum.GET_PRINT_STATUS + 16, b"\x00\x01")]
+    )
+    with pytest.raises(ValueError, match="Invalid print status response"):
+        await PrinterClient(transport=transport).get_print_status()
 
 
 def test_get_rfid2_parses_like_rfid():
