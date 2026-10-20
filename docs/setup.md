@@ -4,7 +4,7 @@
 
 Requires HA 2025.1.0 or later and Python 3.13 or later for the existing blesession/imagespec requirements. HA 2025.1 running Python 3.12 cannot install those packages.
 
-1. Install `eigger/hass-niimbot` through HACS as a custom repository, or copy `custom_components/niimbot` into your Home Assistant configuration.
+1. In HACS, search for **Niimbot** in the default catalog and install it, or copy `custom_components/niimbot` into your Home Assistant configuration.
 2. Restart Home Assistant.
 3. Add **Niimbot** from **Settings → Devices & services** and select a discovered printer.
 

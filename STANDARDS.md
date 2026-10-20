@@ -1,14 +1,34 @@
 # 적용한 공통 규칙
 
-- 표준: https://github.com/eigger/hass-repo-standards/tree/0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44
-- 참조 커밋 SHA: `0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44`
-- 검토일: 2026-10-20; 이전 기준 `7acd9cab6ac774e4695f2c962e3d88b5faa4620d`에서 명시적 재채택
+- 표준: https://github.com/eigger/hass-repo-standards/tree/648dad941a118c80325f44c7a13cb5b5b9c1c788
+- 참조 커밋 SHA: `648dad941a118c80325f44c7a13cb5b5b9c1c788`
+- 검토일: 2026-10-20; 이전 기준 `0490b2ad8378364b487746ea18fca7a0e1d22edc`에서 공식 Hassfest source 검증 호환 경로 채택
 - profile: integration / ha; 실제 domain `niimbot`, 기본 브랜치 `master`
-- 시작 커밋: `a61795fbbf101650965be10a81b722bb6d1c2925`; 통합 버전 `4.2.3`
+- 시작 커밋: `96b6482f419c3f77efd83c627cfefaacd6f22733` (PR #130 병합 후); 통합 버전 `4.2.3`
 - 지원 최소 HA `2025.1.0` / Python `3.13` 유지; current HA `2026.10.2` / Python `3.14`
 - 구현: implement; 독립 리뷰·검증: review; 최종 통합·PR: root
-- 실제 검증 및 남은 작업: [2026-10-20 재검토](ADOPTION_CHECKLIST.md#2026-10-20-재검토)
+- 실제 검증 및 남은 작업: [HACS 설치·배지·카테고리 후속 검토](ADOPTION_CHECKLIST.md#hacs-설치배지카테고리-후속-검토)
 - 중앙 현황: 이번 시작·단계 기록을 로컬 중앙 checkout의 niimbot 행에 반영; 원격 반영은 별도 상태로 보고
+
+## 공식 Hassfest source 검증 호환 경로
+
+현재 참조는 사용자가 명시적으로 요청한 [중앙 PR #10](https://github.com/eigger/hass-repo-standards/pull/10)의 squash 병합 후 main full SHA `648dad941a118c80325f44c7a13cb5b5b9c1c788`입니다. 앞서 검토한 PR commit `4d436cb2fc57be557cbbf4a20702249694a5d0c7`와 workflow/scripts/actions/templates/docs의 내용이 같음을 확인하고 병합 SHA로 고정했습니다. 중앙 PR은 병합되었으며 대상 [PR #131](https://github.com/eigger/hass-niimbot/pull/131)은 아직 열려 있습니다. `@main`으로 참조 정책을 변경하지 않았습니다.
+
+PR #131의 `f63adccf314c349634f2cfd05da658d5d1e6830f`에서 HACS는10검사를 통과했지만 공식 published Hassfest 이미지가 `categories` 키 자체를 거부해 [Validate39420628025](https://github.com/eigger/hass-niimbot/actions/runs/39420628025)가 실패했습니다. 올바른 프린터 분류를 삭제하거나 검사를 생략하지 않고, Validate caller에만 `hassfest-core-ref: ec18d8b25d1ee39aa8b85a72a170e42bee33228c`를 지정했습니다. 이 공식 Core commit은 custom categories 스키마 지원과 검토된 taxonomy를 포함합니다. 중앙 source 경로는 고정 upstream URL/full SHA/실제 HEAD를 확인해 runner.temp에서 수정하지 않은 공식 Dockerfile을 빌드하고, 원래 caller checkout을 mount하여 전체 Hassfest를 실행합니다. fetch/build/검증 오류는 실패하며 빈 입력의 기존 공식 action 경로도 유지됩니다.
+
+중앙 호환 패치는 구현·독립216개 unit tests와 정적 검사를 통과했습니다. 실제 local ARM64 build는 wheel 준비 정체로 약5분에 취소되어 완성 이미지·실제 Hassfest 성공을 확인하지 못했습니다. 대상 PR의 새 head에서 수행할 source build·전체 Hassfest와 다른 필수 CI 결과가 실제 완료되기 전에는 해결/PASS로 기록하지 않습니다. 통합 runtime·manifest 분류·지원 최소·의존성은 이 CI 수정에서 변경하지 않았습니다.
+
+## HACS 설치·배지·카테고리 후속 범위
+
+최신 중앙 렌더러로 양언어 README의 기존 설치 절에 저장소별 My Home Assistant HACS 배지 관리 블록을 추가했습니다. HACS가 먼저 설치되어 있어야 하며 배지는 저장소 화면을 열고 다운로드·재시작·통합 추가는 기존 절차를 따릅니다. Default 통계 배지는 공식 HACS 데이터의 `full_name`/`downloads` 동적 조회로 변경했습니다. 현재 확인된 리포 항목에 downloads가 없으므로 집계 확인 불가이며 0이나 활성 설치 수로 해석하지 않습니다. `docs/setup.md`의 과거 Custom repository 안내도 Default 목록 검색으로 맞췄습니다.
+
+HA-02의 중앙 채택 정책으로 실제 Niimbot BLE 라벨 프린터 용도에 `computers_network.printers` 하나를 선택했습니다. 근거는 README 소개·지원 프린터 문서·실제 `niimbot.print` 액션과 중앙에 기록된 공식 Core taxonomy snapshot입니다. sensor/button 플랫폼이나 Bluetooth 의존성에서 별도 제품 용도를 추정하지 않아 보조 분류는 추가하지 않았습니다. 기존 integration_type 미선언은 그대로 유지하고 categories_review에는 null로 기록했습니다. 공식 HA 선택 필드/HACS 경고와 중앙 필수 정책을 구분하며 런타임·버전·의존성·지원 최소는 변경하지 않았습니다.
+
+이번 clean 중앙 SHA로 inspect/plan을 실행했고 categories 차이를 자동 덮어쓰지 않는 conflict 및 기존 minimum-ha CI 보존 충돌을 검토했습니다. manifest 분류는 근거를 확인해 수동 보완하고, README는 같은 중앙 렌더러로 생성했습니다. 충돌 plan에 apply를 실행하거나 guard를 우회하지 않았습니다. 산출물은 `/private/tmp/niimbot-hacs-followup-20261020/`에 있습니다. CI는 기존 minimum/current matrix·주기·권한을 보존하며 검토 SHA만 갱신했습니다.
+
+## 이전 2026-10-20 기준 채택 기록 (과거 범위)
+
+아래는 PR #130 이전 채택의 영향과 검증 범위를 보존한 기록이며 이번 후속 작업 결과와 구분합니다.
 
 ## 이번 기준 변경의 영향
 

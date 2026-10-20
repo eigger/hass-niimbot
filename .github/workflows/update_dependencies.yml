@@ -10,9 +10,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: eigger/hass-repo-standards/.github/workflows/dependency-update.yml@0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44 # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/dependency-update.yml@648dad941a118c80325f44c7a13cb5b5b9c1c788 # reviewed shared standards
     with:
-      standards-ref: 0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44
+      standards-ref: 648dad941a118c80325f44c7a13cb5b5b9c1c788
       domain: niimbot
       packages: '["imagespec", "blesession"]'
       python-version: '3.14'

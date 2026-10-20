@@ -12,7 +12,7 @@ Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot
 [![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
-[![Analytics reporting installs](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=Usage&query=%24.niimbot.total&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json)](https://analytics.home-assistant.io/)
+[![HACS Downloads](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=HACS+Downloads&query=%24%5B%3F%28%40.full_name%3D%3D%22eigger%2Fhass-niimbot%22%29%5D.downloads&url=https%3A%2F%2Fdata-v2.hacs.xyz%2Fintegration%2Fdata.json)](https://www.hacs.xyz/)
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
@@ -26,7 +26,11 @@ HACS 기본 목록으로 배포하는 커스텀 통합입니다. Home Assistant 
 
 ## 설치
 
-HACS 기본 목록에서 **Niimbot**을 검색해 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
+<!-- hass-standards:installation:start -->
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eigger&repository=hass-niimbot)
+<!-- hass-standards:installation:end -->
+
+HACS를 먼저 설치·설정하세요. 위 배지는 HACS의 저장소 화면을 엽니다. HACS 기본 목록에서 **Niimbot**을 검색해 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
 
 프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth 프록시 설정](https://github.com/eigger/blesession/blob/main/docs/bluetooth.ko.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/troubleshooting.ko.md)을 확인하세요.
 
@@ -64,7 +68,7 @@ data:
 - [라이선스](LICENSE)
 - [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
 
-Usage 배지는 데이터 제공에 동의한 Home Assistant Analytics 참여 설치 집계입니다. 미집계·조회 실패를 설치 수 0으로 해석하지 않습니다.
+HACS Downloads 배지는 HACS가 선택한 릴리스의 대상 asset 다운로드 수를 공식 HACS 데이터로 표시합니다. 전체 릴리스·모든 asset의 합계나 활성 설치 수가 아닙니다. 데이터 누락·조회 실패는 집계 확인 불가를 뜻하며 설치 수 0으로 해석하지 않습니다.
 
 <!-- hass-standards:support:start -->
 ## 지원

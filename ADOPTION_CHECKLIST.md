@@ -1,3 +1,68 @@
+# 공식 Hassfest source 검증 CI 후속
+
+- 일자: 2026-10-20. 대상: [PR #131](https://github.com/eigger/hass-niimbot/pull/131)의 기존 head `f63adccf314c349634f2cfd05da658d5d1e6830f` 기반 CI/기록 변경.
+- 중앙 기준: [중앙 PR #10](https://github.com/eigger/hass-repo-standards/pull/10)의 squash 병합 main full SHA `648dad941a118c80325f44c7a13cb5b5b9c1c788`; 앞서 검토한 PR commit `4d436cb2fc57be557cbbf4a20702249694a5d0c7`에서 병합 SHA로 동기화.
+- 중앙 PR의 squash 병합을 먼저 진행하라는 사용자 명시적 요청에 따라 중앙 PR10은 병합 완료했습니다. target PR131은 열린 상태로 새 head의 실제 CI를 기다립니다. 앞서 검토한 PR commit과 workflow/scripts/actions/templates/docs 차이 없음을 확인했으며 고정 SHA 정책을 유지합니다.
+
+| 항목 | 현재 상태 | 이번 근거 / 남은 일 |
+|---|---|---|
+| 원격 기존 검증 | HACS PASS / Hassfest FAIL | f63adcc의 [Validate39420628025](https://github.com/eigger/hass-niimbot/actions/runs/39420628025): HACS10검사(categories 포함) 및 중앙 관리 영역 검사는 통과했지만 published Hassfest가 `categories` 키 자체를 거부. 선택한 프린터 분류 오류가 아니며 실패를 완료/PASS로 바꾸지 않음. |
+| CI 호환 경로 | 적용·실행 대기 | Validate caller에만 `hassfest-core-ref: ec18d8b25d1ee39aa8b85a72a170e42bee33228c` 추가. 올바른 categories/최소 HA/의존성을 보존하고 공식 source Dockerfile/entrypoint/전체 validator를 실행하도록 중앙 PR 경로 선택. 오류 억제·manifest 전처리 없음. |
+| 공용 참조 | PASS (정적) | Tests/current·minimum/Update dependencies/Validate/check-standards와 STANDARDS의 fullSHA를648dad9로 동기화. 기존 matrix·주기·권한 유지. |
+| 중앙 패치 검증 | PASS (도구 단위·정적) | 중앙 구현·독립216unit tests 각각79.194s/76.676s; 새7개에서 ref/HEAD/collision/fetch/build/run 실패와 caller mount 보존 검증. Ruff92files·actionlint·중앙37documents7workflows PASS. 이 결과는 실제 source 이미지 실행 성공을 대신하지 않음. |
+| 실제 로컬 image build | 미완료·취소 | 정확한 Core HEAD 확인 및 수정 없는 upstream Dockerfile로 ARM64 build. base/CI tools 설치·115package resolve 후 wheel 준비 정체, 약5분에 취소(exit130). host exact wheel GET200이지만 Docker/uv 정체 원인은 확정하지 않음. 완성 이미지·실제 Hassfest 실행 PASS 없음. |
+| 새 PR head 원격 CI | TODO | push 후 target PR131에서 source fetch/build/전체 Hassfest와 HACS/중앙검사/Tests를 실행해 동일 head 근거 기록. 이 단계 전 기존 실패 해결로 주장하지 않음. |
+| GOV 도구·정적 | PASS (검사) / 계획 충돌 보존 | 게시 중앙 commit으로 inspect/source-ci-plan 실행. 기존 custom CI3파일은 preserve conflict, 설정 JSON의 canonical 정리 operation1개. 기존 계획을 강제로 apply하지 않고 필요한 CI 참조·옵션만 수동 병합. 새 checker가 해당 선택 input을 허용함을 실제 검사. |
+| runtime·지원 | 변경 없음 | 이번 추가 수정은 CI/개발문서/기록만; manifest/runtime/HA최소2025.1.0/의존성/분류/통합버전4.2.3 유지. 기존 HA 로컬644case 결과는 아래 역사 기록이며 이번 source build 검증으로 재사용하지 않음. |
+
+실제 명령: 게시 중앙 checkout의 `python scripts/check_integration.py . --check`, `python scripts/sync_badges.py . --check`, `python scripts/check_repository.py`, actionlint1.7.12 `.github/workflows/*.yml`, `git diff --check` PASS. 기존 로컬 HA 환경에 패키지를 추가·교체하지 않았습니다. 새 필수 검증은 target PR131의 실제 CI에서 수행하며 결과 전에는 미완료입니다.
+
+앞선 중앙 PR commit4d436cb 기준의 `source-ci-inventory.json`/`source-ci-plan.json` 및 로컬 build/unit 로그는 `/private/tmp/niimbot-hacs-followup-20261020/`에 보존합니다. 중앙 main648dad9 병합 후 해당 clean checkout으로 중앙 통합 검사·배지·repository 검사와 actionlint/diff 검사를 재실행해 통과했습니다. target6bb5401의 병합 전 SHA 기반 source CI는 새 head 실행으로 대체되므로 그 결과를 병합 SHA 검증으로 재사용하지 않습니다. 대상 기본브랜치 반영·새 head의 실제 source build/Hassfest 검증은 아직 미완료입니다.
+
+---
+
+## 아래는 앞선 HACS 설치·배지·카테고리 적용의 검증 기록입니다
+
+# HACS 설치·배지·카테고리 후속 검토
+
+- 일자: 2026-10-20. 대상: PR #130 병합 후 `master`의 `96b6482f419c3f77efd83c627cfefaacd6f22733` 기반 로컬 tree.
+- 중앙 기준: `0490b2ad8378364b487746ea18fca7a0e1d22edc`, 이전 `0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44`.
+- 범위: 양언어 HACS 설치 배지·Default 다운로드 배지·설치 설명, 실제 제품 분류 메타데이터, 공용 SHA 동기화. runtime/통합 버전4.2.3/의존성/HA 최소2025.1.0/Python 최소3.13/기존 CI matrix 유지.
+
+| 항목 | 상태 | 이번 근거 / 제한 |
+|---|---|---|
+| GOV-01/02, CI | PASS (정적) | STANDARDS 기준 SHA 및 공용 workflow/action/standards-ref 일치, current/minimum HA·library matrix/권한/주기 보존. |
+| DOC-03/05 | PASS (정적) | 중앙 렌더러의 HACS Downloads 동적 badge로 교체; 공식 data.json에서 full_name 선택. HTTP200과 리포 항목848680333 존재를 확인했으나 downloads 필드는 현재 없음. 0·활성 설치 수·전체 릴리스 합계로 주장하지 않으며 표시 성공은 미확인. |
+| DOC-06 설치 | PASS (정적) | 기존 영한 설치 절·본문을 보존하고 installation 관리 블록 추가. 실제 owner=eigger/repository=hass-niimbot. Default는 category 파라미터 생략, HACS 사전 설치·사용자 다운로드/재시작 절차 명시. docs/setup.md의 오래된 custom repository 안내 수정. 실제 HA 브라우저 링크 클릭은 미검증. |
+| HA-02 categories | PASS (선택·정적) | 실제 제품 Niimbot BLE 라벨 프린터와 niimbot.print 용도로 computers_network.printers1개 선택. 공식 Core taxonomy snapshot ec18d8b...의 값. 센서·Bluetooth를 별도 제품 카테고리로 추정하지 않음. 기존 integration_type 미선언 유지, categories_review null 및 판단 근거 기록. HACS 누락 경고와 중앙 필수 정책을 구분. |
+| GOV 도구 | 검토·수동 병합 | clean 중앙 checkout의 inspect 및 initial-plan 실제 실행. categories 자동 변경 금지/기존 CI 보존 conflict를 확인 후 manifest를 근거에 따라 수동 보완. README는 check_integration.py --write-readmes 중앙 렌더러 사용. reviewed-plan은 operation0이지만 CI/설정4개의 dirty guard conflict를 계속 보고. apply 미실행, guard 우회·자동적용 성공 주장 없음. |
+| TEST / DOC-08 | PASS (로컬 실행) | 실제 최소/current HA에서 기존 entry·flow·platform·registry·reload/unload/부분 실패 회귀18case 및 mandatory payload1case를 각각 실행. 기존 package 교체·기기 명령 없음. 아래 실행 증거 참조. |
+| GOV-05 독립 검토 | PASS | implement 구현과 review 독립 검증 분리; 독립 코드/번역/분류 의미·근거·배지 query 검토 및 양 HA 전체644case 통과, 필수 지적 없음. |
+| HACS/Hassfest/원격 CI | TODO | 이번 PR head 커밋의 원격 결과 확인 필요. PR #130 병합96b6482의 Tests39413126318/Validate39413126356 성공은 이번 변경 검증으로 재사용하지 않음. |
+| 예외·기기·배포 | 기존 범위 유지 | STANDARDS의 HA-12 기존 로컬 진단 속성 범위 유지. 신규 예외·실물 인쇄·프록시 firmware·태그/릴리스 작업 없음. |
+
+## 후속 실제 실행 증거
+
+| 구현 환경 | Python / HA / plugin | 실제 imagespec / blesession | 실행 결과 |
+|---|---|---|---|
+| current | 3.14.5 / 2026.10.2 / 0.13.373 | 1.1.0[datamatrix] / 0.9.0 | 실제 HA18PASS0.51s, payload1PASS0.19s, pip check PASS |
+| exact minimum | 3.13.14 / 2025.1.0 / 0.13.201 | 1.1.0[datamatrix] / 0.9.0 | 실제 HA18PASS0.50s, payload1PASS0.20s, pip check PASS |
+| 독립 current | 3.14.5 / 2026.10.2 / 0.13.373 | 1.1.0[datamatrix] / 0.9.0 | 전체644PASS9.08s, payload1PASS0.18s, pip check PASS |
+| 독립 exact minimum | 3.13.14 / 2025.1.0 / 0.13.201 | 1.1.0[datamatrix] / 0.9.0 | 전체644PASS8.78s, payload1PASS0.16s, pip check PASS |
+
+- 기존 분리 venv `/private/tmp/niimbot-implementation-20261020-{current,minimum}`의 이미 resolve된 패키지로 실행; payload 검증 후 패키지 덮어 설치 없음.
+- HA 명령: `<env>/bin/python -m pytest tests/components/niimbot/test_init.py tests/components/niimbot/test_config_flow.py -q --timeout 120`. 실제 manifest loader·entry setup·6플랫폼·registry·flow·reload/unload 및 부분setup 실패 처리 검증, skip0.
+- payload 명령: `PAYLOAD_REPOSITORY="$PWD" PAYLOAD_DOMAIN=niimbot PYTHONPATH=<reviewed-central>/scripts <env>/bin/python -m pytest -p hass_standards_payload tests/components/niimbot/test_payload_examples.py -q --timeout 120`. 실제 HA/등록 액션/production render_image와 설치된 public imagespec 출력·크기·palette 비교1case, skip0.
+- 중앙 `check_integration.py . --check`, `sync_badges.py . --check`, actionlint1.7.12 `.github/workflows/*.yml`, `git diff --check` PASS. `check_repository.py`는 중앙37documents7workflows PASS이며 대상 통합 원격 CI/하드웨어 성공을 대신하지 않음.
+- 도구 입력/계획 및 로그: `/private/tmp/niimbot-hacs-followup-20261020/{inventory,input,initial-plan,reviewed-plan}.json`, `{current,minimum}-{payload,ha,pip-check}.log`.
+- 구현 담당은 문서·metadata scope에 맞춰 위18case+payload를 실행했고 독립 담당은 같은 tree의 전체644case 회귀를 양 환경에서 별도 재실행했습니다. 독립 명령은 payload 성공 후 `<env>/bin/python -m pytest tests/components/niimbot/ -q --timeout 120 --ignore=tests/components/niimbot/test_payload_examples.py`; skip0. 독립 로그 `/private/tmp/niimbot-review-hacs-followup-{current,minimum}-{payload,regression}.log`. 독립 Ruff0.17.1 check/format81files·중앙 검사·배지·actionlint·diffcheck도 PASS. PR Tests의 전체 HA×library matrix는 별도 확인합니다. 아래의 이전 실행은 역사 기록입니다.
+
+## 후속 남은 작업
+
+PR 생성·동일 head의 Tests/Validate 및 독립 최종 리뷰를 기록합니다. 기본 브랜치 반영·해당 커밋 검증 후 중앙 현황의 완료 여부를 갱신하며 중앙 로컬 편집을 원격 반영으로 간주하지 않습니다.
+
+---
+
 # 2026-10-20 재검토
 
 이번 검토 대상은 `a61795fbbf101650965be10a81b722bb6d1c2925` 기반 로컬 변경이며 중앙 기준은 `0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44`입니다. 과거 PASS는 아래 역사 기록으로 보존하며 이번 검증과 구분합니다.
