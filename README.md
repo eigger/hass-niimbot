@@ -12,7 +12,7 @@ Print labels with Niimbot printers from Home Assistant using imagespec payloads 
 [![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
-[![Analytics reporting installs](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=Usage&query=%24.niimbot.total&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json)](https://analytics.home-assistant.io/)
+[![HACS Downloads](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=HACS+Downloads&query=%24%5B%3F%28%40.full_name%3D%3D%22eigger%2Fhass-niimbot%22%29%5D.downloads&url=https%3A%2F%2Fdata-v2.hacs.xyz%2Fintegration%2Fdata.json)](https://www.hacs.xyz/)
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
@@ -26,7 +26,11 @@ This is a custom integration distributed through the HACS default catalog. Home 
 
 ## Installation
 
-In HACS, search for **Niimbot** and install it from the default catalog, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
+<!-- hass-standards:installation:start -->
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eigger&repository=hass-niimbot)
+<!-- hass-standards:installation:end -->
+
+Install and configure HACS first; the button opens this repository in HACS. In HACS, search for **Niimbot** and install it from the default catalog, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
 
 Turn the printer on, wake it from sleep and disconnect the NIIMBOT phone app before setup or printing. See [Bluetooth proxy setup](https://github.com/eigger/blesession/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
 
@@ -64,7 +68,7 @@ Online label lookup is optional and off by default. When enabled, only the label
 - [License](LICENSE)
 - [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
 
-The Usage badge counts installations participating in opt-in Home Assistant Analytics; missing data does not mean zero installations.
+The HACS Downloads badge uses the target asset download count for the release selected by HACS, from official HACS data. It is not a total across all releases or assets, or a count of active installations. Missing data or a failed request means the count is unavailable, not zero installations.
 
 <!-- hass-standards:support:start -->
 ## Support
