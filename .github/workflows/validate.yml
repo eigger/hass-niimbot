@@ -13,7 +13,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validate:
-    uses: eigger/hass-repo-standards/.github/workflows/validate-integration.yml@0490b2ad8378364b487746ea18fca7a0e1d22edc # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/validate-integration.yml@4d436cb2fc57be557cbbf4a20702249694a5d0c7 # reviewed shared standards
+    with:
+      hassfest-core-ref: ec18d8b25d1ee39aa8b85a72a170e42bee33228c
   standards:
     name: Central template compliance
     runs-on: ubuntu-latest
@@ -26,4 +28,4 @@ jobs:
       with:
         python-version: '3.14'
     # Replace main with the reviewed full standards SHA during adoption.
-    - uses: eigger/hass-repo-standards/actions/check-standards@0490b2ad8378364b487746ea18fca7a0e1d22edc
+    - uses: eigger/hass-repo-standards/actions/check-standards@4d436cb2fc57be557cbbf4a20702249694a5d0c7

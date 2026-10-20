@@ -1,3 +1,28 @@
+# 공식 Hassfest source 검증 CI 후속
+
+- 일자: 2026-10-20. 대상: [PR #131](https://github.com/eigger/hass-niimbot/pull/131)의 기존 head `f63adccf314c349634f2cfd05da658d5d1e6830f` 기반 CI/기록 변경.
+- 중앙 기준: [중앙 PR #10](https://github.com/eigger/hass-repo-standards/pull/10)의 게시·검토 full SHA `4d436cb2fc57be557cbbf4a20702249694a5d0c7`; 이전 `0490b2ad8378364b487746ea18fca7a0e1d22edc`.
+- 중앙 PR의 게시에 대한 사용자 명시적 승인 후 채택한 commit이며 main 병합 완료로 표현하지 않습니다. 두 PR은 열린 상태이고 중앙 의존성 검토가 필요합니다. 고정 SHA 정책을 유지합니다.
+
+| 항목 | 현재 상태 | 이번 근거 / 남은 일 |
+|---|---|---|
+| 원격 기존 검증 | HACS PASS / Hassfest FAIL | f63adcc의 [Validate39420628025](https://github.com/eigger/hass-niimbot/actions/runs/39420628025): HACS10검사(categories 포함) 및 중앙 관리 영역 검사는 통과했지만 published Hassfest가 `categories` 키 자체를 거부. 선택한 프린터 분류 오류가 아니며 실패를 완료/PASS로 바꾸지 않음. |
+| CI 호환 경로 | 적용·실행 대기 | Validate caller에만 `hassfest-core-ref: ec18d8b25d1ee39aa8b85a72a170e42bee33228c` 추가. 올바른 categories/최소 HA/의존성을 보존하고 공식 source Dockerfile/entrypoint/전체 validator를 실행하도록 중앙 PR 경로 선택. 오류 억제·manifest 전처리 없음. |
+| 공용 참조 | PASS (정적) | Tests/current·minimum/Update dependencies/Validate/check-standards와 STANDARDS의 fullSHA를4d436cb로 동기화. 기존 matrix·주기·권한 유지. |
+| 중앙 패치 검증 | PASS (도구 단위·정적) | 중앙 구현·독립216unit tests 각각79.194s/76.676s; 새7개에서 ref/HEAD/collision/fetch/build/run 실패와 caller mount 보존 검증. Ruff92files·actionlint·중앙37documents7workflows PASS. 이 결과는 실제 source 이미지 실행 성공을 대신하지 않음. |
+| 실제 로컬 image build | 미완료·취소 | 정확한 Core HEAD 확인 및 수정 없는 upstream Dockerfile로 ARM64 build. base/CI tools 설치·115package resolve 후 wheel 준비 정체, 약5분에 취소(exit130). host exact wheel GET200이지만 Docker/uv 정체 원인은 확정하지 않음. 완성 이미지·실제 Hassfest 실행 PASS 없음. |
+| 새 PR head 원격 CI | TODO | push 후 target PR131에서 source fetch/build/전체 Hassfest와 HACS/중앙검사/Tests를 실행해 동일 head 근거 기록. 이 단계 전 기존 실패 해결로 주장하지 않음. |
+| GOV 도구·정적 | PASS (검사) / 계획 충돌 보존 | 게시 중앙 commit으로 inspect/source-ci-plan 실행. 기존 custom CI3파일은 preserve conflict, 설정 JSON의 canonical 정리 operation1개. 기존 계획을 강제로 apply하지 않고 필요한 CI 참조·옵션만 수동 병합. 새 checker가 해당 선택 input을 허용함을 실제 검사. |
+| runtime·지원 | 변경 없음 | 이번 추가 수정은 CI/개발문서/기록만; manifest/runtime/HA최소2025.1.0/의존성/분류/통합버전4.2.3 유지. 기존 HA 로컬644case 결과는 아래 역사 기록이며 이번 source build 검증으로 재사용하지 않음. |
+
+실제 명령: 게시 중앙 checkout의 `python scripts/check_integration.py . --check`, `python scripts/sync_badges.py . --check`, `python scripts/check_repository.py`, actionlint1.7.12 `.github/workflows/*.yml`, `git diff --check` PASS. 기존 로컬 HA 환경에 패키지를 추가·교체하지 않았습니다. 새 필수 검증은 target PR131의 실제 CI에서 수행하며 결과 전에는 미완료입니다.
+
+중앙 PR10의 fullSHA를 새 기준으로 한 `source-ci-inventory.json`/`source-ci-plan.json` 및 로컬 build/unit 로그는 `/private/tmp/niimbot-hacs-followup-20261020/`에 있습니다. 중앙 main 병합·대상 기본브랜치 반영 및 해당 커밋 검증은 이 기록 시점에 수행하지 않았습니다.
+
+---
+
+## 아래는 앞선 HACS 설치·배지·카테고리 적용의 검증 기록입니다
+
 # HACS 설치·배지·카테고리 후속 검토
 
 - 일자: 2026-10-20. 대상: PR #130 병합 후 `master`의 `96b6482f419c3f77efd83c627cfefaacd6f22733` 기반 로컬 tree.
