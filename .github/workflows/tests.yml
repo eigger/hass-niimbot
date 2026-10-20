@@ -11,8 +11,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   current:
-    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@7acd9cab6ac774e4695f2c962e3d88b5faa4620d # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44 # reviewed shared standards
     with:
+      standards-ref: 0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44
       domain: niimbot
       python-versions: '["3.14"]'
       requirements: requirements_test.txt
@@ -23,8 +24,9 @@ jobs:
       ha-components: bluetooth bluetooth_adapters recorder
       pytest-args: tests/components/niimbot/ -v --timeout 120
   minimum-ha:
-    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@7acd9cab6ac774e4695f2c962e3d88b5faa4620d # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44 # reviewed shared standards
     with:
+      standards-ref: 0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44
       domain: niimbot
       python-versions: '["3.13"]'
       requirements: requirements_test_min.txt

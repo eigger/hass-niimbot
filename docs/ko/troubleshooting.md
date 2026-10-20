@@ -1,5 +1,7 @@
 # 트러블슈팅
 
+최신 기기별 안내는 [문제 해결](../troubleshooting.ko.md)을 확인하세요.
+
 **[English](../troubleshooting.md)** | 한국어
 
 > 영어 문서가 기준입니다. 내용이 다르면 [영어 원문](../troubleshooting.md)을 따릅니다. 엔티티 이름과 속성 키는 Home Assistant 화면에 보이는 영어 그대로 적었습니다.
@@ -8,7 +10,7 @@
 
 ## 프린터와 Bluetooth 경로 준비
 
-먼저 [Bluetooth 프록시 설정](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.ko.md)을 확인하세요. 전원 버튼으로 프린터를 깨우고 충전, 맞는 롤 장착, 커버 닫힘을 확인합니다. NIIMBOT 휴대폰 앱과 다른 BLE 클라이언트를 종료하세요. 다른 앱이 점유 중이어도 광고는 보일 수 있습니다. 발견이 GATT 연결이나 인쇄 성공을 뜻하지 않습니다.
+먼저 [Bluetooth 프록시 설정](https://github.com/eigger/blesession/blob/main/docs/bluetooth.ko.md)을 확인하세요. 전원 버튼으로 프린터를 깨우고 충전, 맞는 롤 장착, 커버 닫힘을 확인합니다. NIIMBOT 휴대폰 앱과 다른 BLE 클라이언트를 종료하세요. 다른 앱이 점유 중이어도 광고는 보일 수 있습니다. 발견이 GATT 연결이나 인쇄 성공을 뜻하지 않습니다.
 
 설정 흐름은 계정, PIN, 본딩을 요구하지 않습니다. 특정 모델과 펌웨어의 추가 인증은 미검증이므로 모델과 펌웨어를 제보하세요. 전송 관련 통합 옵션은 폴링 간격과 **Keep Connection**이며 ESL 전용 재시도, Debounce는 제공하지 않습니다.
 

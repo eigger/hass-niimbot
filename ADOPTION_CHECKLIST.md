@@ -1,3 +1,51 @@
+# 2026-10-20 재검토
+
+이번 검토 대상은 `a61795fbbf101650965be10a81b722bb6d1c2925` 기반 로컬 변경이며 중앙 기준은 `0bfb572cbe49b92b3dbc559382c00bd0eb2cbd44`입니다. 과거 PASS는 아래 역사 기록으로 보존하며 이번 검증과 구분합니다.
+
+| 규칙 / 범위 | 이번 상태 | 근거·제한 |
+|---|---|---|
+| GOV-01/02 | PASS | STANDARDS 새 기준·이전 기준·영향 기록, 공용 CI full SHA/standards-ref 일치. |
+| GOV-04/05 | 진행 중 | implement 구현 / review 독립 검증 / root 통합. PR·동일 커밋 원격 CI·중앙 원격 현황 반영은 최종 기록 예정. |
+| GOV 관리 도구 | 검토·수동 병합 | inspect/initial-plan/reviewed-plan 실제 실행. 기존 CI 보존 및 dirty guard 충돌로 apply 미실행, 자동 적용 성공 주장 없음. 최종 operation 0이나 unresolved guard 4개이며 원인은 STANDARDS 기록. |
+| HACS-03/05, DOC-03/04/05 | PASS (정적·목록) | HACS 공식 목록 pinned commit에서 Default 확인, 양언어 배지/설치 안내 반영. 최소 HA2025.1.0 유지. 이 변경 커밋의 HACS/Hassfest는 PR 원격 CI 확인 전 TODO. |
+| DOC-01/02/06, DOC-07 | PASS (정적) | 중앙 렌더러 관리 영역/기존 본문 보존; 언어별 blesession 사용자 문서 및 로컬 고정 구조·이전 한국어 URL 보존. 실물 경로 새 검증 없음. |
+| DOC-08 | PASS (로컬 실행) | 전체 YAML preview 액션1개, 실제 HA entry/서비스/production render_image 및 _make_context 사용. 기기 전송 없음. current/exact-minimum 실행 근거는 아래 갱신. |
+| HA-11 | PASS (정적) | 기존 배포 en 번역을 strings 원본과 일치시켜 Core 참조 해결; 한국어 키·placeholder 보존. |
+| TEST-08/09, CI-01/04/07/12 | PASS (로컬 실행) | 중앙 root/domain 관리 fixture, 각 실제 플랫폼 registry/state/unload assertion 및 기존 회귀 보존. exact minimum/current HA와 각 library 조합 보존. |
+| CI-09/10 | 정적 확인 | updater 주기/범위/권한과 검증 command 보존; 새 공용 SHA가 필수 payload 계약 후 일반 회귀의 관리 scaffold만 제외. 실제 bot PR 쓰기 미실행. |
+| HA-12 | 기존 EXCEPTION | STANDARDS의 기존 로컬 진단 속성 운용 범위예외 유지. 신규 예외 없음. |
+| REL | N/A | 버전4.2.3/domain/support 변경 및 태그/릴리스 없음. |
+
+## 이번 실제 검증 증거
+
+대상은 위 시작 커밋 기반 최종 로컬 tree이며 코드·YAML·fixture는 검증 이후 변경하지 않았습니다. 문서/검증 기록의 후속 편집은 기능 결과와 구분합니다.
+
+| 환경 / 담당 | 실제 Python / HA / plugin | 실제 libraries | 결과 |
+|---|---|---|---|
+| fresh current / implement | 3.14.5 / 2026.10.2 / 0.13.373 | imagespec[datamatrix]1.1.0, blesession0.9.0, pyStrich0.20 | payload1PASS; regression644PASS; pip check PASS |
+| fresh exact minimum / implement | 3.13.14 / 2025.1.0 / 0.13.201 | imagespec[datamatrix]==1.1.0, blesession==0.9.0, pyStrich0.10 | payload1PASS; regression644PASS8.42s; pip check PASS |
+| independent current / review | 3.14.5 / 2026.10.2 / 0.13.373 | imagespec[datamatrix]1.1.0, blesession0.9.0 | payload1PASS0.16s; regression644PASS12.17s; pip check PASS |
+| independent exact minimum / review | 3.13.14 / 2025.1.0 / 0.13.201 | imagespec[datamatrix]==1.1.0, blesession==0.9.0 | payload1PASS0.15s; regression644PASS11.15s; pip check PASS |
+
+- fresh 환경은 각각 별도 venv에서 검토 SHA의 `actions/python-environment/install.py`로 실제 HA component requirements까지 동시 resolve했습니다. current는 resolver 선택, minimum은 manifest의 정확한 하한 모드입니다. 검증 후 패키지 덮어 설치는 하지 않았습니다. 각 HA의 current/minimum library 교차4조합은 PR Tests에서 별도로 검증하며 위2조합 결과를 미실행4조합 PASS로 확장하지 않습니다.
+- payload 명령: `PAYLOAD_REPOSITORY="$PWD" PAYLOAD_DOMAIN=niimbot PYTHONPATH=<reviewed-central>/scripts <env>/bin/python -m pytest -p hass_standards_payload tests/components/niimbot/test_payload_examples.py -q --timeout 120`. 예제 `examples/payload/minimal.yaml`1개가 실제 실행되어 production 렌더러/public imagespec 출력·240×96 크기·흑백 palette 일치 확인. 기기 명령 없음.
+- payload 성공 후 회귀 명령: `<env>/bin/python -m pytest tests/components/niimbot/ -q --timeout 120 --ignore=tests/components/niimbot/test_payload_examples.py`. 기존637case+추가7case=644case, skip0. 일반 수집도 중앙 모듈을 최상위 import하지 않으며 독립 plugin 없이 정상 회귀 실행.
+- 구현·독립 양쪽 Ruff0.17.1 `check .` 및 `format --check .`81files, 중앙 `check_integration.py . --check`, `git diff --check` PASS. 독립 actionlint1.7.12 PASS; root의 중앙 `check_repository.py`37documents7workflows PASS는 중앙 도구 자체 검증입니다.
+- initial plan에서 잘못 지정한 number 플랫폼/독립 coordinator scaffold는 실제 구현을 확인하여 입력에서 제거했습니다. 실제6플랫폼(sensor/image/binary_sensor/select/switch/button)과 인라인 coordinator 구현을 보존하고 가짜 기능을 만들지 않았습니다.
+- 최초 새 button test는 disabled-by-default maintenance button을 활성 상태로 가정해 양 환경에서 실패했습니다. 실제 registry disabled 상태를 확인하는 의미 있는 assertion으로 수정 후 위 전체644case를 독립 재실행하여 통과했습니다. current adapter의 ServiceCall signature 차이도 실제 minimum/current에 맞춰 수정 후 재검증했습니다.
+- 로컬 구현 로그: `/private/tmp/niimbot-adopt-20261020/{current-install,minimum-install,fresh-current-payload,fresh-minimum-payload,fresh-current-regression,fresh-minimum-regression}.log`; 독립 로그: `/private/tmp/niimbot-review-20261020-{current,minimum}-{payload,regression-final}.log`.
+- 독립 리뷰 지적: 커스텀 통합 명시 보존, trailing whitespace/formatter 수정, disabled button 검증 정정 완료. 최종 기능 지적 없음. 이번 변경 커밋의 원격 HACS/Hassfest/CI와 실물 출력은 아직 미검증입니다.
+
+## 이번 남은 작업
+
+- PR 생성 후 같은 head 커밋의 Tests/Validate(HACS·Hassfest·Central template compliance) 성공 확인.
+- 기본 브랜치 반영 및 해당 커밋 검증 후 중앙 현황 완료 처리. 중앙 로컬 편집은 원격 반영으로 간주하지 않음.
+- 이번 작업은 실물 프린터/proxy 출력 검증, updater의 실제 의존성 변경/봇 PR 생성, release/tag를 포함하지 않음.
+
+---
+
+## 2026-10-18 최초 채택 기록 (과거 증거)
+
 # 공통 규칙 적용 체크리스트
 
 2026-10-18 최초 채택 작업의 검증 기록입니다. 로컬 변경을 검토하며 원격 기본 브랜치 반영·CI 성공과 구분합니다. [사용법과 판정 기준](https://github.com/eigger/hass-repo-standards/blob/7acd9cab6ac774e4695f2c962e3d88b5faa4620d/docs/checklist.md)을 읽고, 아래 규칙은 `STANDARDS.md`에 기록한 표준 커밋에서 확인합니다. 태그·릴리스 대신 `main`의 검토 커밋을 기준으로 하며, 연결한 사용법과 규칙은 같은 검토 SHA로 고정했습니다.

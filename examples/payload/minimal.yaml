@@ -1,0 +1,16 @@
+# Select the image entity belonging to your Niimbot printer.
+# This is an unrotated 240 x 96 px canvas (about 30 x 12 mm at 203 DPI).
+action: niimbot.print
+target:
+  entity_id: image.niimbot_label
+data:
+  width: 240
+  height: 96
+  rotate: 0
+  preview: true
+  payload:
+    - type: text
+      value: Hello Niimbot!
+      x: 8
+      y: 8
+      size: 24
