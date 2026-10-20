@@ -1,7 +1,7 @@
 # 적용한 공통 규칙
 
-- 표준: https://github.com/eigger/hass-repo-standards/tree/4d436cb2fc57be557cbbf4a20702249694a5d0c7
-- 참조 커밋 SHA: `4d436cb2fc57be557cbbf4a20702249694a5d0c7`
+- 표준: https://github.com/eigger/hass-repo-standards/tree/648dad941a118c80325f44c7a13cb5b5b9c1c788
+- 참조 커밋 SHA: `648dad941a118c80325f44c7a13cb5b5b9c1c788`
 - 검토일: 2026-10-20; 이전 기준 `0490b2ad8378364b487746ea18fca7a0e1d22edc`에서 공식 Hassfest source 검증 호환 경로 채택
 - profile: integration / ha; 실제 domain `niimbot`, 기본 브랜치 `master`
 - 시작 커밋: `96b6482f419c3f77efd83c627cfefaacd6f22733` (PR #130 병합 후); 통합 버전 `4.2.3`
@@ -12,7 +12,7 @@
 
 ## 공식 Hassfest source 검증 호환 경로
 
-현재 참조는 중앙 main 병합 전 [중앙 PR #10](https://github.com/eigger/hass-repo-standards/pull/10)의 검토·게시 full SHA `4d436cb2fc57be557cbbf4a20702249694a5d0c7`입니다. 사용자가 중앙 CI 수정 PR의 게시를 명시적으로 승인한 범위에서 이 immutable commit을 채택하며 `@main`으로 정책을 변경하지 않았습니다. 중앙 PR과 대상 [PR #131](https://github.com/eigger/hass-niimbot/pull/131)은 아직 병합하지 않았으며 이 의존성을 별도로 검토해야 합니다.
+현재 참조는 사용자가 명시적으로 요청한 [중앙 PR #10](https://github.com/eigger/hass-repo-standards/pull/10)의 squash 병합 후 main full SHA `648dad941a118c80325f44c7a13cb5b5b9c1c788`입니다. 앞서 검토한 PR commit `4d436cb2fc57be557cbbf4a20702249694a5d0c7`와 workflow/scripts/actions/templates/docs의 내용이 같음을 확인하고 병합 SHA로 고정했습니다. 중앙 PR은 병합되었으며 대상 [PR #131](https://github.com/eigger/hass-niimbot/pull/131)은 아직 열려 있습니다. `@main`으로 참조 정책을 변경하지 않았습니다.
 
 PR #131의 `f63adccf314c349634f2cfd05da658d5d1e6830f`에서 HACS는10검사를 통과했지만 공식 published Hassfest 이미지가 `categories` 키 자체를 거부해 [Validate39420628025](https://github.com/eigger/hass-niimbot/actions/runs/39420628025)가 실패했습니다. 올바른 프린터 분류를 삭제하거나 검사를 생략하지 않고, Validate caller에만 `hassfest-core-ref: ec18d8b25d1ee39aa8b85a72a170e42bee33228c`를 지정했습니다. 이 공식 Core commit은 custom categories 스키마 지원과 검토된 taxonomy를 포함합니다. 중앙 source 경로는 고정 upstream URL/full SHA/실제 HEAD를 확인해 runner.temp에서 수정하지 않은 공식 Dockerfile을 빌드하고, 원래 caller checkout을 mount하여 전체 Hassfest를 실행합니다. fetch/build/검증 오류는 실패하며 빈 입력의 기존 공식 action 경로도 유지됩니다.
 
