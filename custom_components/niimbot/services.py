@@ -19,6 +19,8 @@ import io
 from collections.abc import Awaitable, Callable
 from functools import partial
 
+import voluptuous as vol
+
 from homeassistant.components.image import Image
 from homeassistant.core import (
     HomeAssistant,
@@ -39,6 +41,10 @@ from .types import NiimbotConfigEntry
 
 SERVICE_PRINT = "print"
 SERVICE_REFRESH_INFO = "refresh_info"
+
+# Keep the established action mapping intact: renderer/model code validates
+# payload and device-specific options after HA resolves action templates.
+PRINT_SCHEMA = vol.Schema({}, extra=vol.ALLOW_EXTRA)
 
 
 async def _extract_config_entry_ids(
@@ -63,6 +69,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_PRINT,
         partial(_async_print, hass),
+        schema=PRINT_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(

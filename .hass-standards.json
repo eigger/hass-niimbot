@@ -1,7 +1,7 @@
 {
   "repository": "eigger/hass-niimbot",
   "default_branch": "master",
-  "hacs": "custom",
+  "hacs": "default",
   "release": true,
   "readmes": [
     "README.md",
@@ -12,5 +12,65 @@
     "README.ko.md": "#설치"
   },
   "tests_workflow": "tests.yml",
-  "validate_workflow": "validate.yml"
+  "validate_workflow": "validate.yml",
+  "readme": {
+    "title": "hass-niimbot",
+    "descriptions": {
+      "en": "Print labels with Niimbot printers from Home Assistant using imagespec payloads over Bluetooth.",
+      "ko": "Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot 라벨을 인쇄하는 통합입니다."
+    },
+    "issues": true,
+    "discussions": true,
+    "related_projects": [
+      {
+        "name": "imagespec",
+        "url": "https://github.com/eigger/imagespec",
+        "description": {
+          "en": "payload renderer and element reference",
+          "ko": "페이로드 렌더러와 요소 참조"
+        }
+      },
+      {
+        "name": "niimblue",
+        "url": "https://github.com/MultiMote/niimblue",
+        "description": {
+          "en": "Niimbot protocol implementation",
+          "ko": "Niimbot 프로토콜 구현"
+        }
+      },
+      {
+        "name": "Stash",
+        "url": "https://github.com/eigger/stash",
+        "description": {
+          "en": "inventory manager with Niimbot printing support",
+          "ko": "Niimbot 인쇄를 지원하는 재고 관리 도구"
+        }
+      }
+    ],
+    "license_name": "MIT License",
+    "license_notices": {
+      "en": [],
+      "ko": []
+    }
+  },
+  "payload": {
+    "examples": [
+      {
+        "path": "examples/payload/minimal.yaml",
+        "payload_path": [
+          "data",
+          "payload"
+        ],
+        "expected_size": [
+          240,
+          96
+        ],
+        "expected_palette": [
+          "#000000",
+          "#ffffff"
+        ]
+      }
+    ]
+  },
+  "hacs_default_evidence": "https://github.com/hacs/default/blob/a75c02e2cb94db482c5aaddcc83d0dad00cc20a0/integration"
 }

@@ -1,12 +1,20 @@
 # Troubleshooting
 
-English | **[한국어](ko/troubleshooting.md)**
+English | **[한국어](troubleshooting.ko.md)**
+
+[README](../README.md)
+
+## Common troubleshooting
+
+For shared Bluetooth path checks, see [blesession troubleshooting](https://github.com/eigger/blesession/blob/main/docs/troubleshooting.md).
 
 When a label does not print, the integration has usually already recorded why. This page is the order to look in: first the sensors that hold the last BLE session's breakdown, then the cases those sensors cannot see, then what to attach to an issue.
 
-## Prepare the printer and Bluetooth path
+## Device-specific checks
 
-Start with the [Bluetooth proxy setup](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.md). Wake the printer with its power button, charge it, load the matching roll and close the cover. Close the NIIMBOT phone app and other BLE clients: an occupied printer may advertise but refuse connections. Discovery is advertisement reception, not proof of GATT connection or a successful print.
+### Prepare the printer and Bluetooth path
+
+Start with the [Bluetooth proxy setup](https://github.com/eigger/blesession/blob/main/docs/bluetooth.md). Wake the printer with its power button, charge it, load the matching roll and close the cover. Close the NIIMBOT phone app and other BLE clients: an occupied printer may advertise but refuse connections. Discovery is advertisement reception, not proof of GATT connection or a successful print.
 
 The config flow does not request an account, PIN or bonding. Additional model/firmware authentication is unverified; report the exact model and firmware. Transport options are polling interval and **Keep Connection**; ESL-specific retry/debounce options are not provided.
 
@@ -19,7 +27,18 @@ The config flow does not request an account, PIN or bonding. Additional model/fi
 
 For connection failures check `bluetooth_proxy.active`, free slots and other clients. For transfer failures check distance, printer battery, proxy power and network. **Keep Connection** occupies a finite connection slot; turn it off to compare stale-link failures. After restoring the path, use `niimbot.refresh_info` or one small print to reconnect. Check whether the previous label already printed before resending it. Local adapter/proxy combinations were not physically retested during standards adoption.
 
-## Where to look
+## Symptoms and actions
+
+| Symptom | Failing stage | Checks | Action |
+|---|---|---|---|
+| No connection | connect | Printer awake, app disconnected, free GATT slots | Wake, close the app, check the active proxy |
+| Notification or model setup failure | session | failed_detail and error | Check the model/roll; restart a stale proxy |
+| Image transfer stops | transfer | Battery, via, transfer_s, network | Restore the path and check whether the label already printed before retrying |
+| Label sent, refresh failed | finish | Physical label and consumable state | Avoid duplicate printing; refresh information |
+
+## Diagnostics and logs
+
+### Where to look
 
 Open the printer's device page (**Settings → Devices & services → Niimbot → the printer**). Under *Diagnostic* there are four entities to read, in this order:
 
@@ -30,7 +49,13 @@ Open the printer's device page (**Settings → Devices & services → Niimbot �
 | **Print Duration** | Seconds the **most recent** print took, success or not. Its *attributes* are the same breakdown for that print, attached when the job ends (while one runs — `is_printing: true` — it has only the elapsed time). Use it when the print you are debugging is the last one. |
 | **Error Count** | How many sessions have failed since the integration was (re)loaded. A poll that finds the printer asleep does not count; a failed print, a poll that connected and then failed, or a `niimbot.refresh_info` that could not connect does. Rising while nothing is printing means polls are failing after the link is up — read Last Failure's `failed_stage` before reading anything into the number. |
 
-To see the attributes: click the entity → ⋮ → **Attributes**, or in **Developer tools → States** search for the entity. In a template: `{{ state_attr('sensor.b21_123456_ddee03_last_failure', 'likely_cause') }}` (the id is the printer's advertised name plus the last six hex digits of its MAC).
+To see the attributes: click the entity → ⋮ → **Attributes**, or in **Developer tools → States** search for the entity. In a template:
+
+```jinja
+{{ state_attr('sensor.b21_123456_ddee03_last_failure', 'likely_cause') }}
+```
+
+ (the id is the printer's advertised name plus the last six hex digits of its MAC).
 
 Home Assistant also records the Print Duration attributes with each state change, so the history of that sensor has the breakdown of every print, not only the last failed one. Last Failure and Error Count start empty on a restart or reload; the history is where a failure from before it lives.
 
@@ -39,7 +64,7 @@ Two more entities help, but read them for what they are:
 - **Connection** (binary) — on while the BLE link is up. With **Keep Connection** off that is only during a poll or a print; with it on, the link stays open between jobs, so *on* does not mean a job is running.
 - **Print Progress** — the printer's own page/feed progress during a job. It stops where the job died; a failed print does not reach 100 %.
 
-## Reading the attributes
+### Reading the attributes
 
 The attributes are, in order. `failed_stage` is the shared name used across BLE integrations; `failed_detail` is the printer's own name for that stage, present only when the two differ.
 
@@ -56,13 +81,13 @@ The attributes are, in order. `failed_stage` is the shared name used across BLE 
 | `cancelled` | `true` when the job was stopped by `niimbot.cancel_print` or the printer's own cancel; not a failure. |
 | `refresh_error` | The post-print status read (RFID / heartbeat) failed but the label had already printed. Informational. |
 
-## Reading a failure
+### Reading a failure
 
 Start with `failed_stage` on Last Failure: it says how far the session got, in the shared vocabulary. `failed_detail` is the printer's name for the same stage. `likely_cause` is a reading of the stage, the error text and the radio situation; `error` is the exact message.
 
 ### Printer error codes
 
-When the printer itself refused the job, `error` reads `Printer error: <Code>` and `likely_cause` names it directly. An `error` of `Unsupported request 0x..` is different: the printer NAKed a command this model or firmware does not implement (usually a button such as calibration or test page). The common codes:
+When the printer itself refused the job, `error` reads `Printer error: &lt;Code&gt;` and `likely_cause` names it directly. An `error` of `Unsupported request 0x..` is different: the printer NAKed a command this model or firmware does not implement (usually a button such as calibration or test page). The common codes:
 
 | Code | Meaning | Do |
 |---|---|---|
@@ -118,7 +143,7 @@ The label was sent; only the status read afterwards (RFID remaining, heartbeat) 
 - **`reused: true` and then `transfer` failures** — a link kept open across a long idle can go stale on some proxies. Turn **Keep Connection** off and compare.
 - **Error Count climbs while nothing is printing** — a poll connected and then failed (`failed_stage: session`, `failed_detail: info`) — usually the proxy, see above; or a `refresh_info` action in an automation is running while the printer is off (it *is* counted, unlike the poll).
 
-## What the attributes cannot show
+### What the attributes cannot show
 
 Three kinds of problem never reach the failure sensors, because the session did not fail — or never happened.
 
@@ -128,11 +153,15 @@ Three kinds of problem never reach the failure sensors, because the session did 
 
 **No session was attempted.** When no radio sees the printer or polling fails, the coordinator retains its previous data internally and marks polled entities unavailable. It does not treat cached values as a successful refresh. Diagnostic session history remains useful. **Connection** is off when disconnected. Turn the printer on and wait one scan interval, or call `niimbot.refresh_info`.
 
-## Intermittent failures
+### Intermittent failures
 
 A print that fails only sometimes is the reason Last Failure keeps its attributes: look there, not at Print Duration, which already shows the later success. Its `failed_stage` and `rssi` at the time of failure are what matter. If failures cluster at one `via`, that proxy is the problem; if `paths` was 1 each time, a second radio would have given a fallback.
 
-## What to attach to an issue
+## If the problem persists
+
+Use the existing [Issues](https://github.com/eigger/hass-niimbot/issues) reporting path.
+
+### What to attach to an issue
 
 1. The **Last Failure** attributes (Developer tools → States → the entity → copy the attributes block) and, if the failure is not the latest print, the **Print Duration** attributes from the history around that time.
 2. The printer model and the **Protocol Version** / **Print Area** sensor values.

@@ -226,3 +226,22 @@ async def test_print_when_no_radio_sees_the_printer(
                 {"payload": PAYLOAD, "width": 20, "height": 20},
                 blocking=True,
             )
+
+
+def test_print_mapping_schema_preserves_existing_action_inputs():
+    """Keep action data/targets and renderer validation semantics unchanged."""
+    from custom_components.niimbot.services import PRINT_SCHEMA
+
+    for payload in ([], "- type: text\n  value: Hello", None):
+        data = {
+            "payload": payload,
+            "background": "white",
+            "copies": "2",
+            "entity_id": ["image.niimbot_label"],
+            "device_id": ["device"],
+            "area_id": ["room"],
+            "label_id": ["labels"],
+            "extra": "retained",
+        }
+        assert PRINT_SCHEMA(data) == data
+    assert PRINT_SCHEMA({}) == {}

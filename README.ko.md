@@ -1,18 +1,20 @@
+<!-- hass-standards:header:start -->
 # hass-niimbot
 
+Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot 라벨을 인쇄하는 통합입니다.
+
+[English](README.md) | **한국어**
+
 <!-- hass-standards:badges:start -->
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square)](#설치)
-[![Release](https://img.shields.io/github/v/release/eigger/hass-niimbot?style=flat-square)](https://github.com/eigger/hass-niimbot/releases)
-[![Home Assistant minimum](https://img.shields.io/badge/HA-%E2%89%A5%202025.1.0-41BDF5?style=flat-square)](hacs.json)
-[![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat-square&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
-[![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat-square&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
-[![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat-square)](LICENSE)
-[![Analytics reporting installs](https://img.shields.io/badge/dynamic/json?style=flat-square&color=41BDF5&label=Usage&query=%24.niimbot.total&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json)](https://analytics.home-assistant.io/)
+[![Release](https://img.shields.io/github/v/release/eigger/hass-niimbot?style=flat)](https://github.com/eigger/hass-niimbot/releases)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5?style=flat)](#설치)
+[![Home Assistant minimum](https://img.shields.io/badge/HA-%E2%89%A5%202025.1.0-41BDF5?style=flat)](hacs.json)
+[![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
+[![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
+[![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
+[![Analytics reporting installs](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=Usage&query=%24.niimbot.total&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json)](https://analytics.home-assistant.io/)
 <!-- hass-standards:badges:end -->
-
-[English](README.md)
-
-Home Assistant에서 [imagespec](https://github.com/eigger/imagespec) 페이로드를 Bluetooth로 전송하여 Niimbot 라벨을 인쇄하는 HACS 커스텀 통합입니다.
+<!-- hass-standards:header:end -->
 
 | B1 / B1 Pro | B21 Pro | D110 |
 |---|---|---|
@@ -20,13 +22,13 @@ Home Assistant에서 [imagespec](https://github.com/eigger/imagespec) 페이로�
 
 ## 요구사항
 
-Home Assistant **2025.1.0 이상**, **Python 3.13 이상**(기존 런타임 의존성의 요구 조건), 지원되는 Niimbot BLE 프린터와 HA에서 연결 가능한 Bluetooth 어댑터 또는 active ESPHome Bluetooth proxy가 필요합니다. Python 3.12로 실행하는 HA 2025.1 배포 환경에는 이 의존성 버전을 설치할 수 없습니다. 호환되는 Python 런타임이 필요하며 HA 지원 최소 버전 선언은 변경하지 않았습니다.
+HACS 기본 목록으로 배포하는 커스텀 통합입니다. Home Assistant **2025.1.0 이상**, **Python 3.13 이상**(기존 런타임 의존성의 요구 조건), 지원되는 Niimbot BLE 프린터와 HA에서 연결 가능한 Bluetooth 어댑터 또는 active ESPHome Bluetooth proxy가 필요합니다. Python 3.12로 실행하는 HA 2025.1 배포 환경에는 이 의존성 버전을 설치할 수 없습니다. 호환되는 Python 런타임이 필요하며 HA 지원 최소 버전 선언은 변경하지 않았습니다.
 
 ## 설치
 
-HACS의 사용자 지정 저장소에 `eigger/hass-niimbot`을 추가하여 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
+HACS 기본 목록에서 **Niimbot**을 검색해 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
 
-프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth 프록시 설정](https://github.com/eigger/hass-repo-standards/blob/main/docs/bluetooth.ko.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/ko/troubleshooting.md)을 확인하세요.
+프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth 프록시 설정](https://github.com/eigger/blesession/blob/main/docs/bluetooth.ko.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/troubleshooting.ko.md)을 확인하세요.
 
 ## 빠른 시작
 
@@ -45,7 +47,7 @@ data:
       size: 28
 ```
 
-[예제 모음 (영어)](examples/README.md), [액션 매개변수 (영어)](docs/actions.md), [imagespec 요소 참조 (영어)](https://github.com/eigger/imagespec/blob/main/docs/elements.md)에서 인쇄·자동화 예제를 확인할 수 있습니다.
+[페이로드 안내](docs/payload.ko.md), [예제 모음 (영어)](examples/README.md), [액션 매개변수 (영어)](docs/actions.md), [imagespec 요소 참조 (영어)](https://github.com/eigger/imagespec/blob/main/docs/elements.md)에서 인쇄·자동화 예제를 확인할 수 있습니다.
 
 ## 주요 제한사항
 
@@ -57,15 +59,30 @@ data:
 
 - [문서 목록 (영어)](docs/README.md)
 - [설정과 옵션 (영어)](docs/setup.md)
-- [문제 해결](docs/ko/troubleshooting.md) ([English](docs/troubleshooting.md))
+- [문제 해결](docs/troubleshooting.ko.md) ([English](docs/troubleshooting.md))
 - [개발과 테스트 (영어)](CONTRIBUTING.md)
 - [라이선스](LICENSE)
 - [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
 
+Usage 배지는 데이터 제공에 동의한 Home Assistant Analytics 참여 설치 집계입니다. 미집계·조회 실패를 설치 수 0으로 해석하지 않습니다.
+
+<!-- hass-standards:support:start -->
+## 지원
+
+- [Issues](https://github.com/eigger/hass-niimbot/issues): 버그를 신고하거나 기능을 요청하세요.
+- [Discussions](https://github.com/eigger/hass-niimbot/discussions): 질문하고 사용 경험을 공유하세요.
+<!-- hass-standards:support:end -->
+
+<!-- hass-standards:related-projects:start -->
 ## 관련 프로젝트
 
-- [imagespec](https://github.com/eigger/imagespec) — 페이로드 렌더러와 요소 참조
-- [niimblue](https://github.com/MultiMote/niimblue) — Niimbot 프로토콜 구현
-- [Stash](https://github.com/eigger/stash) — Niimbot 인쇄를 지원하는 재고 관리 도구
+- [imagespec](https://github.com/eigger/imagespec): 페이로드 렌더러와 요소 참조
+- [niimblue](https://github.com/MultiMote/niimblue): Niimbot 프로토콜 구현
+- [Stash](https://github.com/eigger/stash): Niimbot 인쇄를 지원하는 재고 관리 도구
+<!-- hass-standards:related-projects:end -->
 
-Usage 배지는 데이터 제공에 동의한 Home Assistant Analytics 참여 설치 집계입니다. 미집계·조회 실패를 설치 수 0으로 해석하지 않습니다.
+<!-- hass-standards:license:start -->
+## 라이선스
+
+[MIT License](LICENSE) 라이선스로 배포됩니다.
+<!-- hass-standards:license:end -->

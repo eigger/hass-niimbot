@@ -6,6 +6,14 @@ the ``hass`` fixture; custom integrations are enabled only for those.
 
 from __future__ import annotations
 
+# <!-- hass-standards:domain-fixtures:start -->
+# Use pytest_homeassistant_custom_component.common.MockConfigEntry for
+# mock_config_entry when the integration uses config entries.
+# Define mock_client only when an external communication client is present.
+# Mock external communication boundaries, never Home Assistant core modules.
+# Keep integration-specific fixtures below this managed block.
+# <!-- hass-standards:domain-fixtures:end -->
+
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -18,13 +26,6 @@ from custom_components.niimbot.const import DOMAIN
 
 ADDRESS = "AA:BB:CC:DD:EE:01"
 ADDRESS_2 = "AA:BB:CC:DD:EE:02"
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(request: pytest.FixtureRequest) -> None:
-    """Load custom_components/niimbot only for tests that start Home Assistant."""
-    if "hass" in request.fixturenames:
-        request.getfixturevalue("enable_custom_integrations")
 
 
 async def setup_entry(
@@ -104,3 +105,78 @@ def make_ble_device(address: str = ADDRESS):
 
     kwargs = {"rssi": -60} if "rssi" in inspect.signature(BLEDevice).parameters else {}
     return BLEDevice(address, "Niimbot", {}, **kwargs)
+
+
+@pytest.fixture
+def mock_config_entry():
+    """A real config entry with the address identity used by Niimbot setup."""
+    return MockConfigEntry(domain=DOMAIN, unique_id=ADDRESS, title="Niimbot", data={})
+
+
+@pytest.fixture
+def mock_client(printer_response):
+    """Responses from the external printer protocol client."""
+    return printer_response
+
+
+@pytest.fixture
+async def payload_example_setup(hass, enable_bluetooth, mock_config_entry):
+    """Load the real entry, platforms and actions without a nearby printer."""
+    from homeassistant.helpers import entity_registry as er
+
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    # Give the YAML a reproducible real integration-owned target.
+    registry = er.async_get(hass)
+    entity = next(
+        entity
+        for entity in er.async_entries_for_config_entry(
+            registry, mock_config_entry.entry_id
+        )
+        if entity.domain == "image"
+    )
+    registry.async_update_entity(entity.entity_id, new_entity_id="image.niimbot_label")
+    yield
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+def payload_example_adapter():
+    """Bind the same production renderer/context and real normalized HA data."""
+
+    def adapter(hass, example_metadata, normalized_action, schema_data):
+        from functools import partial
+        import inspect
+        from homeassistant.core import ServiceCall
+        from hass_standards_payload import PreparedPayload
+        from custom_components.niimbot.render import _make_context, render_image
+
+        call = ServiceCall(
+            domain=DOMAIN,
+            service="print",
+            data=schema_data,
+            **(
+                {"hass": hass}
+                if "hass" in inspect.signature(ServiceCall).parameters
+                else {}
+            ),
+        )
+        return PreparedPayload(
+            payload=schema_data.get("payload", ""),
+            context=_make_context(
+                hass, default_font="ppb.ttf", palette=["black", "white"]
+            ),
+            render_options={
+                "width": schema_data.get("width", 400),
+                "height": schema_data.get("height", 240),
+                "rotate": schema_data.get("rotate", 0),
+                "rotate_mode": "image",
+                "background": schema_data.get("background", "white"),
+                "dither": False,
+            },
+            prepare=partial(render_image, "image.niimbot_label", call, hass),
+        )
+
+    return adapter
