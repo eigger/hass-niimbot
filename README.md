@@ -68,7 +68,7 @@ Online label lookup is optional and off by default. When enabled, only the label
 - [License](LICENSE)
 - [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
 
-The Downloads badge counts GitHub release asset downloads across all releases, not active installations. HACS source-file installations are not counted; ZIP release distribution is not used.
+The Downloads badge counts GitHub release asset downloads across all releases, not active installations.
 
 <!-- hass-standards:support:start -->
 ## Support
