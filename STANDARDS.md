@@ -1,7 +1,7 @@
 # 적용한 공통 규칙
 
-- 표준: https://github.com/eigger/hass-repo-standards/tree/648dad941a118c80325f44c7a13cb5b5b9c1c788
-- 참조 커밋 SHA: `648dad941a118c80325f44c7a13cb5b5b9c1c788`
+- 표준: https://github.com/eigger/hass-repo-standards/tree/b54ac48102d6e326c6929071fdc02ba8fade794e
+- 참조 커밋 SHA: `b54ac48102d6e326c6929071fdc02ba8fade794e`
 - 검토일: 2026-10-20; 이전 기준 `0490b2ad8378364b487746ea18fca7a0e1d22edc`에서 공식 Hassfest source 검증 호환 경로 채택
 - profile: integration / ha; 실제 domain `niimbot`, 기본 브랜치 `master`
 - 시작 커밋: `96b6482f419c3f77efd83c627cfefaacd6f22733` (PR #130 병합 후); 통합 버전 `4.2.3`
@@ -80,3 +80,9 @@ PR: https://github.com/eigger/hass-niimbot/pull/126 (구현 커밋 e4a1334). 브
 HACS9개·Hassfest 및 HA4조합 각151passed를 점검표에 기록했습니다. updater 쓰기·릴리스는 실행하지 않았습니다.
 실물 프린터·Bluetooth proxy·HA UI 검증은 로컬 pytest 성공과 별도입니다.
 전체 채택 상태는 기본 브랜치 병합·해당 커밋 검증 전까지 `진행 중`으로 유지합니다.
+
+## 2026-10-23 다운로드 배지 부분 갱신
+
+- 배지·DOC-03/05와 Validate 형식 검사기만 중앙 [`b54ac48102d6e326c6929071fdc02ba8fade794e`](https://github.com/eigger/hass-repo-standards/tree/b54ac48102d6e326c6929071fdc02ba8fade794e)를 채택합니다. 이전 기준 SHA `648dad941a118c80325f44c7a13cb5b5b9c1c788`의 채택 이력·예외는 보존합니다. 모든 중앙 workflow/action pin과 standards-ref는 GOV-02의 단일 기준 SHA 계약에 맞춰 갱신합니다. 중앙 diff에서 공용 workflow/action 실행 파일은 이전 기준과 동일함을 확인했습니다.
+- 대상 기본 브랜치 커밋: `d0c264dcd530faa0b962f9090b9dffeeaa7af709`. 주 에이전트 직접 구현·자체 리뷰(GOV-05의 배지/생성물 변경 범위), 검증은 [ADOPTION_CHECKLIST.md](ADOPTION_CHECKLIST.md#2026-10-23-downloads-배지-부분-검증)에 기록합니다.
+- Downloads는 모든 릴리스 첨부 asset 다운로드 합계입니다. 사용자 지시에 따라 ZIP 배포를 도입하지 않으며 현재 HACS 소스 파일 설치는 이 수치에 집계되지 않습니다. 통합 코드·의존성·지원 최소·기존 설치 안내는 변경하지 않습니다.
