@@ -12,7 +12,7 @@ Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot
 [![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
-[![HACS Downloads](https://img.shields.io/badge/dynamic/json?style=flat&color=41BDF5&label=HACS+Downloads&query=%24%5B%3F%28%40.full_name%3D%3D%22eigger%2Fhass-niimbot%22%29%5D.downloads&url=https%3A%2F%2Fdata-v2.hacs.xyz%2Fintegration%2Fdata.json)](https://www.hacs.xyz/)
+[![Downloads](https://img.shields.io/github/downloads/eigger/hass-niimbot/total?style=flat&color=41BDF5&label=Downloads)](https://github.com/eigger/hass-niimbot/releases)
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
@@ -68,7 +68,7 @@ data:
 - [라이선스](LICENSE)
 - [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
 
-HACS Downloads 배지는 HACS가 선택한 릴리스의 대상 asset 다운로드 수를 공식 HACS 데이터로 표시합니다. 전체 릴리스·모든 asset의 합계나 활성 설치 수가 아닙니다. 데이터 누락·조회 실패는 집계 확인 불가를 뜻하며 설치 수 0으로 해석하지 않습니다.
+Downloads 배지는 모든 GitHub 릴리스의 첨부 asset 다운로드 합계이며 활성 설치 수가 아닙니다. HACS 소스 파일 설치는 집계되지 않으며 ZIP 릴리스 배포는 사용하지 않습니다.
 
 <!-- hass-standards:support:start -->
 ## 지원
