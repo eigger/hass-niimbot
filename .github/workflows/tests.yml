@@ -1,9 +1,10 @@
 name: Tests
-on:
+'on':
   push:
-    branches: [master]
-  pull_request:
-  workflow_dispatch:
+    branches:
+    - master
+  pull_request: null
+  workflow_dispatch: null
 permissions:
   contents: read
 concurrency:
@@ -11,9 +12,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   current:
-    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@0c1592977591ecba077a4666d699840062711201 # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@1863343638014adb8a4001afc8fddc1a27dc500f # reviewed shared standards
     with:
-      standards-ref: 0c1592977591ecba077a4666d699840062711201
+      standards-ref: 1863343638014adb8a4001afc8fddc1a27dc500f
       domain: niimbot
       python-versions: '["3.14"]'
       requirements: requirements_test.txt
@@ -24,9 +25,9 @@ jobs:
       ha-components: bluetooth bluetooth_adapters recorder
       pytest-args: tests/components/niimbot/ -v --timeout 120
   minimum-ha:
-    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@0c1592977591ecba077a4666d699840062711201 # reviewed shared standards
+    uses: eigger/hass-repo-standards/.github/workflows/python-tests.yml@1863343638014adb8a4001afc8fddc1a27dc500f # reviewed shared standards
     with:
-      standards-ref: 0c1592977591ecba077a4666d699840062711201
+      standards-ref: 1863343638014adb8a4001afc8fddc1a27dc500f
       domain: niimbot
       python-versions: '["3.13"]'
       requirements: requirements_test_min.txt
