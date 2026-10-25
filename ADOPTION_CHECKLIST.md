@@ -307,3 +307,10 @@ PR 생성·동일 head의 Tests/Validate 및 독립 최종 리뷰를 기록합�
 - 독립 리뷰: root 구현의 19개 리포에 대해 별도 fix_scale_atflee_ci 담당자가 Validate job 19개와 이동 job 19개의 YAML 정의를 비교했습니다. 파일 이동·표시 이름 외 실제 검사 단계·이벤트·권한·timeout·입력 변경 없음. 중앙 위치 인식 변경은 root가 별도 독립 리뷰했습니다.
 - 로컬: 새 중앙 검사기·actionlint·diff 검사 PASS. 중앙 전체232개·관련38개 회귀 테스트와 양 배치19개 동등성 검사 PASS. 모든 대상 기본 브랜치의 branch protection·rulesets 조회에서 필수 검사 이름 설정이 없어 이름 변경으로 인한 대기 충돌 없음. 원격 CI는 이 PR의 최신 head에서 확인합니다.
 - 검사 기준을 추가하거나 완화하지 않았으며 기존 inline 배치도 같은 기준으로 지원합니다. 실제 runtime·지원 최소·의존성은 이 파일 분리에서 변경하지 않습니다.
+
+## 2026-10-25 중앙 immutable release 참조 전환
+
+- 요청/범위: 사용자 요청으로 `hass-niimbot`의 중앙 workflow/action 참조를 `v1.0.0`으로, `standards-ref`를 `44349ee5621eea5d80e5c427f7a2435d2c2491bb`으로 전환. manifest·hacs·requirements·통합 코드·테스트·지원 최소 및 caller-owned CI 설정은 변경하지 않음.
+- 기준 대상: 기본 브랜치 base `19134bcc151a8bd3cfa91138be347b23660eefff`. 중앙 release는 `manage_integration.py verify-release`로 published/non-prerelease/immutable 및 peeled SHA 일치를 원격 확인.
+- 실제 검증: Python 3.14 중앙 `check_integration.py` 변경 전/후, changed workflow actionlint, `git diff --check`, reference-only 범위 assert를 실행. 이번 refs-only 변경에서는 HA/device 테스트를 재실행하지 않았고 PR CI/병합은 대기.
+- 리뷰: 중앙 generated reference-only 결과로 GOV-05 자체 검토; 별도 교차 검토는 조율자가 수행 예정. 기존 실패·미검증은 PASS로 재분류하지 않음.
