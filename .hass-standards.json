@@ -82,7 +82,11 @@
   },
   "standards": {
     "kind": "release",
-    "tag": "v1.0.1",
-    "resolved_sha": "c9b4553184f9c27bdbe7bf8564eaf10153e9575b"
+    "tag": "v1.1.1",
+    "resolved_sha": "9876b521d401071345a13bd508f43d220852c77b"
+  },
+  "standards_update": {
+    "provider": "dependabot",
+    "workflow": "update_standards.yml"
   }
 }
