@@ -17,7 +17,6 @@ jobs:
       domain: niimbot
       python-versions: '["3.14"]'
       requirements: requirements_test.txt
-      expected-ha-version: '2026.10.2'
       test-profile: ha
       dependency-modes: '["current", "minimum"]'
       minimum-packages: '["blesession", "imagespec"]'
