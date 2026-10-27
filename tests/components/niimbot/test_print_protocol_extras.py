@@ -18,6 +18,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
     PrinterClient,
+    PrinterError,
     RequestCodeEnum,
 )
 from tests.components.niimbot.fake_transport import FakeTransport
@@ -168,14 +169,13 @@ def test_check_line_skips_data_error_reply():
         transport = FakeTransport([NiimbotPacket(0xDB, b"\x06")])
         client = PrinterClient(transport=transport)
         await client.check_line(CHECK_LINE_INTERVAL - 1)
+        assert transport.written_packets[0].type == RequestCodeEnum.PRINTER_CHECK_LINE
 
     run(_test())
 
 
 def test_check_line_still_raises_other_printer_errors():
     async def _test():
-        from custom_components.niimbot.niimprint.printer import PrinterError
-
         transport = FakeTransport([NiimbotPacket(0xDB, b"\x01")])
         client = PrinterClient(transport=transport)
         with pytest.raises(PrinterError):

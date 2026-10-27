@@ -720,9 +720,13 @@ class PrinterClient:
         except PrinterError as err:
             # Some D11 firmwares answer an unknown checkpoint with an error
             # frame instead of staying silent; only DataError is tolerated.
+            # Rows are sent without reading replies, so a DataError about the
+            # bitmap itself may also be consumed here; keep it visible in logs.
             if err.code != PrinterErrorCodeEnum.DataError:
                 raise
-            _LOGGER.debug("PrinterCheckLine(%s) rejected with DataError; skipped", line)
+            _LOGGER.warning(
+                "PrinterCheckLine(%s) rejected with DataError; skipped", line
+            )
 
     async def set_empty_row(
         self,
