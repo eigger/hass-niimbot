@@ -717,6 +717,12 @@ class PrinterClient:
         except (PrinterTimeout, PrinterCommandUnsupported) as err:
             # Not all firmwares answer; keep transferring rather than abort.
             _LOGGER.debug("PrinterCheckLine(%s) skipped: %s", line, type(err).__name__)
+        except PrinterError as err:
+            # Some D11 firmwares answer an unknown checkpoint with an error
+            # frame instead of staying silent; only DataError is tolerated.
+            if err.code != PrinterErrorCodeEnum.DataError:
+                raise
+            _LOGGER.debug("PrinterCheckLine(%s) rejected with DataError; skipped", line)
 
     async def set_empty_row(
         self,

@@ -160,3 +160,25 @@ def test_set_image_sends_check_line_every_200_rows():
         assert flag == 0x01
 
     run(_test())
+
+
+def test_check_line_skips_data_error_reply():
+    async def _test():
+        # 0xDB error frame with DataError (0x06) instead of a 0xD3 ACK.
+        transport = FakeTransport([NiimbotPacket(0xDB, b"\x06")])
+        client = PrinterClient(transport=transport)
+        await client.check_line(CHECK_LINE_INTERVAL - 1)
+
+    run(_test())
+
+
+def test_check_line_still_raises_other_printer_errors():
+    async def _test():
+        from custom_components.niimbot.niimprint.printer import PrinterError
+
+        transport = FakeTransport([NiimbotPacket(0xDB, b"\x01")])
+        client = PrinterClient(transport=transport)
+        with pytest.raises(PrinterError):
+            await client.check_line(CHECK_LINE_INTERVAL - 1)
+
+    run(_test())
