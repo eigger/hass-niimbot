@@ -79,5 +79,14 @@
     ],
     "source": "Niimbot BLE label printers: README.md introduction and docs/setup.md Supported printers; primary product purpose is printing labels (niimbot.print). computers_network.printers is the printer category in official Core taxonomy snapshot https://github.com/home-assistant/core/blob/ec18d8b25d1ee39aa8b85a72a170e42bee33228c/homeassistant/generated/integration_categories.json (reviewed 2026-10-20). No secondary category: exposed sensor/button/Bluetooth capabilities support printing rather than a separate product purpose. integration_type is omitted in the existing manifest and remains unchanged.",
     "integration_type": null
+  },
+  "standards": {
+    "kind": "release",
+    "tag": "v1.1.3",
+    "resolved_sha": "c8c2771a2de68769af40f56e19e958e374e6e091"
+  },
+  "standards_update": {
+    "provider": "dependabot",
+    "workflow": "update_standards.yml"
   }
 }
