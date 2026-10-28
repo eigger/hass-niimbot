@@ -210,9 +210,7 @@ class NiimbotDevice:
         if self.ble_data.devicetype in ("", None):
             return None
         try:
-            return get_printer_meta_by_id(
-                int(self.ble_data.devicetype), self._ble_name
-            )
+            return get_printer_meta_by_id(int(self.ble_data.devicetype), self._ble_name)
         except (TypeError, ValueError):
             return None
 
@@ -767,9 +765,7 @@ class NiimbotDevice:
             device_type = await printer.get_info(InfoEnum.DEVICETYPE)
             if device_type is not None:
                 self.ble_data.devicetype = device_type
-                meta = get_printer_meta_by_id(
-                    int(device_type), self._ble_name
-                )
+                meta = get_printer_meta_by_id(int(device_type), self._ble_name)
                 self.ble_data.model = meta["model"].name if meta else str(device_type)
                 self.model = self.ble_data.model
 
