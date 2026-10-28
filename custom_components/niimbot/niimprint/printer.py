@@ -1305,6 +1305,15 @@ class PrinterClient:
             self.on_progress(status)
         return status
 
+    @staticmethod
+    def _completed_status(page: int) -> dict:
+        return {
+            "page": page,
+            "page_print_progress": 100,
+            "page_feed_progress": 100,
+            "progress": 100,
+        }
+
     async def wait_print_complete(
         self,
         copies: int = 1,
@@ -1336,25 +1345,32 @@ class PrinterClient:
                 if packet.type == PAGE_INDEX_CMD:
                     page = self._note_page_index(packet)
                     if page is not None and page >= copies:
-                        return {
-                            "page": page,
-                            "page_print_progress": 100,
-                            "page_feed_progress": 100,
-                            "progress": 100,
-                        }
+                        return self._completed_status(page)
                 elif packet.type == 219:
                     raise PrinterError(packet.data[0])
 
             await self._check_print_cancelled()
             if self._last_page_index >= copies:
-                return {
-                    "page": self._last_page_index,
-                    "page_print_progress": 100,
-                    "page_feed_progress": 100,
-                    "progress": 100,
-                }
+                return self._completed_status(self._last_page_index)
 
-            status = await self.get_print_status()
+            try:
+                status = await self.get_print_status()
+            except PrinterTimeout as err:
+                # Some D11 firmwares never answer the 0xA3 poll and only report
+                # completion through the unsolicited 0xE0 page notification,
+                # which _transceive records while it waits for the 0xB3 reply.
+                _LOGGER.debug("Print status poll unanswered: %s", err)
+                await self._check_print_cancelled()
+                if self._last_page_index >= copies:
+                    return self._completed_status(self._last_page_index)
+                if time.monotonic() - start_time > timeout:
+                    raise PrinterCompletionTimeout(
+                        f"Print completion not confirmed within {timeout:.0f}s "
+                        f"(copies={copies}, status poll unanswered, "
+                        f"page_index={self._last_page_index})"
+                    ) from err
+                await sleep(poll_interval)
+                continue
             await self._check_print_cancelled()
             _LOGGER.debug("Status: %s", status)
             page = status.get("page", 0)
