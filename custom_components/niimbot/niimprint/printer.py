@@ -66,6 +66,10 @@ INVERTED_LID_MODELS = [
     274,
 ]
 
+# Settle after print progress reaches 100 when a printer reports neither a page
+# count nor feed progress, before END_PRINT (see wait_print_complete).
+PRINT_SETTLE_SECONDS = 5.0
+
 
 class InfoEnum(enum.IntEnum):
     DENSITY = 1
@@ -1327,6 +1331,7 @@ class PrinterClient:
             timeout = max(30.0, 15.0 * max(1, copies))
         start_time = time.monotonic()
         started = False
+        print_done_at: float | None = None
         previous_page: int | None = None
         status: dict = {}
         while True:
@@ -1365,8 +1370,17 @@ class PrinterClient:
             if started and page >= copies:
                 break
             # Printers that never bump the page counter (single-copy only).
+            # Print progress can reach 100 while the label is still being printed
+            # and fed (D110: page=0 progress1=100 progress2=0); END_PRINT then is
+            # rejected and the job stops mid-label. Wait for the feed to finish, or
+            # for a short settle on models that never report feed progress.
             if started and copies <= 1 and progress >= 100:
-                break
+                if status.get("page_feed_progress", 0) >= 100:
+                    break
+                if print_done_at is None:
+                    print_done_at = time.monotonic()
+                elif time.monotonic() - print_done_at >= PRINT_SETTLE_SECONDS:
+                    break
             if time.monotonic() - start_time > timeout:
                 raise PrinterCompletionTimeout(
                     f"Print completion not confirmed within {timeout:.0f}s "
