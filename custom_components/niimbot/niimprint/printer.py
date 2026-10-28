@@ -1373,7 +1373,11 @@ class PrinterClient:
             # Print progress can reach 100 while the label is still being printed
             # and fed (D110: page=0 progress1=100 progress2=0); END_PRINT then is
             # rejected and the job stops mid-label. Wait for the feed to finish, or
-            # for a short settle on models that never report feed progress.
+            # for a short settle on models that never report feed progress. D110
+            # reports no feed progress, so it ends via the settle or a page bump
+            # (page >= copies above), whichever comes first.
+            if progress < 100:
+                print_done_at = None
             if started and copies <= 1 and progress >= 100:
                 if status.get("page_feed_progress", 0) >= 100:
                     break
