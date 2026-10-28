@@ -2,6 +2,8 @@
 
 import asyncio
 import struct
+import time
+from types import SimpleNamespace
 
 from PIL import Image
 import pytest
@@ -270,3 +272,54 @@ async def test_wait_print_complete_settles_without_feed_progress(monkeypatch):
     status = await client.wait_print_complete(copies=1, timeout=5.0, poll_interval=0.01)
     assert status["page_print_progress"] == 100
     assert polls > 2
+
+
+def _fake_clock(monkeypatch):
+    now = [0.0]
+    monkeypatch.setattr(
+        printer_module,
+        "time",
+        SimpleNamespace(time=time.time, monotonic=lambda: now[0]),
+    )
+
+    async def fake_sleep(seconds):
+        now[0] += 1.0
+
+    monkeypatch.setattr(printer_module, "sleep", fake_sleep)
+    return now
+
+
+async def test_wait_print_complete_settle_restarts_when_progress_drops(monkeypatch):
+    """A progress dip below 100 must restart the settle window."""
+    now = _fake_clock(monkeypatch)
+    statuses = [(0, 50, 0), (0, 100, 0), (0, 100, 0), (0, 60, 0)]
+    done_at = None
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        nonlocal done_at
+        if statuses:
+            return _print_status(*statuses.pop(0))
+        # Progress stays at 100 from here on; the settle must run from now.
+        if done_at is None:
+            done_at = now[0]
+        return _print_status(0, 100, 0)
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    await client.wait_print_complete(copies=1, timeout=60.0, poll_interval=1)
+    assert now[0] - done_at >= printer_module.PRINT_SETTLE_SECONDS
+
+
+async def test_wait_print_complete_ends_on_page_bump_before_settle(monkeypatch):
+    """D110 shape: page=1 arrives with feed still 0, well before the settle."""
+    now = _fake_clock(monkeypatch)
+    statuses = [(0, 20, 0), (0, 100, 0), (1, 100, 0)]
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        return _print_status(*statuses.pop(0))
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    status = await client.wait_print_complete(copies=1, timeout=60.0, poll_interval=1)
+    assert status["page"] == 1
+    assert now[0] < printer_module.PRINT_SETTLE_SECONDS
