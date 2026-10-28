@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: eigger/hass-repo-standards/.github/workflows/dependency-update.yml@v1.1.3 # reviewed shared standards release
+    uses: eigger/hass-repo-standards/.github/workflows/dependency-update.yml@v1.1.4 # reviewed shared standards release
     with:
       domain: niimbot
       packages: '["imagespec", "blesession"]'
