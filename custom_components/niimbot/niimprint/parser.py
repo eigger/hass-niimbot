@@ -124,6 +124,7 @@ class NiimbotDevice:
         self.keep_connection = keep_connection
         self.lock = asyncio.Lock()
         self.model = None
+        self._ble_name: str | None = None
         # Seed from legacy use_sound config until the printer reports its state.
         self.connection_sound: bool | None = (
             bool(connection_sound_seed) if connection_sound_seed is not None else True
@@ -209,7 +210,7 @@ class NiimbotDevice:
         if self.ble_data.devicetype in ("", None):
             return None
         try:
-            return get_printer_meta_by_id(int(self.ble_data.devicetype))
+            return get_printer_meta_by_id(int(self.ble_data.devicetype), self._ble_name)
         except (TypeError, ValueError):
             return None
 
@@ -418,6 +419,10 @@ class NiimbotDevice:
         owns the printer client that sits on that link.
         """
         trace = self._active_trace
+        # Model lookup needs the advertised name (ID 512 is D11 or Hi-NB-D11);
+        # ble_data.name is a display label that starts as "Niimbot".
+        if ble_device.name:
+            self._ble_name = ble_device.name
         # Always enter ble_session, including when a link is already up.
         # It reuses that link (no connect stage, fact `reused`) and still
         # times this session and watches for a drop. A stale handle is its
@@ -760,7 +765,7 @@ class NiimbotDevice:
             device_type = await printer.get_info(InfoEnum.DEVICETYPE)
             if device_type is not None:
                 self.ble_data.devicetype = device_type
-                meta = get_printer_meta_by_id(int(device_type))
+                meta = get_printer_meta_by_id(int(device_type), self._ble_name)
                 self.ble_data.model = meta["model"].name if meta else str(device_type)
                 self.model = self.ble_data.model
 
@@ -934,7 +939,10 @@ class NiimbotDevice:
                                     InfoEnum.DEVICETYPE
                                 )
                                 if device_type is not None:
-                                    meta = get_printer_meta_by_id(int(device_type))
+                                    meta = get_printer_meta_by_id(
+                                        int(device_type),
+                                        self._ble_name,
+                                    )
                                     self.model = (
                                         meta["model"].name if meta else str(device_type)
                                     )

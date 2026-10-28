@@ -1301,12 +1301,34 @@ def _enrich_meta(meta: PrinterModelMeta) -> PrinterModelMeta:
     return out
 
 
-def get_printer_meta_by_id(printer_id: int) -> PrinterModelMeta | None:
-    """Look up printer metadata by model ID. First matching model entry in modelsLibrary wins."""
+# Models that share a protocol ID with another model and are only selected when
+# the BLE advertised name starts with one of these prefixes (lowercase).
+_BLE_NAME_PREFIXES: dict[PrinterModel, tuple[str, ...]] = {
+    PrinterModel.HI_NB_D11: ("hi-nb",),
+}
+
+
+def get_printer_meta_by_id(
+    printer_id: int, name: str | None = None
+) -> PrinterModelMeta | None:
+    """Look up printer metadata by model ID.
+
+    First matching entry in modelsLibrary wins, except that entries listed in
+    _BLE_NAME_PREFIXES are chosen only when ``name`` matches one of their prefixes
+    (e.g. ID 512 is both D11 and Hi-NB-D11).
+    """
+    lowered = (name or "").lower()
+    fallback = None
     for model in modelsLibrary:
-        if printer_id in model["id"]:
+        if printer_id not in model["id"]:
+            continue
+        prefixes = _BLE_NAME_PREFIXES.get(model["model"])
+        if prefixes is None:
             return _enrich_meta(model)
-    return None
+        if lowered.startswith(prefixes):
+            return _enrich_meta(model)
+        fallback = fallback or model
+    return _enrich_meta(fallback) if fallback else None
 
 
 def get_printer_meta_by_model(model: PrinterModel) -> PrinterModelMeta | None:

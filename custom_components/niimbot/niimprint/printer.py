@@ -393,6 +393,19 @@ class PrinterClient:
                     f"(supported label types: {supported_types})"
                 )
             printhead_pixels = meta["printheadPixels"] if meta else None
+            if printhead_pixels and image.width > printhead_pixels:
+                if meta.get("printheadPixelsEstimated"):
+                    _LOGGER.warning(
+                        "Image width %spx exceeds the estimated %spx printhead of %s",
+                        image.width,
+                        printhead_pixels,
+                        model.name,
+                    )
+                else:
+                    raise ValueError(
+                        f"Image width {image.width}px exceeds the {printhead_pixels}px "
+                        f"printhead of {model.name}; reduce the width or rotate the image"
+                    )
             density_min, density_max, _ = density_range(meta)
             kwargs = dict(
                 image=image,
