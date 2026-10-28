@@ -19,6 +19,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
     PrinterClient,
+    PrinterCompletionTimeout,
     PrinterError,
     RequestCodeEnum,
 )
@@ -181,6 +182,42 @@ def test_check_line_still_raises_other_printer_errors():
         client = PrinterClient(transport=transport)
         with pytest.raises(PrinterError):
             await client.check_line(CHECK_LINE_INTERVAL - 1)
+
+    run(_test())
+
+
+class _PageIndexOnStatusPollTransport(FakeTransport):
+    """Never answers 0xA3; announces the page via 0xE0 once it is polled."""
+
+    def __init__(self, page: int | None):
+        super().__init__()
+        self._page = page
+
+    async def write(self, data: bytes, response=True):
+        await super().write(data, response)
+        if self._page is not None and data[2] == RequestCodeEnum.GET_PRINT_STATUS:
+            self.queue(NiimbotPacket(PAGE_INDEX_CMD, struct.pack(">H", self._page)))
+
+
+def test_wait_print_complete_accepts_page_index_when_status_poll_unanswered():
+    async def _test():
+        transport = _PageIndexOnStatusPollTransport(page=1)
+        client = PrinterClient(transport=transport)
+        status = await client.wait_print_complete(
+            copies=1, timeout=2.0, poll_interval=0.01
+        )
+        assert status["page"] == 1
+        assert status["progress"] == 100
+
+    run(_test())
+
+
+def test_wait_print_complete_times_out_when_status_poll_unanswered():
+    async def _test():
+        transport = _PageIndexOnStatusPollTransport(page=None)
+        client = PrinterClient(transport=transport)
+        with pytest.raises(PrinterCompletionTimeout):
+            await client.wait_print_complete(copies=1, timeout=0.05, poll_interval=0.01)
 
     run(_test())
 
