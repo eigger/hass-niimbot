@@ -1,2 +1,2 @@
 # Current HA/Python 3.14 environment, independent of minimum support.
-pytest-homeassistant-custom-component==0.13.373
+pytest-homeassistant-custom-component==0.13.375
