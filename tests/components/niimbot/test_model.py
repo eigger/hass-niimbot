@@ -319,3 +319,12 @@ def test_model_512_hi_nb_name_selects_hi_nb_d11():
     meta = get_printer_meta_by_id(512, "Hi-NB-D11_1234")
     assert meta["model"] == PrinterModel.HI_NB_D11
     assert meta["printheadPixels"] == 120
+
+
+def test_device_model_meta_uses_advertised_ble_name():
+    device = NiimbotDevice("AA:BB:CC:DD:EE:FF")
+    device.ble_data.devicetype = "512"
+    assert device.ble_data.name == "Niimbot"
+    assert device.get_model_meta()["model"] == PrinterModel.D11
+    device._ble_name = "Hi-NB-D11_1234"
+    assert device.get_model_meta()["model"] == PrinterModel.HI_NB_D11
