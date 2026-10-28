@@ -423,3 +423,13 @@ async def test_stale_completed_snapshot_is_not_current_job_success(monkeypatch, 
         await PrinterClient(transport=transport).print_image(
             PrinterModel.B1, Image.new("1", (96, 1)), density=3, copies=copies
         )
+
+
+async def test_print_image_rejects_width_over_printhead():
+    transport = StatusTransport([(0, 0, 10), (1, 1, 100)])
+    client = PrinterClient(transport=transport)
+    with pytest.raises(ValueError, match="exceeds the 96px printhead"):
+        await client.print_image(
+            PrinterModel.D11, Image.new("1", (240, 96)), density=2
+        )
+    assert not transport.written_packets

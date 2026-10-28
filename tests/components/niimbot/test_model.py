@@ -307,3 +307,15 @@ def test_missing_model_ids_resolution():
         for model_id in m["id"]
     }
     assert estimated_ids == expected_estimated_ids
+
+
+def test_model_512_defaults_to_old_d11():
+    assert get_printer_meta_by_id(512)["model"] == PrinterModel.D11
+    assert get_printer_meta_by_id(512, "D11-H1234")["model"] == PrinterModel.D11
+    assert get_printer_meta_by_id(512, None)["printheadPixels"] == 96
+
+
+def test_model_512_hi_nb_name_selects_hi_nb_d11():
+    meta = get_printer_meta_by_id(512, "Hi-NB-D11_1234")
+    assert meta["model"] == PrinterModel.HI_NB_D11
+    assert meta["printheadPixels"] == 120
