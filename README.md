@@ -12,7 +12,7 @@ Print labels with Niimbot printers from Home Assistant using imagespec payloads 
 [![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/eigger/hass-niimbot/total?style=flat&color=41BDF5&label=Downloads)](https://github.com/eigger/hass-niimbot/releases)
+[![Downloads](https://img.shields.io/github/downloads/eigger/hass-niimbot/latest/total?style=flat&color=41BDF5&label=Downloads)](https://github.com/eigger/hass-niimbot/releases)
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
@@ -68,7 +68,7 @@ Online label lookup is optional and off by default. When enabled, only the label
 - [License](LICENSE)
 - [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
 
-The Downloads badge counts GitHub release asset downloads across all releases, not active installations.
+The Downloads badge counts GitHub release asset downloads of the current release, not active installations.
 
 <!-- hass-standards:support:start -->
 ## Support

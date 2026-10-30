@@ -12,7 +12,7 @@ Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot
 [![Tests](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/tests.yml?branch=master&style=flat&label=Tests)](https://github.com/eigger/hass-niimbot/actions/workflows/tests.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/eigger/hass-niimbot/validate.yml?branch=master&style=flat&label=Validate)](https://github.com/eigger/hass-niimbot/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/eigger/hass-niimbot?style=flat)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/eigger/hass-niimbot/total?style=flat&color=41BDF5&label=Downloads)](https://github.com/eigger/hass-niimbot/releases)
+[![Downloads](https://img.shields.io/github/downloads/eigger/hass-niimbot/latest/total?style=flat&color=41BDF5&label=Downloads)](https://github.com/eigger/hass-niimbot/releases)
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
@@ -68,7 +68,7 @@ data:
 - [라이선스](LICENSE)
 - [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
 
-Downloads 배지는 모든 GitHub 릴리스의 첨부 asset 다운로드 합계이며 활성 설치 수가 아닙니다.
+Downloads 배지는 현재 GitHub 릴리스의 첨부 asset 다운로드 합계이며 활성 설치 수가 아닙니다.
 
 <!-- hass-standards:support:start -->
 ## 지원
