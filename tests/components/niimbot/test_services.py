@@ -284,3 +284,53 @@ async def test_print_rejects_an_image_wider_than_the_printhead_before_connecting
                 blocking=True,
             )
     assert not connected
+
+
+@pytest.mark.parametrize(
+    ("cloud", "meta", "service_data", "expected_width"),
+    [
+        # Cloud label wider than the head is clamped.
+        ({"print_width_px": 400}, {"printheadPixels": 384}, {"height": 20}, 384),
+        # No cloud data: render_image's 400 px fallback is clamped too.
+        (None, {"printheadPixels": 384}, {"height": 20}, 384),
+        # An estimated head is never enforced at the service layer.
+        (
+            None,
+            {"printheadPixels": 384, "printheadPixelsEstimated": True},
+            {"width": 400, "height": 20},
+            400,
+        ),
+    ],
+)
+async def test_print_default_width_respects_the_printhead(
+    hass: HomeAssistant,
+    enable_bluetooth: None,
+    cloud,
+    meta,
+    service_data,
+    expected_width,
+) -> None:
+    entry = await setup_entry(hass)
+    entry.runtime_data.device._cloud_label_attrs = cloud
+    widths: list[int] = []
+
+    async def fake_print(self, ble_device, image, **kwargs):
+        widths.append(image.width)
+        return {"ok": True}
+
+    with (
+        patch.object(NiimbotDevice, "get_model_meta", lambda self: meta),
+        patch.object(NiimbotDevice, "print_image", fake_print),
+        patch(
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
+            lambda hass, address, connectable=True: _ble_device(address),
+        ),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_PRINT,
+            {"payload": PAYLOAD, **service_data},
+            blocking=True,
+        )
+
+    assert widths == [expected_width]

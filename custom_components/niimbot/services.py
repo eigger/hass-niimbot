@@ -150,6 +150,9 @@ async def _async_print(hass: HomeAssistant, service: ServiceCall) -> ServiceResp
     return await _run_targets(hass, service, partial(_print_one, hass, service))
 
 
+DEFAULT_RENDER_WIDTH = 400  # render_image's own fallback width
+
+
 def _max_print_width(meta) -> int | None:
     """Return the printhead width when the metadata is exact, else None."""
     if not meta or meta.get("printheadPixelsEstimated"):
@@ -181,6 +184,8 @@ async def _print_one(
         render_defaults["width"] = (
             min(width_default, max_width) if max_width else width_default
         )
+    elif max_width and max_width < DEFAULT_RENDER_WIDTH:
+        render_defaults["width"] = max_width
     if cloud.get("print_height_px") is not None:
         render_defaults["height"] = int(cloud["print_height_px"])
 
