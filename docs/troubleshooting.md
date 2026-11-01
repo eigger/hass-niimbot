@@ -80,6 +80,7 @@ The attributes are, in order. `failed_stage` is the shared name used across BLE 
 | `copies`, `density` | What the print was asked for. |
 | `cancelled` | `true` when the job was stopped by `niimbot.cancel_print` or the printer's own cancel; not a failure. |
 | `refresh_error` | The post-print status read (RFID / heartbeat) failed but the label had already printed. Informational. |
+| `mtu`, `write_size`, `chunk_size`, `chunk_gap_s` | Last, recorded just before the link is released. The link's MTU and the largest write without response it reports for the printer (each absent when the link does not say), the size image rows are actually written at (20 bytes when the link reports no more, never above 237) and the pause after each write. Meaningful for `print` sessions; other sessions carry them too but send no image data. A small `chunk_size` makes `transfer_s` long; a different proxy or a local adapter usually reports a larger one. |
 
 ### Reading a failure
 
