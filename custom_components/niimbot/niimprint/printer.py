@@ -46,9 +46,10 @@ PRINTER_STATUS_DATA_RESP = 0xB5
 BLE_WRITE_CHUNK_SIZE = 20
 BLE_WRITE_CHUNK_DELAY = 0.004
 # Row packets are coalesced into writes of up to the size the link reports for the
-# printer characteristic (the MTU less the 3-byte ATT header), never above the
-# 512-byte ATT attribute limit.
-BLE_COALESCE_MAX = 512
+# printer characteristic (the MTU less the 3-byte ATT header), capped here. 237 is
+# what ESPHome proxies reported with a B1 and a D110, the sizes the 12 ms pause below
+# was measured at; larger writes are unmeasured, so they are not used.
+BLE_COALESCE_MAX = 237
 # Pause after each coalesced write; 4 ms lost rows through ESPHome proxies (#156).
 BLE_COALESCED_WRITE_DELAY = 0.012
 
@@ -306,7 +307,7 @@ class BLETransport(BaseTransport):
         self._pending = bytearray()
 
     def begin_print(self) -> None:
-        """Drop stale rows and re-read the MTU once for the coming job."""
+        """Drop stale rows and re-read the write size once for the coming job."""
         self.discard_pending()
         self._coalesce = None
 
@@ -332,8 +333,8 @@ class BLETransport(BaseTransport):
         """Bytes per coalesced row write; 0 = don't coalesce.
 
         Read once per job (``begin_print`` clears the cache, so callers must call
-        it before each print); bleak warns when asked for the size on a link that
-        has not negotiated its MTU.
+        it before each print). The MTU fallback is what makes bleak's BlueZ backend
+        warn when no MTU has been negotiated.
         """
         if self._coalesce is None:
             size = self._write_payload_limit()
@@ -358,7 +359,7 @@ class BLETransport(BaseTransport):
         """Write a command or paced image-data chunks to the BLE characteristic.
 
         Row packets go without response. When the link's MTU allows, they are
-        buffered and written a full MTU at a time instead of in 20-byte chunks.
+        buffered and written a link-reported write size at a time instead of in 20-byte chunks.
         A command that expects a reply flushes the buffer first, so the printer
         always has every row before it.
         """

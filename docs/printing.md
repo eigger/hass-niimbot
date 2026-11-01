@@ -248,7 +248,8 @@ integration use this pattern, with a 5-second timeout.
 
 Bitmap rows are sent as BLE writes without a GATT response, with a short pacing interval between
 writes. Row packets are grouped into writes of the size the link reports for the printer
-characteristic (up to 512 bytes); a link that reports 20 bytes or less keeps 20-byte writes. Printer-level replies are still handled separately at protocol checkpoints and
+characteristic (up to 237 bytes); a link that reports 20 bytes or less keeps 20-byte writes.
+Printer-level replies are still handled separately at protocol checkpoints and
 command boundaries. Transfer pacing is internal so it stays consistent across print jobs.
 
 `PrintEmptyRow` batching, identical-row coalescing through `repeats` and `PrintBitmapRowIndexed`

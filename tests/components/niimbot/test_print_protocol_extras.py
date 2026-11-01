@@ -4,6 +4,7 @@ import asyncio
 import struct
 import time
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 from bleak import BleakError
 from blesession.testing import FakeClient
@@ -716,7 +717,7 @@ async def test_writes_follow_the_characteristic_size_over_the_mtu():
     assert sum(sizes) == 10 * len(_b1_rows(1)[0])
 
 
-async def test_a_reported_size_above_the_att_limit_is_capped():
+async def test_a_reported_size_above_the_cap_is_capped():
     client, transport = _transport_reporting(size=1000)
     sizes = await _written_sizes(client, transport, rows=20)
     assert max(sizes) == printer_module.BLE_COALESCE_MAX
@@ -726,7 +727,9 @@ async def test_a_reported_20_byte_size_keeps_the_20_byte_path():
     client, transport = _transport_reporting(size=20, mtu=517)
     (row,) = _b1_rows(1)
     await transport.write(row, response=False)
-    assert {len(data) for _, data, _ in client.writes} == {20, len(row) % 20}
+    assert [data for _, data, _ in client.writes] == [
+        row[offset : offset + 20] for offset in range(0, len(row), 20)
+    ]
 
 
 async def test_the_mtu_is_used_when_the_characteristic_is_not_discovered():
@@ -738,3 +741,21 @@ async def test_the_mtu_is_used_when_the_characteristic_is_not_discovered():
     client.services.get_characteristic = undiscovered
     sizes = await _written_sizes(client, transport)
     assert sizes[0] == 237
+
+
+async def test_the_mtu_is_used_when_the_characteristic_is_missing():
+    client, transport = _ble_transport(mtu=240)
+    client.services.get_characteristic = lambda uuid: None
+    sizes = await _written_sizes(client, transport)
+    assert sizes[0] == 237
+
+
+async def test_a_client_that_reports_nothing_keeps_the_20_byte_path():
+    transport = BLETransport(MagicMock())
+    (row,) = _b1_rows(1)
+    transport._client.write_gatt_char = AsyncMock()
+    await transport.write(row, response=False)
+    assert all(
+        len(call.args[1]) <= 20
+        for call in transport._client.write_gatt_char.call_args_list
+    )
