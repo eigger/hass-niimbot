@@ -594,7 +594,12 @@ class NiimbotDevice:
         return 0.0
 
     async def disconnect(self):
-        """Disconnect from the BLE device if connected."""
+        """Disconnect from the BLE device.
+
+        The disconnect is sent even when the client already reports itself
+        disconnected: after a GATT "Not connected" error a proxy can still hold
+        the link, and only a disconnect request releases its slot.
+        """
         if self._printer is not None:
             try:
                 await self._printer.stop_notify()
@@ -602,7 +607,7 @@ class NiimbotDevice:
                 pass
             finally:
                 self._printer = None
-        if self.client and self.client.is_connected:
+        if self.client:
             try:
                 async with asyncio.timeout(DISCONNECT_TIMEOUT_S):
                     await self.client.disconnect()
