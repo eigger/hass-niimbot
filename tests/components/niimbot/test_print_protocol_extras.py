@@ -499,6 +499,31 @@ async def test_row_packets_coalesce_into_mtu_sized_writes():
     assert b"".join(data for _, data, _ in row_writes) == b"".join(rows)
 
 
+@pytest.mark.parametrize(
+    ("mtu", "pause"),
+    [
+        (240, printer_module.BLE_COALESCED_WRITE_DELAY),
+        (23, printer_module.BLE_WRITE_CHUNK_DELAY),
+    ],
+)
+async def test_coalesced_and_20_byte_writes_each_use_their_own_pause(
+    monkeypatch, mtu, pause
+):
+    pauses = []
+
+    async def fake_sleep(seconds):
+        pauses.append(seconds)
+
+    monkeypatch.setattr(printer_module, "sleep", fake_sleep)
+    client, transport = _ble_transport(mtu)
+    for row in _b1_rows(10):
+        await transport.write(row, response=False)
+    await transport.write(
+        NiimbotPacket(RequestCodeEnum.END_PAGE_PRINT, b"\x01").to_bytes(), response=True
+    )
+    assert pauses and set(pauses) == {pause}
+
+
 @pytest.mark.parametrize("mtu", [23, None])
 async def test_row_packets_keep_20_byte_chunks_without_a_larger_mtu(mtu):
     client, transport = _ble_transport(mtu)

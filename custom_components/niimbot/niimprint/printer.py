@@ -48,6 +48,10 @@ BLE_WRITE_CHUNK_DELAY = 0.004
 # link MTU less the 3-byte ATT header. 237 = an MTU of 240, as ESPHome proxies
 # negotiated with a B1 and a D110.
 BLE_COALESCE_MAX = 237
+# Pause after each coalesced write. Through an ESPHome proxy at -84 to -90 dBm, 4 ms lost rows
+# mid-label on 2 of 5 coalesced B1 labels and 12 ms on none of 5; at ~60 writes a label the
+# longer pause costs at most half a second.
+BLE_COALESCED_WRITE_DELAY = 0.012
 
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
@@ -312,7 +316,7 @@ class BLETransport(BaseTransport):
             response=False,
             timeout=self._write_timeout,
         )
-        await sleep(BLE_WRITE_CHUNK_DELAY)
+        await sleep(BLE_COALESCED_WRITE_DELAY)
 
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write a command or paced image-data chunks to the BLE characteristic.
