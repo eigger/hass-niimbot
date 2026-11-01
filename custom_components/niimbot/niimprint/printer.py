@@ -41,14 +41,14 @@ PAGE_INDEX_CMD = 0xE0
 PRINTER_CHECK_LINE_RESP = 0xD3
 PRINTER_STATUS_DATA_RESP = 0xB5
 
-# Without a larger MTU, BLE image data uses no-response writes in short chunks,
-# paced between writes (see BLE_COALESCE_MAX for links that allow more).
+# Without a larger write size, BLE image data uses no-response writes in short
+# chunks, paced between writes (see BLE_COALESCE_MAX for links that allow more).
 BLE_WRITE_CHUNK_SIZE = 20
 BLE_WRITE_CHUNK_DELAY = 0.004
-# Row packets are coalesced into writes of up to this many bytes, capped by the
-# link MTU less the 3-byte ATT header. 237 = an MTU of 240, as ESPHome proxies
-# negotiated with a B1 and a D110.
-BLE_COALESCE_MAX = 237
+# Row packets are coalesced into writes of up to the size the link reports for the
+# printer characteristic (the MTU less the 3-byte ATT header), never above the
+# 512-byte ATT attribute limit.
+BLE_COALESCE_MAX = 512
 # Pause after each coalesced write; 4 ms lost rows through ESPHome proxies (#156).
 BLE_COALESCED_WRITE_DELAY = 0.012
 
@@ -310,19 +310,37 @@ class BLETransport(BaseTransport):
         self.discard_pending()
         self._coalesce = None
 
+    def _write_payload_limit(self) -> int | None:
+        """Largest no-response write the link takes, as the device reports it.
+
+        Prefers the characteristic's ``max_write_without_response_size`` and
+        falls back to the client's MTU less the 3-byte ATT header.
+        """
+        try:
+            characteristic = self._client.services.get_characteristic(
+                CHARACTERISTIC_UUID
+            )
+            size = getattr(characteristic, "max_write_without_response_size", None)
+        except (AttributeError, BleakError):
+            size = None  # services not discovered yet, or not exposed
+        if isinstance(size, int):
+            return size
+        mtu = getattr(self._client, "mtu_size", None)
+        return mtu - 3 if isinstance(mtu, int) else None
+
     def _coalesce_size(self) -> int:
-        """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce.
+        """Bytes per coalesced row write; 0 = don't coalesce.
 
         Read once per job (``begin_print`` clears the cache, so callers must call
-        it before each print); bleak warns when asked for the MTU of a link that
-        has not negotiated one.
+        it before each print); bleak warns when asked for the size on a link that
+        has not negotiated its MTU.
         """
         if self._coalesce is None:
-            mtu = getattr(self._client, "mtu_size", None)
-            if not isinstance(mtu, int) or mtu - 3 <= BLE_WRITE_CHUNK_SIZE:
+            size = self._write_payload_limit()
+            if size is None or size <= BLE_WRITE_CHUNK_SIZE:
                 self._coalesce = 0
             else:
-                self._coalesce = min(mtu - 3, BLE_COALESCE_MAX)
+                self._coalesce = min(size, BLE_COALESCE_MAX)
         return self._coalesce
 
     async def _paced_write(self, uuid: str, chunk: bytes) -> None:
