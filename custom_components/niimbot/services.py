@@ -36,7 +36,7 @@ from .ble import require_ble_device
 from .const import DOMAIN
 from .niimprint import PrinterError
 from .niimprint.model import get_supported_label_type_codes, resolve_density
-from .render import render_image
+from .render import DEFAULT_RENDER_WIDTH, render_image
 from .types import NiimbotConfigEntry
 
 SERVICE_PRINT = "print"
@@ -45,6 +45,13 @@ SERVICE_REFRESH_INFO = "refresh_info"
 # Keep the established action mapping intact: renderer/model code validates
 # payload and device-specific options after HA resolves action templates.
 PRINT_SCHEMA = vol.Schema({}, extra=vol.ALLOW_EXTRA)
+
+
+def _max_print_width(meta) -> int | None:
+    """Return the printhead width when the metadata is exact, else None."""
+    if not meta or meta.get("printheadPixelsEstimated"):
+        return None
+    return meta.get("printheadPixels") or None
 
 
 async def _extract_config_entry_ids(
@@ -150,16 +157,6 @@ async def _async_print(hass: HomeAssistant, service: ServiceCall) -> ServiceResp
     return await _run_targets(hass, service, partial(_print_one, hass, service))
 
 
-DEFAULT_RENDER_WIDTH = 400  # render_image's own fallback width
-
-
-def _max_print_width(meta) -> int | None:
-    """Return the printhead width when the metadata is exact, else None."""
-    if not meta or meta.get("printheadPixelsEstimated"):
-        return None
-    return meta.get("printheadPixels") or None
-
-
 def _encode_png(image) -> bytes:
     """Encode the image in the executor, including Pillow's lazy work."""
     buffer = io.BytesIO()
@@ -184,7 +181,11 @@ async def _print_one(
         render_defaults["width"] = (
             min(width_default, max_width) if max_width else width_default
         )
-    elif max_width and max_width < DEFAULT_RENDER_WIDTH:
+    elif (
+        max_width
+        and max_width < DEFAULT_RENDER_WIDTH
+        and service.data.get("rotate") not in (90, 270)
+    ):
         render_defaults["width"] = max_width
     if cloud.get("print_height_px") is not None:
         render_defaults["height"] = int(cloud["print_height_px"])
@@ -206,6 +207,12 @@ async def _print_one(
     if service.data.get("preview"):
         return {"image": image_data}
 
+    if max_width and image.width > max_width:
+        raise ServiceValidationError(
+            f"Image width {image.width}px exceeds the {max_width}px printhead of "
+            "this printer; reduce the width or rotate the image"
+        )
+
     # Validate label_type locally before opening a BLE connection.
     # Model metadata is populated by the coordinator and is available without
     # BLE. If the model is not yet known the check is skipped; the fallback
@@ -216,11 +223,6 @@ async def _print_one(
         requested_label_type = int(cloud["paper_type"])
     else:
         requested_label_type = None
-    if max_width and image.width > max_width:
-        raise ServiceValidationError(
-            f"Image width {image.width}px exceeds the {max_width}px printhead of "
-            "this printer; reduce the width or rotate the image"
-        )
     if requested_label_type is not None and model_meta is not None:
         supported_types = get_supported_label_type_codes(model_meta)
         if requested_label_type not in supported_types:
