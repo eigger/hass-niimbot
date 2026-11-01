@@ -22,6 +22,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
     PrinterClient,
+    PrinterCommandUnsupported,
     PrinterCompletionTimeout,
     PrinterError,
     RequestCodeEnum,
@@ -428,9 +429,12 @@ async def test_print_image_d110_continues_when_print_clear_is_refused(monkeypatc
     client = PrinterClient(transport=FakeTransport())
     calls = []
 
-    async def ok(*args, **kwargs):
-        calls.append("ok")
-        return True
+    def recorder(name):
+        async def ok(*args, **kwargs):
+            calls.append(name)
+            return True
+
+        return ok
 
     for name in (
         "set_label_density",
@@ -444,11 +448,11 @@ async def test_print_image_d110_continues_when_print_clear_is_refused(monkeypatc
         "wait_print_complete",
         "end_print",
     ):
-        monkeypatch.setattr(client, name, ok)
+        monkeypatch.setattr(client, name, recorder(name))
 
     async def refused():
-        return False
+        raise PrinterCommandUnsupported("0x20")
 
     monkeypatch.setattr(client, "allow_print_clear", refused)
     await client.print_image_d110(Image.new("1", (16, 8)), density=3)
-    assert calls
+    assert calls[-1] == "end_print"
