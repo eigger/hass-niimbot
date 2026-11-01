@@ -502,6 +502,7 @@ class NiimbotDevice:
         trace = SessionTrace(stage_map=STAGE_MAP)
         self._active_trace = trace
         outcome: BaseException | None = None
+        printer: PrinterClient | None = None
         try:
             printer = await self._ensure_printer(ble_device)
             try:
@@ -517,6 +518,12 @@ class NiimbotDevice:
                 outcome = exc
             raise
         finally:
+            if printer is not None:
+                # Before the link is released, while the printer still reports it.
+                try:
+                    trace.note(**printer.link_facts())
+                except Exception:
+                    _LOGGER.debug("Could not read the link facts", exc_info=True)
             try:
                 await self._release_printer()
             finally:

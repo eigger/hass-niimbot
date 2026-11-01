@@ -759,3 +759,34 @@ async def test_a_client_that_reports_nothing_keeps_the_20_byte_path():
         len(call.args[1]) <= 20
         for call in transport._client.write_gatt_char.call_args_list
     )
+
+
+async def test_link_facts_report_mtu_and_write_sizes():
+    client, transport = _transport_reporting(size=140, mtu=517)
+    assert transport.link_facts() == {
+        "mtu": 517,
+        "write_size": 140,
+        "chunk_size": 140,
+        "chunk_gap_s": printer_module.BLE_COALESCED_WRITE_DELAY,
+    }
+
+
+async def test_link_facts_show_the_20_byte_path_and_skip_unknowns():
+    client, transport = _transport_reporting(size=20)
+    gap = printer_module.BLE_WRITE_CHUNK_DELAY
+    assert transport.link_facts() == {
+        "write_size": 20,
+        "chunk_size": 20,
+        "chunk_gap_s": gap,
+    }
+    assert BLETransport(MagicMock()).link_facts() == {
+        "chunk_size": 20,
+        "chunk_gap_s": gap,
+    }
+
+
+async def test_link_facts_cap_the_chunk_size():
+    client, transport = _transport_reporting(size=1000, mtu=517)
+    facts = transport.link_facts()
+    assert facts["write_size"] == 1000
+    assert facts["chunk_size"] == printer_module.BLE_COALESCE_MAX

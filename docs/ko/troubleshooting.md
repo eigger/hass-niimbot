@@ -57,6 +57,7 @@ Home Assistant는 Print Duration의 속성을 상태 변경마다 기록하므�
 | `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | 단계별 소요 초, 실행 순서대로. 실행되지 않은 단계는 없습니다. `transfer_s`가 이미지 전송 자체이며 속도 조정 시 비교할 숫자입니다. |
 | `reused` | **연결 유지**가 켜져 있어 이미 열린 링크로 작업이 실행됐으면 `true` — 이 경우 `connect_s`가 없습니다. |
 | `copies`, `density` | 인쇄에 요청된 값. |
+| `mtu`, `write_size`, `chunk_size`, `chunk_gap_s` | 링크의 MTU, 링크가 프린터에 대해 보고하는 응답 없는 쓰기의 최대 크기, 이미지 행을 실제로 쓰는 크기(링크가 더 크게 보고하지 않으면 20바이트), 쓰기마다의 대기 시간. `chunk_size`가 작으면 `transfer_s`가 길어지며, 다른 프록시나 로컬 어댑터가 더 큰 값을 보고하는 경우가 많습니다. 값을 알 수 없으면 생략됩니다. |
 | `cancelled` | `niimbot.cancel_print`나 프린터 자체 취소로 작업이 중단됐으면 `true`. 실패가 아닙니다. |
 | `refresh_error` | 인쇄 후 상태 읽기(RFID / 하트비트)는 실패했지만 라벨은 이미 인쇄됨. 참고용. |
 

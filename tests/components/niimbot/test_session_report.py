@@ -604,3 +604,47 @@ def test_a_characteristic_under_another_service_is_still_accepted():
         assert CHARACTERISTIC_UUID in client.subscribed
 
     run(_test())
+
+
+class _LinkedPrinter(_Printer):
+    async def print_image(self, *_args, **_kwargs):
+        return {"status": "ok"}
+
+    def link_facts(self) -> dict[str, float]:
+        return {"mtu": 247, "write_size": 244, "chunk_size": 237, "chunk_gap_s": 0.012}
+
+
+async def _print(device: NiimbotDevice) -> None:
+    device.model = "B1"
+    device.ble_data.model = "B1"
+    device.ble_data.devicetype = "4096"
+    await device.print_image(_Ble(), Image.new("1", (8, 8)), 3, label_type=1)  # type: ignore[arg-type]
+
+
+def test_a_session_records_the_negotiated_link_facts():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        _record_sessions(device)
+        _patch_link(device, _LinkedPrinter())
+        await _print(device)
+        report = device.last_print_trace.as_dict()
+        assert report["mtu"] == 247
+        assert report["write_size"] == 244
+        assert report["chunk_size"] == 237
+        assert report["chunk_gap_s"] == 0.012
+
+    run(_test())
+
+
+def test_a_printer_without_link_facts_still_reports_the_session():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        _record_sessions(device)
+        printer = _Printer()
+        printer.print_image = _LinkedPrinter().print_image  # type: ignore[attr-defined]
+        _patch_link(device, printer)
+        await _print(device)
+        assert device.reports.of("print")["success"] is True
+        assert "chunk_size" not in device.reports.of("print")
+
+    run(_test())

@@ -265,6 +265,10 @@ class BaseTransport(metaclass=abc.ABCMeta):
         """Reset per-job transport state before a print; most keep none."""
         self.discard_pending()
 
+    def link_facts(self) -> dict[str, float]:
+        """Link facts for the session report; most transports have none."""
+        return {}
+
 
 class BLETransport(BaseTransport):
     """The printer link, on blesession's notification queue and guarded write.
@@ -328,6 +332,22 @@ class BLETransport(BaseTransport):
             return size
         mtu = getattr(self._client, "mtu_size", None)
         return mtu - 3 if isinstance(mtu, int) else None
+
+    def link_facts(self) -> dict[str, float]:
+        """MTU, the reported write size, and the size and gap rows are sent at."""
+        facts: dict[str, float] = {}
+        mtu = getattr(self._client, "mtu_size", None)
+        if isinstance(mtu, int):
+            facts["mtu"] = mtu
+        write_size = self._write_payload_limit()
+        if write_size is not None:
+            facts["write_size"] = write_size
+        coalesce = self._coalesce_size()
+        facts["chunk_size"] = coalesce or BLE_WRITE_CHUNK_SIZE
+        facts["chunk_gap_s"] = (
+            BLE_COALESCED_WRITE_DELAY if coalesce else BLE_WRITE_CHUNK_DELAY
+        )
+        return facts
 
     def _coalesce_size(self) -> int:
         """Bytes per coalesced row write; 0 = don't coalesce.
@@ -468,6 +488,10 @@ class PrinterClient:
     @property
     def heartbeat_payload(self) -> bytes | None:
         return self._heartbeat_payload
+
+    def link_facts(self) -> dict[str, float]:
+        """What the link negotiated, for the session report."""
+        return self._transport.link_facts()
 
     async def start_notify(self):
         await self._transport.start_notify(CHARACTERISTIC_UUID)
