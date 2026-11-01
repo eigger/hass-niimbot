@@ -78,9 +78,9 @@ The attributes are, in order. `failed_stage` is the shared name used across BLE 
 | `connect_s`, `subscribe_s`, `prepare_s`, `info_s`, `transfer_s`, `finish_s`, `disconnect_s`, … | Seconds spent in each stage, in the order they ran. A stage that did not run is absent. `transfer_s` is the time spent sending image data. |
 | `reused` | `true` when **Keep Connection** was on and the job ran over the link that was already open — no `connect_s` in that case. |
 | `copies`, `density` | What the print was asked for. |
-| `mtu`, `write_size`, `chunk_size`, `chunk_gap_s` | The link's MTU, the largest write without response it reports for the printer, the size image rows are actually written at (20 bytes when the link reports no more) and the pause after each write. A small `chunk_size` makes `transfer_s` long; a different proxy or a local adapter usually reports a larger one. Absent when the value is unknown. |
 | `cancelled` | `true` when the job was stopped by `niimbot.cancel_print` or the printer's own cancel; not a failure. |
 | `refresh_error` | The post-print status read (RFID / heartbeat) failed but the label had already printed. Informational. |
+| `mtu`, `write_size`, `chunk_size`, `chunk_gap_s` | Last, recorded just before the link is released. The link's MTU and the largest write without response it reports for the printer (each absent when the link does not say), the size image rows are actually written at (20 bytes when the link reports no more, never above 237) and the pause after each write. Meaningful for `print` sessions; other sessions carry them too but send no image data. A small `chunk_size` makes `transfer_s` long; a different proxy or a local adapter usually reports a larger one. |
 
 ### Reading a failure
 

@@ -3,6 +3,7 @@ import enum
 import logging
 import struct
 import time
+import warnings
 from asyncio import CancelledError, sleep
 from collections.abc import Callable
 from typing import Any, TypeVar
@@ -336,8 +337,12 @@ class BLETransport(BaseTransport):
     def link_facts(self) -> dict[str, float]:
         """MTU, the reported write size, and the size and gap rows are sent at."""
         facts: dict[str, float] = {}
-        mtu = getattr(self._client, "mtu_size", None)
-        if isinstance(mtu, int):
+        # bleak's BlueZ backend warns and answers 23 when no MTU was negotiated;
+        # that default is not a fact about the link, so it is left out.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            mtu = getattr(self._client, "mtu_size", None)
+        if isinstance(mtu, int) and not caught:
             facts["mtu"] = mtu
         write_size = self._write_payload_limit()
         if write_size is not None:

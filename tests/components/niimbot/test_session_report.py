@@ -636,15 +636,38 @@ def test_a_session_records_the_negotiated_link_facts():
     run(_test())
 
 
-def test_a_printer_without_link_facts_still_reports_the_session():
+def test_a_link_facts_failure_does_not_fail_the_session():
     async def _test():
         device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
         _record_sessions(device)
-        printer = _Printer()
-        printer.print_image = _LinkedPrinter().print_image  # type: ignore[attr-defined]
+        printer = _LinkedPrinter()
+
+        def broken():
+            raise RuntimeError("link gone")
+
+        printer.link_facts = broken  # type: ignore[method-assign]
         _patch_link(device, printer)
         await _print(device)
         assert device.reports.of("print")["success"] is True
-        assert "chunk_size" not in device.reports.of("print")
+        assert "chunk_size" not in device.last_print_trace.as_dict()
+
+    run(_test())
+
+
+def test_a_failed_print_still_carries_the_link_facts():
+    async def _test():
+        device = NiimbotDevice("aa:bb:cc:dd:ee:ff")
+        _record_sessions(device)
+        printer = _LinkedPrinter()
+
+        async def _print_fails(*_args, **_kwargs):
+            raise PrinterError(PrinterErrorCodeEnum.LackPaper)
+
+        printer.print_image = _print_fails  # type: ignore[method-assign]
+        _patch_link(device, printer)
+        with pytest.raises(PrinterError):
+            await _print(device)
+        for trace in (device.last_print_trace, device.last_error_trace):
+            assert trace.as_dict()["chunk_size"] == 237
 
     run(_test())

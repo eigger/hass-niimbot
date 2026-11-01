@@ -3,6 +3,7 @@
 import asyncio
 import struct
 import time
+import warnings
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -790,3 +791,21 @@ async def test_link_facts_cap_the_chunk_size():
     facts = transport.link_facts()
     assert facts["write_size"] == 1000
     assert facts["chunk_size"] == printer_module.BLE_COALESCE_MAX
+
+
+async def test_link_facts_leave_out_an_mtu_bleak_only_defaulted():
+    class DefaultingClient(FakeClient):
+        @property
+        def mtu_size(self):
+            warnings.warn("Using default MTU value", stacklevel=2)
+            return 23
+
+    client = DefaultingClient()
+    client.services.get_characteristic = lambda uuid: SimpleNamespace(
+        max_write_without_response_size=244
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        facts = BLETransport(client).link_facts()
+    assert "mtu" not in facts
+    assert facts["write_size"] == 244
