@@ -10,6 +10,7 @@ import pytest
 
 from custom_components.niimbot.niimprint import printer as printer_module
 from custom_components.niimbot.niimprint.model import (
+    PrinterModel,
     RfidClass,
     get_printer_meta_by_id,
     supports_ribbon_rfid,
@@ -375,3 +376,49 @@ async def test_wait_print_complete_require_page_settles_if_page_never_bumps(
         copies=1, timeout=120.0, poll_interval=1, require_page=True
     )
     assert now[0] >= printer_module.PRINT_SETTLE_REQUIRE_PAGE_SECONDS
+
+
+async def test_wait_print_complete_require_page_default_timeout_fits_settle(
+    monkeypatch,
+):
+    """A late progress 100 must still reach the settle before the timeout."""
+    now = _fake_clock(monkeypatch)
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        # Progress dips below 100 until ~20s in, then stays at 100.
+        return _print_status(0, 50 if now[0] < 20 else 100, 0)
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    await client.wait_print_complete(copies=1, poll_interval=1, require_page=True)
+    assert now[0] >= 20 + printer_module.PRINT_SETTLE_REQUIRE_PAGE_SECONDS
+
+
+async def test_wait_print_complete_require_page_ends_on_page_notification():
+    client = PrinterClient(transport=FakeTransport())
+    client._last_page_index = 1
+    status = await client.wait_print_complete(copies=1, require_page=True)
+    assert status["page"] == 1
+
+
+@pytest.mark.parametrize(
+    ("model", "expected", "target"),
+    [
+        (PrinterModel.B21, True, "print_image_v4"),
+        (PrinterModel.B21_L2B, True, "print_image_v4"),
+        (PrinterModel.B21S, False, "print_image_d110"),
+        (PrinterModel.B1, False, "print_image_v4"),
+    ],
+)
+async def test_print_image_enables_check_line_only_for_b21_models(
+    monkeypatch, model, expected, target
+):
+    client = PrinterClient(transport=FakeTransport())
+    seen = {}
+
+    async def fake(**kwargs):
+        seen.update(kwargs)
+
+    monkeypatch.setattr(client, target, fake)
+    await client.print_image(model, Image.new("1", (16, 8)), density=3)
+    assert seen["check_line"] is expected

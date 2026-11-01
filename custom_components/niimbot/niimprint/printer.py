@@ -69,7 +69,7 @@ INVERTED_LID_MODELS = [
 # Settle after print progress reaches 100 when a printer reports neither a page
 # count nor feed progress, before END_PRINT (see wait_print_complete).
 PRINT_SETTLE_SECONDS = 5.0
-# D110 firmwares can report progress 100 long before the label is printed.
+# B21S (D110 task) can report progress 100 long before the label is printed.
 PRINT_SETTLE_REQUIRE_PAGE_SECONDS = 15.0
 # Models whose niimblue print task enables the mid-transfer CheckLine.
 CHECK_LINE_MODELS = frozenset({PrinterModel.B21, PrinterModel.B21_L2B})
@@ -1358,6 +1358,9 @@ class PrinterClient:
         """
         if timeout is None:
             timeout = max(30.0, 15.0 * max(1, copies))
+            if require_page:
+                # Leave room for the settle fallback after a late progress 100.
+                timeout += PRINT_SETTLE_REQUIRE_PAGE_SECONDS
         start_time = time.monotonic()
         started = False
         print_done_at: float | None = None
@@ -1410,8 +1413,8 @@ class PrinterClient:
             # and fed (D110: page=0 progress1=100 progress2=0); END_PRINT then is
             # rejected and the job stops mid-label. Wait for the feed to finish, or
             # for a short settle on models that never report feed progress. D110
-            # reports no feed progress, so it ends via the settle or a page bump
-            # (page >= copies above), whichever comes first.
+            # reports no feed progress, so it ends via a page bump (page >= copies
+            # above) or the settle (longer with require_page, for B21S).
             if progress < 100:
                 print_done_at = None
             if started and copies <= 1 and progress >= 100:
