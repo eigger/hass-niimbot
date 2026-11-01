@@ -5,6 +5,8 @@ import struct
 import time
 from types import SimpleNamespace
 
+from bleak import BleakError
+from blesession.testing import FakeClient
 from PIL import Image
 import pytest
 
@@ -17,10 +19,12 @@ from custom_components.niimbot.niimprint.model import (
 )
 from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.printer import (
+    CHARACTERISTIC_UUID,
     CHECK_LINE_INTERVAL,
     PAGE_INDEX_CMD,
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
+    BLETransport,
     PrinterClient,
     PrinterTimeout,
     PrinterCommandUnsupported,
@@ -460,3 +464,98 @@ async def test_print_image_d110_continues_when_print_clear_is_refused(
     monkeypatch.setattr(client, "allow_print_clear", refused)
     await client.print_image_d110(Image.new("1", (16, 8)), density=3)
     assert calls[-1] == "end_print"
+
+
+def _ble_transport(mtu: int | None):
+    client = FakeClient()
+    if mtu is not None:
+        client.mtu_size = mtu
+    return client, BLETransport(client)
+
+
+def _b1_rows(count: int) -> list[bytes]:
+    """Bitmap row packets as a 384 px head sends them: 61 bytes each."""
+    return [
+        NiimbotPacket(
+            RequestCodeEnum.PRINT_BITMAP_ROW,
+            struct.pack(">H3BB", y, 8, 8, 8, 1) + bytes([y]) * 48,
+        ).to_bytes()
+        for y in range(count)
+    ]
+
+
+async def test_row_packets_coalesce_into_mtu_sized_writes():
+    client, transport = _ble_transport(mtu=240)
+    rows = _b1_rows(10)
+    for row in rows:
+        await transport.write(row, response=False)
+    end_page = NiimbotPacket(RequestCodeEnum.END_PAGE_PRINT, b"\x01").to_bytes()
+    await transport.write(end_page, response=True)
+
+    *row_writes, last = client.writes
+    assert last == (CHARACTERISTIC_UUID, end_page, True)
+    assert [len(data) for _, data, _ in row_writes] == [237, 237, 136]
+    assert all(response is False for _, _, response in row_writes)
+    assert b"".join(data for _, data, _ in row_writes) == b"".join(rows)
+
+
+@pytest.mark.parametrize("mtu", [23, None])
+async def test_row_packets_keep_20_byte_chunks_without_a_larger_mtu(mtu):
+    client, transport = _ble_transport(mtu)
+    (row,) = _b1_rows(1)
+    await transport.write(row, response=False)
+    assert [data for _, data, _ in client.writes] == [
+        row[offset : offset + 20] for offset in range(0, len(row), 20)
+    ]
+
+
+async def test_a_command_that_expects_a_reply_flushes_buffered_rows_first():
+    client, transport = _ble_transport(mtu=240)
+    rows = _b1_rows(2)
+    for row in rows:
+        await transport.write(row, response=False)
+    end_page = NiimbotPacket(RequestCodeEnum.END_PAGE_PRINT, b"\x01").to_bytes()
+    await transport.write(end_page, response=True)
+    assert client.writes == [
+        (CHARACTERISTIC_UUID, rows[0] + rows[1], False),
+        (CHARACTERISTIC_UUID, end_page, True),
+    ]
+
+
+async def test_a_new_print_discards_rows_left_by_a_failed_one(monkeypatch):
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    image = Image.new("1", (16, 8))
+
+    async def failed_transfer(**kwargs):
+        await transport.write(_b1_rows(1)[0], response=False)
+        raise RuntimeError("encoding failed")
+
+    monkeypatch.setattr(printer, "print_image_v4", failed_transfer)
+    with pytest.raises(RuntimeError):
+        await printer.print_image(PrinterModel.B1, image, density=3)
+
+    start = NiimbotPacket(RequestCodeEnum.START_PRINT, b"\x01").to_bytes()
+
+    async def next_print(**kwargs):
+        await transport.write(start, response=True)
+
+    monkeypatch.setattr(printer, "print_image_v4", next_print)
+    client.writes.clear()
+    await printer.print_image(PrinterModel.B1, image, density=3)
+    assert client.writes == [(CHARACTERISTIC_UUID, start, True)]
+
+
+async def test_a_failed_row_write_drops_the_buffer_before_the_cleanup():
+    client, transport = _ble_transport(mtu=240)
+    rows = _b1_rows(4)
+    client.fail_write = BleakError("write timed out")
+    for row in rows[:3]:
+        await transport.write(row, response=False)
+    with pytest.raises(BleakError):
+        await transport.write(rows[3], response=False)
+
+    client.fail_write = None
+    end_print = NiimbotPacket(RequestCodeEnum.END_PRINT, b"\x01").to_bytes()
+    await transport.write(end_print, response=True)
+    assert client.writes == [(CHARACTERISTIC_UUID, end_print, True)]
