@@ -150,6 +150,13 @@ async def _async_print(hass: HomeAssistant, service: ServiceCall) -> ServiceResp
     return await _run_targets(hass, service, partial(_print_one, hass, service))
 
 
+def _max_print_width(meta) -> int | None:
+    """Return the printhead width when the metadata is exact, else None."""
+    if not meta or meta.get("printheadPixelsEstimated"):
+        return None
+    return meta.get("printheadPixels") or None
+
+
 def _encode_png(image) -> bytes:
     """Encode the image in the executor, including Pillow's lazy work."""
     buffer = io.BytesIO()
@@ -164,9 +171,16 @@ async def _print_one(
     data = entry.runtime_data
     device = data.device
     cloud = device._cloud_label_attrs or {}
+    model_meta = device.get_model_meta()
+    max_width = _max_print_width(model_meta)
     render_defaults: dict = {}
     if cloud.get("print_width_px") is not None:
-        render_defaults["width"] = int(cloud["print_width_px"])
+        # A catalogue label can be wider than the printhead (50 mm = 400 px vs
+        # 384 px); the printer rejects anything wider, so clamp the default.
+        width_default = int(cloud["print_width_px"])
+        render_defaults["width"] = (
+            min(width_default, max_width) if max_width else width_default
+        )
     if cloud.get("print_height_px") is not None:
         render_defaults["height"] = int(cloud["print_height_px"])
 
@@ -197,7 +211,11 @@ async def _print_one(
         requested_label_type = int(cloud["paper_type"])
     else:
         requested_label_type = None
-    model_meta = device.get_model_meta()
+    if max_width and image.width > max_width:
+        raise ServiceValidationError(
+            f"Image width {image.width}px exceeds the {max_width}px printhead of "
+            "this printer; reduce the width or rotate the image"
+        )
     if requested_label_type is not None and model_meta is not None:
         supported_types = get_supported_label_type_codes(model_meta)
         if requested_label_type not in supported_types:

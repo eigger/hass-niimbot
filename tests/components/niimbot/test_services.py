@@ -17,12 +17,16 @@ from tests.components.niimbot.conftest import (
     make_ble_device,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 import pytest
 
 from custom_components.niimbot.const import DOMAIN
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
-from custom_components.niimbot.services import SERVICE_PRINT, SERVICE_REFRESH_INFO
+from custom_components.niimbot.services import (
+    SERVICE_PRINT,
+    SERVICE_REFRESH_INFO,
+    _max_print_width,
+)
 
 PAYLOAD = [
     {
@@ -245,3 +249,38 @@ def test_print_mapping_schema_preserves_existing_action_inputs():
         }
         assert PRINT_SCHEMA(data) == data
     assert PRINT_SCHEMA({}) == {}
+
+
+def test_max_print_width_uses_exact_printhead_only():
+    assert _max_print_width(None) is None
+    assert _max_print_width({"printheadPixels": 384}) == 384
+    assert (
+        _max_print_width({"printheadPixels": 384, "printheadPixelsEstimated": True})
+        is None
+    )
+
+
+async def test_print_rejects_an_image_wider_than_the_printhead_before_connecting(
+    hass: HomeAssistant, enable_bluetooth: None
+) -> None:
+    """Over-wide images fail validation without opening a BLE connection."""
+    await setup_entry(hass)
+    meta = {"printheadPixels": 384}
+    connected = []
+
+    async def fake_print(self, ble_device, image, **kwargs):
+        connected.append(True)
+        return {"ok": True}
+
+    with (
+        patch.object(NiimbotDevice, "get_model_meta", lambda self: meta),
+        patch.object(NiimbotDevice, "print_image", fake_print),
+    ):
+        with pytest.raises(ServiceValidationError, match="384px printhead"):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_PRINT,
+                {"payload": PAYLOAD, "width": 400, "height": 20},
+                blocking=True,
+            )
+    assert not connected
