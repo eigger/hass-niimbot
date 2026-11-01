@@ -26,6 +26,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_STATUS_DATA_RESP,
     BLETransport,
     PrinterClient,
+    PrinterJobCancelled,
     PrinterTimeout,
     PrinterCommandUnsupported,
     PrinterCompletionTimeout,
@@ -584,3 +585,57 @@ async def test_a_failed_row_write_drops_the_buffer_before_the_cleanup():
     end_print = NiimbotPacket(RequestCodeEnum.END_PRINT, b"\x01").to_bytes()
     await transport.write(end_print, response=True)
     assert client.writes == [(CHARACTERISTIC_UUID, end_print, True)]
+
+
+async def test_a_cancel_drops_buffered_rows_before_the_cancel_command(monkeypatch):
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    await transport.write(_b1_rows(1)[0], response=False)
+    cancel = NiimbotPacket(RequestCodeEnum.CANCEL_PRINT, b"\x01").to_bytes()
+
+    async def cancel_print():
+        await transport.write(cancel, response=True)
+        return True
+
+    monkeypatch.setattr(printer, "cancel_print", cancel_print)
+    printer.cancel_requested = True
+    with pytest.raises(PrinterJobCancelled):
+        await printer._check_print_cancelled()
+    assert client.writes == [(CHARACTERISTIC_UUID, cancel, True)]
+
+
+async def test_a_failed_print_drops_buffered_rows_before_its_cleanup(monkeypatch):
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    end_print = NiimbotPacket(RequestCodeEnum.END_PRINT, b"\x01").to_bytes()
+
+    async def failed_transfer(**kwargs):
+        printer._print_task_active = True
+        await transport.write(_b1_rows(1)[0], response=False)
+        raise RuntimeError("encoding failed")
+
+    async def cleanup():
+        await transport.write(end_print, response=True)
+        return True
+
+    monkeypatch.setattr(printer, "print_image_v4", failed_transfer)
+    monkeypatch.setattr(printer, "end_print", cleanup)
+    with pytest.raises(RuntimeError):
+        await printer.print_image(PrinterModel.B1, Image.new("1", (16, 8)), density=3)
+    assert client.writes == [(CHARACTERISTIC_UUID, end_print, True)]
+
+
+async def test_the_mtu_is_read_once_per_print():
+    reads = []
+
+    class CountingClient(FakeClient):
+        @property
+        def mtu_size(self):
+            reads.append(1)
+            return 240
+
+    transport = BLETransport(CountingClient())
+    transport.begin_print()
+    for row in _b1_rows(10):
+        await transport.write(row, response=False)
+    assert len(reads) == 1
