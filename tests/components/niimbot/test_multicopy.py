@@ -167,11 +167,15 @@ async def test_job_and_page_counts_include_every_copy(monkeypatch, model, copies
 async def test_incomplete_copies_raise_and_end_the_job(
     monkeypatch, model, cleanup_error
 ):
-    transport = StatusTransport([(76, 1, 100)], cleanup_error=cleanup_error)
+    # D110 waits for the page counter, so its timeout includes the settle window.
+    timeout = 75 + (15 if model == PrinterModel.D110 else 0)
+    transport = StatusTransport([(timeout + 1, 1, 100)], cleanup_error=cleanup_error)
     use_clock(monkeypatch, transport)
     client = PrinterClient(transport=transport)
 
-    with pytest.raises(PrinterCompletionTimeout, match=r"within 75s .*copies=5"):
+    with pytest.raises(
+        PrinterCompletionTimeout, match=rf"within {timeout}s .*copies=5"
+    ):
         await client.print_image(model, Image.new("1", (96, 10)), density=3, copies=5)
 
     assert (
