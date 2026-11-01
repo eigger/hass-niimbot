@@ -358,8 +358,9 @@ class BLETransport(BaseTransport):
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write a command or paced image-data chunks to the BLE characteristic.
 
-        Row packets go without response. When the link's MTU allows, they are
-        buffered and written a link-reported write size at a time instead of in 20-byte chunks.
+        Row packets go without response. When the link reports a write size larger
+        than 20 bytes, they are buffered and written that many bytes at a time
+        instead of in 20-byte chunks.
         A command that expects a reply flushes the buffer first, so the printer
         always has every row before it.
         """
