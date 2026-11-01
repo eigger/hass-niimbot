@@ -422,3 +422,33 @@ async def test_print_image_enables_check_line_only_for_b21_models(
     monkeypatch.setattr(client, target, fake)
     await client.print_image(model, Image.new("1", (16, 8)), density=3)
     assert seen["check_line"] is expected
+
+
+async def test_print_image_d110_continues_when_print_clear_is_refused(monkeypatch):
+    client = PrinterClient(transport=FakeTransport())
+    calls = []
+
+    async def ok(*args, **kwargs):
+        calls.append("ok")
+        return True
+
+    for name in (
+        "set_label_density",
+        "set_label_type",
+        "start_print",
+        "start_page_print",
+        "set_page_size_v2",
+        "set_quantity",
+        "set_image",
+        "end_page_print",
+        "wait_print_complete",
+        "end_print",
+    ):
+        monkeypatch.setattr(client, name, ok)
+
+    async def refused():
+        return False
+
+    monkeypatch.setattr(client, "allow_print_clear", refused)
+    await client.print_image_d110(Image.new("1", (16, 8)), density=3)
+    assert calls

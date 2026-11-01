@@ -565,8 +565,9 @@ class PrinterClient:
         )
         self._require_print_ack(await self.set_label_type(label_type), "label type")
         self._require_print_ack(await self.start_print(), "print start")
-        # niimblue D110PrintTask clears before each page.
-        self._require_print_ack(await self.allow_print_clear(), "print clear")
+        # niimblue D110PrintTask clears before each page; a refusal is not fatal.
+        if not await self.allow_print_clear():
+            _LOGGER.warning("Printer did not acknowledge print clear; continuing")
         self._require_print_ack(await self.start_page_print(), "page start")
         self._require_print_ack(
             await self.set_page_size_v2(image.height, image.width), "page size"
