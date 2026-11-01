@@ -41,13 +41,14 @@ PAGE_INDEX_CMD = 0xE0
 PRINTER_CHECK_LINE_RESP = 0xD3
 PRINTER_STATUS_DATA_RESP = 0xB5
 
-# Without a larger MTU, BLE image data uses no-response writes in short chunks,
-# paced between writes (see BLE_COALESCE_MAX for links that allow more).
+# Without a larger write size, BLE image data uses no-response writes in short
+# chunks, paced between writes (see BLE_COALESCE_MAX for links that allow more).
 BLE_WRITE_CHUNK_SIZE = 20
 BLE_WRITE_CHUNK_DELAY = 0.004
-# Row packets are coalesced into writes of up to this many bytes, capped by the
-# link MTU less the 3-byte ATT header. 237 = an MTU of 240, as ESPHome proxies
-# negotiated with a B1 and a D110.
+# Row packets are coalesced into writes of up to the size the link reports for the
+# printer characteristic (the MTU less the 3-byte ATT header), capped here. 237 is
+# what ESPHome proxies reported with a B1 and a D110, the sizes the 12 ms pause below
+# was measured at; larger writes are unmeasured, so they are not used.
 BLE_COALESCE_MAX = 237
 # Pause after each coalesced write; 4 ms lost rows through ESPHome proxies (#156).
 BLE_COALESCED_WRITE_DELAY = 0.012
@@ -306,23 +307,41 @@ class BLETransport(BaseTransport):
         self._pending = bytearray()
 
     def begin_print(self) -> None:
-        """Drop stale rows and re-read the MTU once for the coming job."""
+        """Drop stale rows and re-read the write size once for the coming job."""
         self.discard_pending()
         self._coalesce = None
 
+    def _write_payload_limit(self) -> int | None:
+        """Largest no-response write the link takes, as the device reports it.
+
+        Prefers the characteristic's ``max_write_without_response_size`` and
+        falls back to the client's MTU less the 3-byte ATT header.
+        """
+        try:
+            characteristic = self._client.services.get_characteristic(
+                CHARACTERISTIC_UUID
+            )
+            size = getattr(characteristic, "max_write_without_response_size", None)
+        except (AttributeError, BleakError):
+            size = None  # services not discovered yet, or not exposed
+        if isinstance(size, int):
+            return size
+        mtu = getattr(self._client, "mtu_size", None)
+        return mtu - 3 if isinstance(mtu, int) else None
+
     def _coalesce_size(self) -> int:
-        """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce.
+        """Bytes per coalesced row write; 0 = don't coalesce.
 
         Read once per job (``begin_print`` clears the cache, so callers must call
-        it before each print); bleak warns when asked for the MTU of a link that
-        has not negotiated one.
+        it before each print). The MTU fallback is what makes bleak's BlueZ backend
+        warn when no MTU has been negotiated.
         """
         if self._coalesce is None:
-            mtu = getattr(self._client, "mtu_size", None)
-            if not isinstance(mtu, int) or mtu - 3 <= BLE_WRITE_CHUNK_SIZE:
+            size = self._write_payload_limit()
+            if size is None or size <= BLE_WRITE_CHUNK_SIZE:
                 self._coalesce = 0
             else:
-                self._coalesce = min(mtu - 3, BLE_COALESCE_MAX)
+                self._coalesce = min(size, BLE_COALESCE_MAX)
         return self._coalesce
 
     async def _paced_write(self, uuid: str, chunk: bytes) -> None:
@@ -339,8 +358,9 @@ class BLETransport(BaseTransport):
     async def write_ble(self, uuid: str, data: bytes, response: bool):
         """Write a command or paced image-data chunks to the BLE characteristic.
 
-        Row packets go without response. When the link's MTU allows, they are
-        buffered and written a full MTU at a time instead of in 20-byte chunks.
+        Row packets go without response. When the link reports a write size larger
+        than 20 bytes, they are buffered and written that many bytes at a time
+        instead of in 20-byte chunks.
         A command that expects a reply flushes the buffer first, so the printer
         always has every row before it.
         """
