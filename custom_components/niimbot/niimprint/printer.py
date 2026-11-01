@@ -41,16 +41,15 @@ PAGE_INDEX_CMD = 0xE0
 PRINTER_CHECK_LINE_RESP = 0xD3
 PRINTER_STATUS_DATA_RESP = 0xB5
 
-# BLE image data uses no-response writes in short chunks, paced between writes.
+# Without a larger MTU, BLE image data uses no-response writes in short chunks,
+# paced between writes (see BLE_COALESCE_MAX for links that allow more).
 BLE_WRITE_CHUNK_SIZE = 20
 BLE_WRITE_CHUNK_DELAY = 0.004
 # Row packets are coalesced into writes of up to this many bytes, capped by the
 # link MTU less the 3-byte ATT header. 237 = an MTU of 240, as ESPHome proxies
 # negotiated with a B1 and a D110.
 BLE_COALESCE_MAX = 237
-# Pause after each coalesced write. Through an ESPHome proxy at -84 to -90 dBm, 4 ms lost rows
-# mid-label on 2 of 5 coalesced B1 labels and 12 ms on none of 5; at ~60 writes a label the
-# longer pause costs at most half a second.
+# Pause after each coalesced write; 4 ms lost rows through ESPHome proxies (#156).
 BLE_COALESCED_WRITE_DELAY = 0.012
 
 
@@ -261,6 +260,10 @@ class BaseTransport(metaclass=abc.ABCMeta):
     def discard_pending(self) -> None:
         """Drop writes buffered by an earlier, failed print; most buffer none."""
 
+    def begin_print(self) -> None:
+        """Reset per-job transport state before a print; most keep none."""
+        self.discard_pending()
+
 
 class BLETransport(BaseTransport):
     """The printer link, on blesession's notification queue and guarded write.
@@ -275,6 +278,8 @@ class BLETransport(BaseTransport):
         self._client = client
         self._write_timeout = write_timeout
         self._pending = bytearray()
+        self._pending_uuid: str | None = None
+        self._coalesce: int | None = None
         self._notifications = Notifications(
             client, CHARACTERISTIC_UUID, settle=0.5, recover=True
         )
@@ -300,12 +305,25 @@ class BLETransport(BaseTransport):
         """Drop row data buffered by an earlier, failed print."""
         self._pending = bytearray()
 
+    def begin_print(self) -> None:
+        """Drop stale rows and re-read the MTU once for the coming job."""
+        self.discard_pending()
+        self._coalesce = None
+
     def _coalesce_size(self) -> int:
-        """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce."""
-        mtu = getattr(self._client, "mtu_size", None)
-        if not isinstance(mtu, int) or mtu - 3 <= BLE_WRITE_CHUNK_SIZE:
-            return 0
-        return min(mtu - 3, BLE_COALESCE_MAX)
+        """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce.
+
+        Read once per job (``begin_print`` clears the cache, so callers must call
+        it before each print); bleak warns when asked for the MTU of a link that
+        has not negotiated one.
+        """
+        if self._coalesce is None:
+            mtu = getattr(self._client, "mtu_size", None)
+            if not isinstance(mtu, int) or mtu - 3 <= BLE_WRITE_CHUNK_SIZE:
+                self._coalesce = 0
+            else:
+                self._coalesce = min(mtu - 3, BLE_COALESCE_MAX)
+        return self._coalesce
 
     async def _paced_write(self, uuid: str, chunk: bytes) -> None:
         await guarded_write(
@@ -327,7 +345,12 @@ class BLETransport(BaseTransport):
         always has every row before it.
         """
         size = 0 if response else self._coalesce_size()
+        if self._pending and self._pending_uuid != uuid:
+            # Buffered rows belong to another characteristic; send them there first.
+            pending, self._pending = bytes(self._pending), bytearray()
+            await self._paced_write(self._pending_uuid, pending)
         if size:
+            self._pending_uuid = uuid
             self._pending += data
             try:
                 while len(self._pending) >= size:
@@ -442,7 +465,7 @@ class PrinterClient:
     ):
         self._last_page_index = 0
         self.cancel_requested = False
-        self._transport.discard_pending()
+        self._transport.begin_print()
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
@@ -514,6 +537,8 @@ class PrinterClient:
         except (Exception, CancelledError):
             # A failed transfer can leave a task open on a retained BLE link.
             # Preserve the original error if the best-effort cleanup fails.
+            # Rows still buffered must not reach the printer ahead of the cleanup.
+            self._transport.discard_pending()
             if self._print_task_active:
                 try:
                     if not await self.end_print():
@@ -531,6 +556,8 @@ class PrinterClient:
 
     async def _check_print_cancelled(self) -> None:
         if self.cancel_requested:
+            # Rows still buffered must not reach the printer ahead of the cancel.
+            self._transport.discard_pending()
             await self.cancel_print()
             self.cancel_requested = False
             raise PrinterJobCancelled("Print job cancelled by request")

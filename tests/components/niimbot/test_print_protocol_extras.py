@@ -26,6 +26,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_STATUS_DATA_RESP,
     BLETransport,
     PrinterClient,
+    PrinterJobCancelled,
     PrinterTimeout,
     PrinterCommandUnsupported,
     PrinterCompletionTimeout,
@@ -584,3 +585,105 @@ async def test_a_failed_row_write_drops_the_buffer_before_the_cleanup():
     end_print = NiimbotPacket(RequestCodeEnum.END_PRINT, b"\x01").to_bytes()
     await transport.write(end_print, response=True)
     assert client.writes == [(CHARACTERISTIC_UUID, end_print, True)]
+
+
+async def test_a_cancel_drops_buffered_rows_before_the_cancel_command(monkeypatch):
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    await transport.write(_b1_rows(1)[0], response=False)
+    cancel = NiimbotPacket(RequestCodeEnum.CANCEL_PRINT, b"\x01").to_bytes()
+
+    async def cancel_print():
+        await transport.write(cancel, response=True)
+        return True
+
+    monkeypatch.setattr(printer, "cancel_print", cancel_print)
+    printer.cancel_requested = True
+    with pytest.raises(PrinterJobCancelled):
+        await printer._check_print_cancelled()
+    assert client.writes == [(CHARACTERISTIC_UUID, cancel, True)]
+
+
+async def test_a_failed_print_drops_buffered_rows_before_its_cleanup(monkeypatch):
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    end_print = NiimbotPacket(RequestCodeEnum.END_PRINT, b"\x01").to_bytes()
+
+    async def failed_transfer(**kwargs):
+        printer._print_task_active = True
+        await transport.write(_b1_rows(1)[0], response=False)
+        raise RuntimeError("encoding failed")
+
+    async def cleanup():
+        await transport.write(end_print, response=True)
+        return True
+
+    monkeypatch.setattr(printer, "print_image_v4", failed_transfer)
+    monkeypatch.setattr(printer, "end_print", cleanup)
+    with pytest.raises(RuntimeError):
+        await printer.print_image(PrinterModel.B1, Image.new("1", (16, 8)), density=3)
+    assert client.writes == [(CHARACTERISTIC_UUID, end_print, True)]
+
+
+async def test_the_mtu_is_read_once_per_print():
+    reads = []
+
+    class CountingClient(FakeClient):
+        @property
+        def mtu_size(self):
+            reads.append(1)
+            return 240
+
+    transport = BLETransport(CountingClient())
+    transport.begin_print()
+    for row in _b1_rows(10):
+        await transport.write(row, response=False)
+    assert len(reads) == 1
+
+    transport.begin_print()
+    await transport.write(_b1_rows(1)[0], response=False)
+    assert len(reads) == 2
+
+
+async def test_a_row_longer_than_the_write_size_is_split_in_order():
+    client, transport = _ble_transport(mtu=240)
+    row = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, bytes(range(250))).to_bytes()
+    assert len(row) > 237
+    await transport.write(row, response=False)
+    end_page = NiimbotPacket(RequestCodeEnum.END_PAGE_PRINT, b"\x01").to_bytes()
+    await transport.write(end_page, response=True)
+
+    *row_writes, last = client.writes
+    assert last == (CHARACTERISTIC_UUID, end_page, True)
+    assert all(len(data) <= 237 for _, data, _ in row_writes)
+    assert b"".join(data for _, data, _ in row_writes) == row
+
+
+async def test_buffered_rows_go_to_their_own_characteristic_first():
+    client, transport = _ble_transport(mtu=240)
+    (row,) = _b1_rows(1)
+    await transport.write(row, response=False)
+    other = "0000ffff-0000-1000-8000-00805f9b34fb"
+    await transport.write_ble(other, b"\x01", response=True)
+    assert client.writes == [
+        (CHARACTERISTIC_UUID, row, False),
+        (other, b"\x01", True),
+    ]
+
+
+async def test_check_line_flushes_every_buffered_row_before_it():
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    await printer.set_image(
+        Image.new("L", (96, CHECK_LINE_INTERVAL), color=0),
+        printhead_pixels=96,
+        check_line=True,
+    )
+    check = next(i for i, (_, data, resp) in enumerate(client.writes) if resp is True)
+    rows = b"".join(data for _, data, resp in client.writes[:check] if resp is False)
+    assert rows, "rows must be written before the check line"
+    assert RequestCodeEnum.PRINTER_CHECK_LINE in [
+        NiimbotPacket.from_bytes(data).type
+        for _, data, resp in client.writes[check:]
+        if resp
+    ]
