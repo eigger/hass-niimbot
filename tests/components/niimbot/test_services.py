@@ -293,6 +293,9 @@ async def test_print_rejects_an_image_wider_than_the_printhead_before_connecting
         ({"print_width_px": 400}, {"printheadPixels": 384}, {"height": 20}, 384),
         # No cloud data: render_image's 400 px fallback is clamped too.
         (None, {"printheadPixels": 384}, {"height": 20}, 384),
+        # Rotated renders swap the axes, so the 400 px fallback is not clamped.
+        (None, {"printheadPixels": 384}, {"height": 20, "rotate": 90}, 20),
+        (None, {"printheadPixels": 384}, {"height": 20, "rotate": "90"}, 20),
         # An estimated head is never enforced at the service layer.
         (
             None,

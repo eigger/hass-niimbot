@@ -54,6 +54,14 @@ def _max_print_width(meta) -> int | None:
     return meta.get("printheadPixels") or None
 
 
+def _rotate_degrees(value) -> int | None:
+    """Return the requested rotation as an int; the selector may send floats."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
 async def _extract_config_entry_ids(
     hass: HomeAssistant, service: ServiceCall
 ) -> set[str]:
@@ -184,7 +192,7 @@ async def _print_one(
     elif (
         max_width
         and max_width < DEFAULT_RENDER_WIDTH
-        and service.data.get("rotate") not in (90, 270)
+        and _rotate_degrees(service.data.get("rotate")) not in (90, 270)
     ):
         render_defaults["width"] = max_width
     if cloud.get("print_height_px") is not None:
