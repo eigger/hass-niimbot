@@ -42,6 +42,9 @@ def _make_context(hass, *, default_font, palette):
     )
 
 
+DEFAULT_RENDER_WIDTH = 400
+
+
 def render_image(entity_id, service, hass, defaults: dict | None = None):
     """Render a label image from the print service payload.
 
@@ -53,7 +56,7 @@ def render_image(entity_id, service, hass, defaults: dict | None = None):
         width = (
             service.data["width"]
             if "width" in service.data
-            else defaults.get("width", 400)
+            else defaults.get("width", DEFAULT_RENDER_WIDTH)
         )
         height = (
             service.data["height"]

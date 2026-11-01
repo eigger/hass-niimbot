@@ -1064,9 +1064,14 @@ _CAPABILITIES_BY_ID: dict[int, tuple[RfidClass, int, int, int, bool]] = {
 _DEFAULT_CAPS = (RfidClass.NONE, 1, 5, 3, False)
 
 
+# B21S firmware NAKs PrintTestPage (0x5A) and both calibration commands (0x8E/0x59)
+# even though the vendor metadata advertises calibration (issue #153).
+_NO_MAINTENANCE_COMMANDS = frozenset({PrinterModel.B21S, PrinterModel.B21S_C2B})
+
+
 def supports_calibration(meta: PrinterModelMeta | None) -> bool:
     """Return True if vendor marks the model as supporting paper calibration (0x8E)."""
-    if meta is None:
+    if meta is None or meta.get("model") in _NO_MAINTENANCE_COMMANDS:
         return False
     return meta.get("isSupportCalibration", False)
 
@@ -1106,7 +1111,7 @@ def supports_print_test_page(meta: PrinterModelMeta | None) -> bool:
     """Return False for models known to reject PrintTestPage (0x5A)."""
     if meta is None:
         return False
-    return meta.get("model") not in _B1_FAMILY
+    return meta.get("model") not in _B1_FAMILY | _NO_MAINTENANCE_COMMANDS
 
 
 _LABEL_TYPE_NAMES = {

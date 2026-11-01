@@ -17,12 +17,16 @@ from tests.components.niimbot.conftest import (
     make_ble_device,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 import pytest
 
 from custom_components.niimbot.const import DOMAIN
 from custom_components.niimbot.niimprint.parser import NiimbotDevice
-from custom_components.niimbot.services import SERVICE_PRINT, SERVICE_REFRESH_INFO
+from custom_components.niimbot.services import (
+    SERVICE_PRINT,
+    SERVICE_REFRESH_INFO,
+    _max_print_width,
+)
 
 PAYLOAD = [
     {
@@ -245,3 +249,91 @@ def test_print_mapping_schema_preserves_existing_action_inputs():
         }
         assert PRINT_SCHEMA(data) == data
     assert PRINT_SCHEMA({}) == {}
+
+
+def test_max_print_width_uses_exact_printhead_only():
+    assert _max_print_width(None) is None
+    assert _max_print_width({"printheadPixels": 384}) == 384
+    assert (
+        _max_print_width({"printheadPixels": 384, "printheadPixelsEstimated": True})
+        is None
+    )
+
+
+async def test_print_rejects_an_image_wider_than_the_printhead_before_connecting(
+    hass: HomeAssistant, enable_bluetooth: None
+) -> None:
+    """Over-wide images fail validation without opening a BLE connection."""
+    await setup_entry(hass)
+    meta = {"printheadPixels": 384}
+    connected = []
+
+    async def fake_print(self, ble_device, image, **kwargs):
+        connected.append(True)
+        return {"ok": True}
+
+    with (
+        patch.object(NiimbotDevice, "get_model_meta", lambda self: meta),
+        patch.object(NiimbotDevice, "print_image", fake_print),
+    ):
+        with pytest.raises(ServiceValidationError, match="384px printhead"):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_PRINT,
+                {"payload": PAYLOAD, "width": 400, "height": 20},
+                blocking=True,
+            )
+    assert not connected
+
+
+@pytest.mark.parametrize(
+    ("cloud", "meta", "service_data", "expected_width"),
+    [
+        # Cloud label wider than the head is clamped.
+        ({"print_width_px": 400}, {"printheadPixels": 384}, {"height": 20}, 384),
+        # No cloud data: render_image's 400 px fallback is clamped too.
+        (None, {"printheadPixels": 384}, {"height": 20}, 384),
+        # Rotated renders swap the axes, so the 400 px fallback is not clamped.
+        (None, {"printheadPixels": 384}, {"height": 20, "rotate": 90}, 20),
+        (None, {"printheadPixels": 384}, {"height": 20, "rotate": "90"}, 20),
+        # An estimated head is never enforced at the service layer.
+        (
+            None,
+            {"printheadPixels": 384, "printheadPixelsEstimated": True},
+            {"width": 400, "height": 20},
+            400,
+        ),
+    ],
+)
+async def test_print_default_width_respects_the_printhead(
+    hass: HomeAssistant,
+    enable_bluetooth: None,
+    cloud,
+    meta,
+    service_data,
+    expected_width,
+) -> None:
+    entry = await setup_entry(hass)
+    entry.runtime_data.device._cloud_label_attrs = cloud
+    widths: list[int] = []
+
+    async def fake_print(self, ble_device, image, **kwargs):
+        widths.append(image.width)
+        return {"ok": True}
+
+    with (
+        patch.object(NiimbotDevice, "get_model_meta", lambda self: meta),
+        patch.object(NiimbotDevice, "print_image", fake_print),
+        patch(
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
+            lambda hass, address, connectable=True: _ble_device(address),
+        ),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_PRINT,
+            {"payload": PAYLOAD, **service_data},
+            blocking=True,
+        )
+
+    assert widths == [expected_width]

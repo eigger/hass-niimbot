@@ -3,8 +3,10 @@
 import asyncio
 
 from PIL import Image
+import pytest
 
 from custom_components.niimbot.niimprint.model import (
+    get_printer_meta_by_model,
     PrinterModel,
     get_printer_meta_by_id,
     supports_calibration,
@@ -215,3 +217,13 @@ def test_niimbot_device_cancel_print_in_flight():
         assert client.cancel_requested is True
 
     run(_test())
+
+
+@pytest.mark.parametrize("model", [PrinterModel.B21S, PrinterModel.B21S_C2B])
+def test_b21s_hides_maintenance_buttons(model):
+    meta = get_printer_meta_by_model(model)
+    assert meta is not None
+    assert supports_calibration(meta) is False
+    assert supports_label_position_calibration(meta) is False
+    assert supports_height_calibration(meta) is False
+    assert supports_print_test_page(meta) is False

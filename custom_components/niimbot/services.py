@@ -36,7 +36,7 @@ from .ble import require_ble_device
 from .const import DOMAIN
 from .niimprint import PrinterError
 from .niimprint.model import get_supported_label_type_codes, resolve_density
-from .render import render_image
+from .render import DEFAULT_RENDER_WIDTH, render_image
 from .types import NiimbotConfigEntry
 
 SERVICE_PRINT = "print"
@@ -45,6 +45,21 @@ SERVICE_REFRESH_INFO = "refresh_info"
 # Keep the established action mapping intact: renderer/model code validates
 # payload and device-specific options after HA resolves action templates.
 PRINT_SCHEMA = vol.Schema({}, extra=vol.ALLOW_EXTRA)
+
+
+def _max_print_width(meta) -> int | None:
+    """Return the printhead width when the metadata is exact, else None."""
+    if not meta or meta.get("printheadPixelsEstimated"):
+        return None
+    return meta.get("printheadPixels") or None
+
+
+def _rotate_degrees(value) -> int | None:
+    """Return the requested rotation as an int; the selector may send floats."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 async def _extract_config_entry_ids(
@@ -164,9 +179,22 @@ async def _print_one(
     data = entry.runtime_data
     device = data.device
     cloud = device._cloud_label_attrs or {}
+    model_meta = device.get_model_meta()
+    max_width = _max_print_width(model_meta)
     render_defaults: dict = {}
     if cloud.get("print_width_px") is not None:
-        render_defaults["width"] = int(cloud["print_width_px"])
+        # A catalogue label can be wider than the printhead (50 mm = 400 px vs
+        # 384 px); the printer rejects anything wider, so clamp the default.
+        width_default = int(cloud["print_width_px"])
+        render_defaults["width"] = (
+            min(width_default, max_width) if max_width else width_default
+        )
+    elif (
+        max_width
+        and max_width < DEFAULT_RENDER_WIDTH
+        and _rotate_degrees(service.data.get("rotate")) not in (90, 270)
+    ):
+        render_defaults["width"] = max_width
     if cloud.get("print_height_px") is not None:
         render_defaults["height"] = int(cloud["print_height_px"])
 
@@ -187,6 +215,12 @@ async def _print_one(
     if service.data.get("preview"):
         return {"image": image_data}
 
+    if max_width and image.width > max_width:
+        raise ServiceValidationError(
+            f"Image width {image.width}px exceeds the {max_width}px printhead of "
+            "this printer; reduce the width or rotate the image"
+        )
+
     # Validate label_type locally before opening a BLE connection.
     # Model metadata is populated by the coordinator and is available without
     # BLE. If the model is not yet known the check is skipped; the fallback
@@ -197,7 +231,6 @@ async def _print_one(
         requested_label_type = int(cloud["paper_type"])
     else:
         requested_label_type = None
-    model_meta = device.get_model_meta()
     if requested_label_type is not None and model_meta is not None:
         supported_types = get_supported_label_type_codes(model_meta)
         if requested_label_type not in supported_types:
