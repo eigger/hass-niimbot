@@ -643,3 +643,47 @@ async def test_the_mtu_is_read_once_per_print():
     transport.begin_print()
     await transport.write(_b1_rows(1)[0], response=False)
     assert len(reads) == 2
+
+
+async def test_a_row_longer_than_the_write_size_is_split_in_order():
+    client, transport = _ble_transport(mtu=240)
+    row = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, bytes(range(250))).to_bytes()
+    assert len(row) > 237
+    await transport.write(row, response=False)
+    end_page = NiimbotPacket(RequestCodeEnum.END_PAGE_PRINT, b"\x01").to_bytes()
+    await transport.write(end_page, response=True)
+
+    *row_writes, last = client.writes
+    assert last == (CHARACTERISTIC_UUID, end_page, True)
+    assert all(len(data) <= 237 for _, data, _ in row_writes)
+    assert b"".join(data for _, data, _ in row_writes) == row
+
+
+async def test_buffered_rows_go_to_their_own_characteristic_first():
+    client, transport = _ble_transport(mtu=240)
+    (row,) = _b1_rows(1)
+    await transport.write(row, response=False)
+    other = "0000ffff-0000-1000-8000-00805f9b34fb"
+    await transport.write_ble(other, b"\x01", response=True)
+    assert client.writes == [
+        (CHARACTERISTIC_UUID, row, False),
+        (other, b"\x01", True),
+    ]
+
+
+async def test_check_line_flushes_every_buffered_row_before_it():
+    client, transport = _ble_transport(mtu=240)
+    printer = PrinterClient(transport=transport)
+    await printer.set_image(
+        Image.new("L", (96, CHECK_LINE_INTERVAL), color=0),
+        printhead_pixels=96,
+        check_line=True,
+    )
+    check = next(i for i, (_, data, resp) in enumerate(client.writes) if resp is True)
+    rows = b"".join(data for _, data, resp in client.writes[:check] if resp is False)
+    assert rows, "rows must be written before the check line"
+    assert RequestCodeEnum.PRINTER_CHECK_LINE in [
+        NiimbotPacket.from_bytes(data).type
+        for _, data, resp in client.writes[check:]
+        if resp
+    ]

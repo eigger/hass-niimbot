@@ -278,6 +278,7 @@ class BLETransport(BaseTransport):
         self._client = client
         self._write_timeout = write_timeout
         self._pending = bytearray()
+        self._pending_uuid: str | None = None
         self._coalesce: int | None = None
         self._notifications = Notifications(
             client, CHARACTERISTIC_UUID, settle=0.5, recover=True
@@ -344,7 +345,12 @@ class BLETransport(BaseTransport):
         always has every row before it.
         """
         size = 0 if response else self._coalesce_size()
+        if self._pending and self._pending_uuid != uuid:
+            # Buffered rows belong to another characteristic; send them there first.
+            pending, self._pending = bytes(self._pending), bytearray()
+            await self._paced_write(self._pending_uuid, pending)
         if size:
+            self._pending_uuid = uuid
             self._pending += data
             try:
                 while len(self._pending) >= size:
