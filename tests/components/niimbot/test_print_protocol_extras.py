@@ -639,3 +639,7 @@ async def test_the_mtu_is_read_once_per_print():
     for row in _b1_rows(10):
         await transport.write(row, response=False)
     assert len(reads) == 1
+
+    transport.begin_print()
+    await transport.write(_b1_rows(1)[0], response=False)
+    assert len(reads) == 2

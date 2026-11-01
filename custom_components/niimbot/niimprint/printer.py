@@ -312,8 +312,9 @@ class BLETransport(BaseTransport):
     def _coalesce_size(self) -> int:
         """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce.
 
-        Read once per job; bleak warns when asked for the MTU of a link that has
-        not negotiated one.
+        Read once per job (``begin_print`` clears the cache, so callers must call
+        it before each print); bleak warns when asked for the MTU of a link that
+        has not negotiated one.
         """
         if self._coalesce is None:
             mtu = getattr(self._client, "mtu_size", None)
