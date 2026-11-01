@@ -94,6 +94,7 @@ def test_print_sequence_d110():
             NiimbotPacket(49, b"\x01"),  # SET_LABEL_DENSITY
             NiimbotPacket(51, b"\x01"),  # SET_LABEL_TYPE
             NiimbotPacket(2, b"\x01"),  # START_PRINT (1 byte b"\x01")
+            NiimbotPacket(48, b"\x01"),  # ALLOW_PRINT_CLEAR
             NiimbotPacket(4, b"\x01"),  # START_PAGE_PRINT
             NiimbotPacket(20, b"\x01"),  # SET_DIMENSION
             NiimbotPacket(22, b"\x01"),  # SET_QUANTITY
@@ -114,8 +115,10 @@ def test_print_sequence_d110():
 
         sent_types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.START_PRINT in sent_types
-        # D110 sends 1-byte START_PRINT, SET_QUANTITY, but NOT ALLOW_PRINT_CLEAR
-        assert RequestCodeEnum.ALLOW_PRINT_CLEAR not in sent_types
+        # D110 sends 1-byte START_PRINT, then print clear before the page starts.
+        assert sent_types.index(RequestCodeEnum.ALLOW_PRINT_CLEAR) < sent_types.index(
+            RequestCodeEnum.START_PAGE_PRINT
+        )
         assert RequestCodeEnum.SET_QUANTITY in sent_types
         start_print_pkt = next(
             p

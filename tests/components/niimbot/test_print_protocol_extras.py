@@ -10,6 +10,7 @@ import pytest
 
 from custom_components.niimbot.niimprint import printer as printer_module
 from custom_components.niimbot.niimprint.model import (
+    PrinterModel,
     RfidClass,
     get_printer_meta_by_id,
     supports_ribbon_rfid,
@@ -21,6 +22,8 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
     PrinterClient,
+    PrinterTimeout,
+    PrinterCommandUnsupported,
     PrinterCompletionTimeout,
     PrinterError,
     RequestCodeEnum,
@@ -152,7 +155,7 @@ def test_set_image_sends_check_line_every_200_rows():
         # Queue one CheckLine ACK (0xD3).
         transport = FakeTransport([NiimbotPacket(PRINTER_CHECK_LINE_RESP, b"\x01")])
         client = PrinterClient(transport=transport)
-        await client.set_image(img, printhead_pixels=96)
+        await client.set_image(img, printhead_pixels=96, check_line=True)
         types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.PRINTER_CHECK_LINE in types
         check = next(
@@ -163,6 +166,19 @@ def test_set_image_sends_check_line_every_200_rows():
         line, flag = struct.unpack(">HB", check.data)
         assert line == CHECK_LINE_INTERVAL - 1
         assert flag == 0x01
+
+    run(_test())
+
+
+def test_set_image_skips_check_line_by_default():
+    async def _test():
+        img = Image.new("L", (16, CHECK_LINE_INTERVAL * 2), color=255)
+        transport = FakeTransport()
+        client = PrinterClient(transport=transport)
+        await client.set_image(img, printhead_pixels=96)
+        assert RequestCodeEnum.PRINTER_CHECK_LINE not in [
+            p.type for p in transport.written_packets
+        ]
 
     run(_test())
 
@@ -323,3 +339,124 @@ async def test_wait_print_complete_ends_on_page_bump_before_settle(monkeypatch):
     status = await client.wait_print_complete(copies=1, timeout=60.0, poll_interval=1)
     assert status["page"] == 1
     assert now[0] < printer_module.PRINT_SETTLE_SECONDS
+
+
+async def test_wait_print_complete_require_page_ignores_feed_and_short_settle(
+    monkeypatch,
+):
+    """B21S: progress 100 arrives long before the label prints; wait for page."""
+    now = _fake_clock(monkeypatch)
+    statuses = [(0, 20, 0), (0, 100, 0)] + [(0, 100, 100)] * 6 + [(1, 100, 100)]
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        return _print_status(*statuses.pop(0))
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    status = await client.wait_print_complete(
+        copies=1, timeout=60.0, poll_interval=1, require_page=True
+    )
+    assert status["page"] == 1
+    assert not statuses
+    assert now[0] > printer_module.PRINT_SETTLE_SECONDS
+
+
+async def test_wait_print_complete_require_page_settles_if_page_never_bumps(
+    monkeypatch,
+):
+    now = _fake_clock(monkeypatch)
+    client = PrinterClient(transport=FakeTransport())
+    polls = 0
+
+    async def fake_status(await_for_response=True):
+        nonlocal polls
+        polls += 1
+        return _print_status(0, 50 if polls == 1 else 100, 0)
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    await client.wait_print_complete(
+        copies=1, timeout=120.0, poll_interval=1, require_page=True
+    )
+    assert now[0] >= printer_module.PRINT_SETTLE_REQUIRE_PAGE_SECONDS
+
+
+async def test_wait_print_complete_require_page_default_timeout_fits_settle(
+    monkeypatch,
+):
+    """A late progress 100 must still reach the settle before the timeout."""
+    now = _fake_clock(monkeypatch)
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        # Progress dips below 100 until ~20s in, then stays at 100.
+        return _print_status(0, 50 if now[0] < 20 else 100, 0)
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    await client.wait_print_complete(copies=1, poll_interval=1, require_page=True)
+    assert now[0] >= 20 + printer_module.PRINT_SETTLE_REQUIRE_PAGE_SECONDS
+
+
+async def test_wait_print_complete_require_page_ends_on_page_notification():
+    client = PrinterClient(transport=FakeTransport())
+    client._last_page_index = 1
+    status = await client.wait_print_complete(copies=1, require_page=True)
+    assert status["page"] == 1
+
+
+@pytest.mark.parametrize(
+    ("model", "expected", "target"),
+    [
+        (PrinterModel.B21, True, "print_image_v4"),
+        (PrinterModel.B21_L2B, True, "print_image_v4"),
+        (PrinterModel.B21S, False, "print_image_d110"),
+        (PrinterModel.B1, False, "print_image_v4"),
+    ],
+)
+async def test_print_image_enables_check_line_only_for_b21_models(
+    monkeypatch, model, expected, target
+):
+    client = PrinterClient(transport=FakeTransport())
+    seen = {}
+
+    async def fake(**kwargs):
+        seen.update(kwargs)
+
+    monkeypatch.setattr(client, target, fake)
+    await client.print_image(model, Image.new("1", (16, 8)), density=3)
+    assert seen["check_line"] is expected
+
+
+@pytest.mark.parametrize("error", [PrinterCommandUnsupported, PrinterTimeout])
+async def test_print_image_d110_continues_when_print_clear_is_refused(
+    monkeypatch, error
+):
+    client = PrinterClient(transport=FakeTransport())
+    calls = []
+
+    def recorder(name):
+        async def ok(*args, **kwargs):
+            calls.append(name)
+            return True
+
+        return ok
+
+    for name in (
+        "set_label_density",
+        "set_label_type",
+        "start_print",
+        "start_page_print",
+        "set_page_size_v2",
+        "set_quantity",
+        "set_image",
+        "end_page_print",
+        "wait_print_complete",
+        "end_print",
+    ):
+        monkeypatch.setattr(client, name, recorder(name))
+
+    async def refused(timeout=None):
+        raise error("0x20")
+
+    monkeypatch.setattr(client, "allow_print_clear", refused)
+    await client.print_image_d110(Image.new("1", (16, 8)), density=3)
+    assert calls[-1] == "end_print"
