@@ -316,20 +316,25 @@ class BLETransport(BaseTransport):
         self.discard_pending()
         self._coalesce = None
 
-    def _write_payload_limit(self) -> int | None:
-        """Largest no-response write the link takes, as the device reports it.
-
-        Prefers the characteristic's ``max_write_without_response_size`` and
-        falls back to the client's MTU less the 3-byte ATT header.
-        """
+    def _reported_write_size(self) -> int | None:
+        """The printer characteristic's ``max_write_without_response_size``."""
         try:
             characteristic = self._client.services.get_characteristic(
                 CHARACTERISTIC_UUID
             )
             size = getattr(characteristic, "max_write_without_response_size", None)
         except (AttributeError, BleakError):
-            size = None  # services not discovered yet, or not exposed
-        if isinstance(size, int):
+            return None  # services not discovered yet, or not exposed
+        return size if isinstance(size, int) else None
+
+    def _write_payload_limit(self) -> int | None:
+        """Largest no-response write the link takes, as the device reports it.
+
+        Prefers the characteristic's size and falls back to the client's MTU less
+        the 3-byte ATT header.
+        """
+        size = self._reported_write_size()
+        if size is not None:
             return size
         mtu = getattr(self._client, "mtu_size", None)
         return mtu - 3 if isinstance(mtu, int) else None
@@ -337,17 +342,23 @@ class BLETransport(BaseTransport):
     def link_facts(self) -> dict[str, float]:
         """MTU, the reported write size, and the size and gap rows are sent at."""
         facts: dict[str, float] = {}
-        # bleak's BlueZ backend warns and answers 23 when no MTU was negotiated;
-        # that default is not a fact about the link, so it is left out.
+        # bleak's BlueZ backend warns and answers 23 when no MTU was negotiated.
+        # That default is not a fact about the link, so neither the MTU nor a
+        # write size derived from it is reported. Every read that can reach the
+        # MTU happens inside this block, so the warning is not raised again.
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             mtu = getattr(self._client, "mtu_size", None)
-        if isinstance(mtu, int) and not caught:
-            facts["mtu"] = mtu
-        write_size = self._write_payload_limit()
-        if write_size is not None:
-            facts["write_size"] = write_size
-        coalesce = self._coalesce_size()
+            write_size = self._write_payload_limit()
+            reported = self._reported_write_size()
+            coalesce = self._coalesce_size()
+        if not caught:
+            if isinstance(mtu, int):
+                facts["mtu"] = mtu
+            if write_size is not None:
+                facts["write_size"] = write_size
+        elif reported is not None:
+            facts["write_size"] = reported
         facts["chunk_size"] = coalesce or BLE_WRITE_CHUNK_SIZE
         facts["chunk_gap_s"] = (
             BLE_COALESCED_WRITE_DELAY if coalesce else BLE_WRITE_CHUNK_DELAY

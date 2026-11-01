@@ -809,3 +809,19 @@ async def test_link_facts_leave_out_an_mtu_bleak_only_defaulted():
         facts = BLETransport(client).link_facts()
     assert "mtu" not in facts
     assert facts["write_size"] == 244
+
+
+async def test_link_facts_leave_out_a_write_size_derived_from_a_defaulted_mtu():
+    class DefaultingClient(FakeClient):
+        @property
+        def mtu_size(self):
+            warnings.warn("Using default MTU value", stacklevel=2)
+            return 23
+
+    transport = BLETransport(DefaultingClient())
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        facts = transport.link_facts()
+    assert "mtu" not in facts
+    assert "write_size" not in facts
+    assert facts["chunk_size"] == printer_module.BLE_WRITE_CHUNK_SIZE
