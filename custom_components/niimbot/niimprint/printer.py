@@ -44,6 +44,14 @@ PRINTER_STATUS_DATA_RESP = 0xB5
 # BLE image data uses no-response writes in short chunks, paced between writes.
 BLE_WRITE_CHUNK_SIZE = 20
 BLE_WRITE_CHUNK_DELAY = 0.004
+# Row packets are coalesced into writes of up to this many bytes, capped by the
+# link MTU less the 3-byte ATT header. 237 = an MTU of 240, as ESPHome proxies
+# negotiated with a B1 and a D110.
+BLE_COALESCE_MAX = 237
+# Pause after each coalesced write. Through an ESPHome proxy at -84 to -90 dBm, 4 ms lost rows
+# mid-label on 2 of 5 coalesced B1 labels and 12 ms on none of 5; at ~60 writes a label the
+# longer pause costs at most half a second.
+BLE_COALESCED_WRITE_DELAY = 0.012
 
 
 SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
@@ -250,6 +258,9 @@ class BaseTransport(metaclass=abc.ABCMeta):
     async def stop_notify(self, uuid: str):
         raise NotImplementedError
 
+    def discard_pending(self) -> None:
+        """Drop writes buffered by an earlier, failed print; most buffer none."""
+
 
 class BLETransport(BaseTransport):
     """The printer link, on blesession's notification queue and guarded write.
@@ -263,6 +274,7 @@ class BLETransport(BaseTransport):
     def __init__(self, client: BleakClient, write_timeout: float = WRITE_TIMEOUT_S):
         self._client = client
         self._write_timeout = write_timeout
+        self._pending = bytearray()
         self._notifications = Notifications(
             client, CHARACTERISTIC_UUID, settle=0.5, recover=True
         )
@@ -284,8 +296,52 @@ class BLETransport(BaseTransport):
             timeout, step="printer reply", gap_s=0
         )
 
+    def discard_pending(self) -> None:
+        """Drop row data buffered by an earlier, failed print."""
+        self._pending = bytearray()
+
+    def _coalesce_size(self) -> int:
+        """Bytes per coalesced row write: the MTU's payload, capped; 0 = don't coalesce."""
+        mtu = getattr(self._client, "mtu_size", None)
+        if not isinstance(mtu, int) or mtu - 3 <= BLE_WRITE_CHUNK_SIZE:
+            return 0
+        return min(mtu - 3, BLE_COALESCE_MAX)
+
+    async def _paced_write(self, uuid: str, chunk: bytes) -> None:
+        await guarded_write(
+            self._client,
+            uuid,
+            chunk,
+            step="printer command",
+            response=False,
+            timeout=self._write_timeout,
+        )
+        await sleep(BLE_COALESCED_WRITE_DELAY)
+
     async def write_ble(self, uuid: str, data: bytes, response: bool):
-        """Write a command or paced image-data chunks to the BLE characteristic."""
+        """Write a command or paced image-data chunks to the BLE characteristic.
+
+        Row packets go without response. When the link's MTU allows, they are
+        buffered and written a full MTU at a time instead of in 20-byte chunks.
+        A command that expects a reply flushes the buffer first, so the printer
+        always has every row before it.
+        """
+        size = 0 if response else self._coalesce_size()
+        if size:
+            self._pending += data
+            try:
+                while len(self._pending) >= size:
+                    chunk = bytes(self._pending[:size])
+                    del self._pending[:size]
+                    await self._paced_write(uuid, chunk)
+            except BaseException:
+                # The job has failed: its rows must not precede the cleanup.
+                self._pending.clear()
+                raise
+            return
+        if self._pending:
+            pending, self._pending = bytes(self._pending), bytearray()
+            await self._paced_write(uuid, pending)
         chunks = (
             [data]
             if response
@@ -386,6 +442,7 @@ class PrinterClient:
     ):
         self._last_page_index = 0
         self.cancel_requested = False
+        self._transport.discard_pending()
         _LOGGER.debug("Printing on printer model %s", model)
         start = time.time()
         try:
