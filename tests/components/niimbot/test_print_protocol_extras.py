@@ -22,6 +22,7 @@ from custom_components.niimbot.niimprint.printer import (
     PRINTER_CHECK_LINE_RESP,
     PRINTER_STATUS_DATA_RESP,
     PrinterClient,
+    PrinterTimeout,
     PrinterCommandUnsupported,
     PrinterCompletionTimeout,
     PrinterError,
@@ -425,7 +426,10 @@ async def test_print_image_enables_check_line_only_for_b21_models(
     assert seen["check_line"] is expected
 
 
-async def test_print_image_d110_continues_when_print_clear_is_refused(monkeypatch):
+@pytest.mark.parametrize("error", [PrinterCommandUnsupported, PrinterTimeout])
+async def test_print_image_d110_continues_when_print_clear_is_refused(
+    monkeypatch, error
+):
     client = PrinterClient(transport=FakeTransport())
     calls = []
 
@@ -450,8 +454,8 @@ async def test_print_image_d110_continues_when_print_clear_is_refused(monkeypatc
     ):
         monkeypatch.setattr(client, name, recorder(name))
 
-    async def refused():
-        raise PrinterCommandUnsupported("0x20")
+    async def refused(timeout=None):
+        raise error("0x20")
 
     monkeypatch.setattr(client, "allow_print_clear", refused)
     await client.print_image_d110(Image.new("1", (16, 8)), density=3)

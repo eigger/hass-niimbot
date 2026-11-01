@@ -567,8 +567,8 @@ class PrinterClient:
         self._require_print_ack(await self.start_print(), "print start")
         # niimblue D110PrintTask clears before each page; a refusal is not fatal.
         try:
-            cleared = await self.allow_print_clear()
-        except PrinterCommandUnsupported:
+            cleared = await self.allow_print_clear(timeout=1.0)
+        except (PrinterCommandUnsupported, PrinterTimeout):
             cleared = False
         if not cleared:
             _LOGGER.warning("Printer did not acknowledge print clear; continuing")
@@ -1203,8 +1203,11 @@ class PrinterClient:
         packet = await self._transceive(RequestCodeEnum.END_PAGE_PRINT, b"\x01")
         return bool(packet.data[0])
 
-    async def allow_print_clear(self):
-        packet = await self._transceive(RequestCodeEnum.ALLOW_PRINT_CLEAR, b"\x01", 16)
+    async def allow_print_clear(self, timeout: float | None = None):
+        kwargs = {} if timeout is None else {"timeout": timeout}
+        packet = await self._transceive(
+            RequestCodeEnum.ALLOW_PRINT_CLEAR, b"\x01", 16, **kwargs
+        )
         return bool(packet.data[0])
 
     async def set_dimension(self, w, h):
