@@ -69,6 +69,10 @@ INVERTED_LID_MODELS = [
 # Settle after print progress reaches 100 when a printer reports neither a page
 # count nor feed progress, before END_PRINT (see wait_print_complete).
 PRINT_SETTLE_SECONDS = 5.0
+# D110 firmwares can report progress 100 long before the label is printed.
+PRINT_SETTLE_REQUIRE_PAGE_SECONDS = 15.0
+# Models whose niimblue print task enables the mid-transfer CheckLine.
+CHECK_LINE_MODELS = frozenset({PrinterModel.B21, PrinterModel.B21_L2B})
 
 
 class InfoEnum(enum.IntEnum):
@@ -419,6 +423,7 @@ class PrinterClient:
                 density_min=density_min,
                 density_max=density_max,
                 copies=copies,
+                check_line=model in CHECK_LINE_MODELS,
             )
             generation = meta.get("generation") if meta else None
 
@@ -482,6 +487,7 @@ class PrinterClient:
         density_min: int = 1,
         density_max: int = 5,
         copies: int = 1,
+        check_line: bool = False,
     ):
         """Print task for older D11 printers (OldD11PrintTask from niimblue)."""
         _LOGGER.debug("print_image_old_d11")
@@ -501,6 +507,7 @@ class PrinterClient:
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
+            check_line=check_line,
         )
         self._require_print_ack(await self.end_page_print(), "page end")
         await self.wait_print_complete(copies=copies)
@@ -515,6 +522,7 @@ class PrinterClient:
         density_min: int = 1,
         density_max: int = 5,
         copies: int = 1,
+        check_line: bool = False,
     ):
         _LOGGER.debug("print_image_v4")
         self._require_print_ack(
@@ -533,6 +541,7 @@ class PrinterClient:
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
+            check_line=check_line,
         )
         self._require_print_ack(await self.end_page_print(), "page end")
         await self.wait_print_complete(copies=copies)
@@ -547,6 +556,7 @@ class PrinterClient:
         density_min: int = 1,
         density_max: int = 5,
         copies: int = 1,
+        check_line: bool = False,
     ):
         _LOGGER.debug("print_image_d110")
         self._require_print_ack(
@@ -555,6 +565,8 @@ class PrinterClient:
         )
         self._require_print_ack(await self.set_label_type(label_type), "label type")
         self._require_print_ack(await self.start_print(), "print start")
+        # niimblue D110PrintTask clears before each page.
+        self._require_print_ack(await self.allow_print_clear(), "print clear")
         self._require_print_ack(await self.start_page_print(), "page start")
         self._require_print_ack(
             await self.set_page_size_v2(image.height, image.width), "page size"
@@ -563,9 +575,10 @@ class PrinterClient:
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
+            check_line=check_line,
         )
         self._require_print_ack(await self.end_page_print(), "page end")
-        await self.wait_print_complete(copies=copies)
+        await self.wait_print_complete(copies=copies, require_page=True)
         self._require_print_ack(await self.end_print(), "print end")
 
     async def print_image_v5(
@@ -577,6 +590,7 @@ class PrinterClient:
         density_min: int = 1,
         density_max: int = 5,
         copies: int = 1,
+        check_line: bool = False,
     ):
         _LOGGER.debug("print_image_v5")
         if not await self.set_label_density(density, density_min, density_max):
@@ -594,6 +608,7 @@ class PrinterClient:
         await self.set_image(
             image,
             printhead_pixels=printhead_pixels,
+            check_line=check_line,
         )
         if not await self.end_page_print():
             raise RuntimeError("Page did not finish successfully")
@@ -639,6 +654,7 @@ class PrinterClient:
         self,
         image: Image.Image,
         printhead_pixels: int | None = None,
+        check_line: bool = False,
     ):
         _LOGGER.debug("Set image")
         img = ImageOps.invert(image.convert("L")).convert("1")
@@ -687,7 +703,7 @@ class PrinterClient:
 
         async def maybe_check_line(y: int) -> None:
             # niimblue inserts a checkpoint after rows 199, 399, …
-            if y % CHECK_LINE_INTERVAL != CHECK_LINE_INTERVAL - 1:
+            if not check_line or y % CHECK_LINE_INTERVAL != CHECK_LINE_INTERVAL - 1:
                 return
             await flush_pending_bitmap()
             await flush_empty()
@@ -1324,6 +1340,7 @@ class PrinterClient:
         *,
         timeout: float | None = None,
         poll_interval: float = 0.5,
+        require_page: bool = False,
     ) -> dict:
         """Wait until all copies finish via 0xE0, with 0xA3 poll as fallback.
 
@@ -1334,6 +1351,9 @@ class PrinterClient:
 
         Multi-copy jobs require ``page >= copies``; progress alone must not
         end the wait after the first label. Timeout scales with ``copies``.
+        ``require_page`` (D110 task) ignores the feed-progress shortcut and only
+        falls back to the settle after PRINT_SETTLE_REQUIRE_PAGE_SECONDS, since
+        B21S reports progress 100 before the label is actually printed.
         Raise PrinterCompletionTimeout if completion cannot be confirmed.
         """
         if timeout is None:
@@ -1395,11 +1415,16 @@ class PrinterClient:
             if progress < 100:
                 print_done_at = None
             if started and copies <= 1 and progress >= 100:
-                if status.get("page_feed_progress", 0) >= 100:
+                if not require_page and status.get("page_feed_progress", 0) >= 100:
                     break
+                settle = (
+                    PRINT_SETTLE_REQUIRE_PAGE_SECONDS
+                    if require_page
+                    else PRINT_SETTLE_SECONDS
+                )
                 if print_done_at is None:
                     print_done_at = time.monotonic()
-                elif time.monotonic() - print_done_at >= PRINT_SETTLE_SECONDS:
+                elif time.monotonic() - print_done_at >= settle:
                     break
             if time.monotonic() - start_time > timeout:
                 raise PrinterCompletionTimeout(

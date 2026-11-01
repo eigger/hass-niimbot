@@ -152,7 +152,7 @@ def test_set_image_sends_check_line_every_200_rows():
         # Queue one CheckLine ACK (0xD3).
         transport = FakeTransport([NiimbotPacket(PRINTER_CHECK_LINE_RESP, b"\x01")])
         client = PrinterClient(transport=transport)
-        await client.set_image(img, printhead_pixels=96)
+        await client.set_image(img, printhead_pixels=96, check_line=True)
         types = [p.type for p in transport.written_packets]
         assert RequestCodeEnum.PRINTER_CHECK_LINE in types
         check = next(
@@ -163,6 +163,19 @@ def test_set_image_sends_check_line_every_200_rows():
         line, flag = struct.unpack(">HB", check.data)
         assert line == CHECK_LINE_INTERVAL - 1
         assert flag == 0x01
+
+    run(_test())
+
+
+def test_set_image_skips_check_line_by_default():
+    async def _test():
+        img = Image.new("L", (16, CHECK_LINE_INTERVAL * 2), color=255)
+        transport = FakeTransport()
+        client = PrinterClient(transport=transport)
+        await client.set_image(img, printhead_pixels=96)
+        assert RequestCodeEnum.PRINTER_CHECK_LINE not in [
+            p.type for p in transport.written_packets
+        ]
 
     run(_test())
 
@@ -323,3 +336,42 @@ async def test_wait_print_complete_ends_on_page_bump_before_settle(monkeypatch):
     status = await client.wait_print_complete(copies=1, timeout=60.0, poll_interval=1)
     assert status["page"] == 1
     assert now[0] < printer_module.PRINT_SETTLE_SECONDS
+
+
+async def test_wait_print_complete_require_page_ignores_feed_and_short_settle(
+    monkeypatch,
+):
+    """B21S: progress 100 arrives long before the label prints; wait for page."""
+    now = _fake_clock(monkeypatch)
+    statuses = [(0, 20, 0), (0, 100, 0)] + [(0, 100, 100)] * 6 + [(1, 100, 100)]
+    client = PrinterClient(transport=FakeTransport())
+
+    async def fake_status(await_for_response=True):
+        return _print_status(*statuses.pop(0))
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    status = await client.wait_print_complete(
+        copies=1, timeout=60.0, poll_interval=1, require_page=True
+    )
+    assert status["page"] == 1
+    assert not statuses
+    assert now[0] > printer_module.PRINT_SETTLE_SECONDS
+
+
+async def test_wait_print_complete_require_page_settles_if_page_never_bumps(
+    monkeypatch,
+):
+    now = _fake_clock(monkeypatch)
+    client = PrinterClient(transport=FakeTransport())
+    polls = 0
+
+    async def fake_status(await_for_response=True):
+        nonlocal polls
+        polls += 1
+        return _print_status(0, 50 if polls == 1 else 100, 0)
+
+    monkeypatch.setattr(client, "get_print_status", fake_status)
+    await client.wait_print_complete(
+        copies=1, timeout=120.0, poll_interval=1, require_page=True
+    )
+    assert now[0] >= printer_module.PRINT_SETTLE_REQUIRE_PAGE_SECONDS
