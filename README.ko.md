@@ -1,7 +1,7 @@
 <!-- hass-standards:header:start -->
-# hass-niimbot
+# Niimbot for Home Assistant
 
-Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot 라벨을 인쇄하는 통합입니다.
+imagespec 레이아웃을 Niimbot Bluetooth 프린터로 전송해 라벨을 인쇄하는 Home Assistant 커스텀 통합입니다.
 
 [English](README.md) | **한국어**
 
@@ -22,7 +22,10 @@ Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot
 
 ## 요구사항
 
-HACS 기본 목록으로 배포하는 커스텀 통합입니다. Home Assistant **2025.1.0 이상**, **Python 3.13 이상**(기존 런타임 의존성의 요구 조건), 지원되는 Niimbot BLE 프린터와 HA에서 연결 가능한 Bluetooth 어댑터 또는 active ESPHome Bluetooth proxy가 필요합니다. Python 3.12로 실행하는 HA 2025.1 배포 환경에는 이 의존성 버전을 설치할 수 없습니다. 호환되는 Python 런타임이 필요하며 HA 지원 최소 버전 선언은 변경하지 않았습니다.
+- **Home Assistant:** 2025.1.0 이상.
+- **Python:** 기존 런타임 의존성 때문에 3.13 이상이 필요합니다. Python 3.12에서 실행하는 Home Assistant 2025.1은 호환 런타임을 사용하세요.
+- **Bluetooth:** 연결 가능한 Home Assistant Bluetooth 어댑터 또는 활성 ESPHome Bluetooth 프록시.
+- **기기:** 지원되는 Niimbot BLE 프린터.
 
 ## 설치
 
@@ -30,9 +33,15 @@ HACS 기본 목록으로 배포하는 커스텀 통합입니다. Home Assistant 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eigger&repository=hass-niimbot)
 <!-- hass-standards:installation:end -->
 
-HACS를 먼저 설치·설정하세요. 위 배지는 HACS의 저장소 화면을 엽니다. HACS 기본 목록에서 **Niimbot**을 검색해 설치하거나 `custom_components/niimbot`을 HA 설정 폴더에 복사합니다. Home Assistant를 재시작하고 **설정 → 기기 및 서비스 → 통합구성요소 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
+1. 위 배지를 클릭해 마켓플레이스에서 저장소를 엽니다.
+2. 저장소를 직접 추가하려면 **설정 → 마켓플레이스 → 링크에서 추가**에서 <https://github.com/eigger/hass-niimbot>을 입력합니다. 안내가 표시되면 GitHub 계정을 연결합니다.
+3. **설치**를 선택합니다. 재시작 안내가 표시되면 Home Assistant를 재시작합니다. 설치가 끝나면 [설정](#설정)으로 이동합니다.
 
-프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 종료하세요. [Bluetooth 프록시 설정](https://github.com/eigger/blesession/blob/main/docs/bluetooth.ko.md), [Niimbot 설정 (영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/troubleshooting.ko.md)을 확인하세요.
+## 설정
+
+프린터 전원을 켜고 절전 상태에서 깨운 뒤 NIIMBOT 휴대폰 앱의 연결을 해제합니다. **설정 → 기기 및 서비스 → 통합 추가 → Niimbot**에서 발견된 프린터를 선택합니다.
+
+[Bluetooth 프록시 설정](https://github.com/eigger/blesession/blob/main/docs/bluetooth.ko.md), [Niimbot 설정(영어)](docs/setup.md#bluetooth-connection), [문제 해결](docs/troubleshooting.ko.md)을 참고하세요.
 
 ## 빠른 시작
 
@@ -53,22 +62,22 @@ data:
 
 [페이로드 안내](docs/payload.ko.md), [예제 모음 (영어)](examples/README.md), [액션 매개변수 (영어)](docs/actions.md), [imagespec 요소 참조 (영어)](https://github.com/eigger/imagespec/blob/main/docs/elements.md)에서 인쇄·자동화 예제를 확인할 수 있습니다.
 
-## 주요 제한사항
+<a name="주요-제한사항"></a>
+
+## 중요 제한사항
 
 대표 확인 모델은 B1, B1 Pro, B2 Pro, B21 Pro, D110입니다. 다른 모델·펌웨어는 동작이 다를 수 있습니다. 모델별 DPI, 크기, 회전, 농도와 자동 크기 우선순위는 [라벨 크기 안내 (영어)](docs/label-sizing.md), 전체 모델·용지 종류는 [기기 참조 (영어)](docs/devices.md)를 확인하세요.
 
 온라인 라벨 조회는 기본적으로 꺼져 있습니다. 켜면 라벨 제품 바코드만 NIIMBOT 카탈로그에 전송합니다. 조회가 실패하면 크기를 직접 지정하세요. 기존 `400×240` px 기본값은 모든 라벨에 맞지 않습니다. BLE 전송 성공이 실제 인쇄 품질 검증을 뜻하지는 않습니다.
 
-## 문서와 지원
+<a name="문서와-지원"></a>
+
+## 문서
 
 - [문서 목록 (영어)](docs/README.md)
 - [설정과 옵션 (영어)](docs/setup.md)
 - [문제 해결](docs/troubleshooting.ko.md) ([English](docs/troubleshooting.md))
 - [개발과 테스트 (영어)](CONTRIBUTING.md)
-- [라이선스](LICENSE)
-- [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
-
-Downloads 배지는 현재 GitHub 릴리스의 첨부 asset 다운로드 합계이며 활성 설치 수가 아닙니다.
 
 <!-- hass-standards:support:start -->
 ## 지원

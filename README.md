@@ -1,7 +1,7 @@
 <!-- hass-standards:header:start -->
-# hass-niimbot
+# Niimbot for Home Assistant
 
-Print labels with Niimbot printers from Home Assistant using imagespec payloads over Bluetooth.
+A Home Assistant custom integration that prints labels on Niimbot Bluetooth printers using imagespec layouts.
 
 **English** | [한국어](README.ko.md)
 
@@ -22,7 +22,10 @@ Print labels with Niimbot printers from Home Assistant using imagespec payloads 
 
 ## Requirements
 
-This is a custom integration distributed through the HACS default catalog. Home Assistant **2025.1.0 or later**, **Python 3.13 or later** (required by the existing runtime dependencies), a supported Niimbot BLE printer and a connectable Home Assistant Bluetooth adapter or active ESPHome Bluetooth proxy are required. HA 2025.1 installations running Python 3.12 cannot install these dependency versions; use a compatible Python runtime. The HA minimum remains unchanged.
+- **Home Assistant:** 2025.1.0 or later.
+- **Python:** 3.13 or later for the existing runtime dependencies. Home Assistant 2025.1 installations using Python 3.12 need a compatible runtime.
+- **Bluetooth:** A connectable Home Assistant Bluetooth adapter or an active ESPHome Bluetooth proxy.
+- **Device:** A supported Niimbot BLE printer.
 
 ## Installation
 
@@ -30,9 +33,15 @@ This is a custom integration distributed through the HACS default catalog. Home 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eigger&repository=hass-niimbot)
 <!-- hass-standards:installation:end -->
 
-Install and configure HACS first; the button opens this repository in HACS. In HACS, search for **Niimbot** and install it from the default catalog, or copy `custom_components/niimbot` into your Home Assistant configuration. Restart Home Assistant, add **Niimbot** from **Settings → Devices & services**, then select a discovered printer.
+1. Click the badge above to open the repository in Marketplace.
+2. If you need to add it yourself, go to **Settings → Marketplace → Add from link** and enter <https://github.com/eigger/hass-niimbot>. Connect GitHub if prompted.
+3. Select **Install**. Restart Home Assistant if prompted, then continue to [Configuration](#configuration).
 
-Turn the printer on, wake it from sleep and disconnect the NIIMBOT phone app before setup or printing. See [Bluetooth proxy setup](https://github.com/eigger/blesession/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
+## Configuration
+
+Turn the printer on, wake it and disconnect the NIIMBOT phone app. Select **Settings → Devices & services → Add integration → Niimbot** and choose a discovered printer.
+
+See [Bluetooth proxy setup](https://github.com/eigger/blesession/blob/main/docs/bluetooth.md), [Niimbot setup](docs/setup.md#bluetooth-connection) and [troubleshooting](docs/troubleshooting.md).
 
 ## Quick start
 
@@ -53,22 +62,22 @@ data:
 
 See [payload guide](docs/payload.md) and [examples](examples/README.md) for more print and automation recipes. See [Actions](docs/actions.md) for parameters and [imagespec's element reference](https://github.com/eigger/imagespec/blob/main/docs/elements.md) for payload syntax.
 
-## Important limits
+<a name="important-limits"></a>
+
+## Important limitations
 
 B1, B1 Pro, B2 Pro, B21 Pro and D110 are the representative verified models; other models and firmware may behave differently. See [model settings and label sizing](docs/label-sizing.md) and the [full device reference](docs/devices.md).
 
 Online label lookup is optional and off by default. When enabled, only the label product barcode is sent to NIIMBOT's catalogue. If lookup fails, specify dimensions explicitly: the legacy `400×240` px fallback does not fit every roll. A reported BLE success does not verify physical print quality.
 
-## Documentation and support
+<a name="documentation-and-support"></a>
+
+## Documentation
 
 - [Documentation index](docs/README.md)
 - [Setup and options](docs/setup.md)
 - [Troubleshooting](docs/troubleshooting.md) ([한국어](docs/ko/troubleshooting.md))
 - [Development and tests](CONTRIBUTING.md)
-- [License](LICENSE)
-- [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
-
-The Downloads badge counts GitHub release asset downloads of the current release, not active installations.
 
 <!-- hass-standards:support:start -->
 ## Support

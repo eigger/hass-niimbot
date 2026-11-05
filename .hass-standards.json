@@ -14,10 +14,10 @@
   "tests_workflow": "tests.yml",
   "validate_workflow": "validate.yml",
   "readme": {
-    "title": "hass-niimbot",
+    "title": "Niimbot for Home Assistant",
     "descriptions": {
-      "en": "Print labels with Niimbot printers from Home Assistant using imagespec payloads over Bluetooth.",
-      "ko": "Home Assistant에서 imagespec 페이로드를 Bluetooth로 전송하여 Niimbot 라벨을 인쇄하는 통합입니다."
+      "en": "A Home Assistant custom integration that prints labels on Niimbot Bluetooth printers using imagespec layouts.",
+      "ko": "imagespec 레이아웃을 Niimbot Bluetooth 프린터로 전송해 라벨을 인쇄하는 Home Assistant 커스텀 통합입니다."
     },
     "issues": true,
     "discussions": true,
