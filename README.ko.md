@@ -16,22 +16,9 @@ imagespec 레이아웃을 Niimbot Bluetooth 프린터로 전송해 라벨을 인
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
-<details>
-<summary>프린터 사진</summary>
+<img title="B1 / B1 Pro" src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> <img title="B21 Pro" src="docs/images/b21pro.jpg" width="280" alt="B21 Pro"> <img title="D110" src="docs/images/d110.jpg" width="280" alt="D110">
 
-**B1 / B1 Pro**
-
-<img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro">
-
-**B21 Pro**
-
-<img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro">
-
-**D110**
-
-<img src="docs/images/d110.jpg" width="280" alt="D110">
-
-</details>
+**사진 속 모델** · B1 / B1 Pro / B21 Pro / D110
 
 ## 요구사항
 
