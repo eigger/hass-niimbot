@@ -16,9 +16,22 @@ imagespec 레이아웃을 Niimbot Bluetooth 프린터로 전송해 라벨을 인
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
-| B1 / B1 Pro | B21 Pro | D110 |
-|---|---|---|
-| <img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="280" alt="D110"> |
+<details>
+<summary>프린터 사진</summary>
+
+**B1 / B1 Pro**
+
+<img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro">
+
+**B21 Pro**
+
+<img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro">
+
+**D110**
+
+<img src="docs/images/d110.jpg" width="280" alt="D110">
+
+</details>
 
 ## 요구사항
 
@@ -78,8 +91,6 @@ data:
 - [설정과 옵션 (영어)](docs/setup.md)
 - [문제 해결](docs/troubleshooting.ko.md) ([English](docs/troubleshooting.md))
 - [개발과 테스트 (영어)](CONTRIBUTING.md)
-- [라이선스](LICENSE)
-- [버그 제보](https://github.com/eigger/hass-niimbot/issues) · [질문·기능 제안](https://github.com/eigger/hass-niimbot/discussions)
 
 <!-- hass-standards:support:start -->
 ## 지원

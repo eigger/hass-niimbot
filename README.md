@@ -16,9 +16,22 @@ A Home Assistant custom integration that prints labels on Niimbot Bluetooth prin
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
-| B1 / B1 Pro | B21 Pro | D110 |
-|---|---|---|
-| <img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="280" alt="D110"> |
+<details>
+<summary>Printer photos</summary>
+
+**B1 / B1 Pro**
+
+<img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro">
+
+**B21 Pro**
+
+<img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro">
+
+**D110**
+
+<img src="docs/images/d110.jpg" width="280" alt="D110">
+
+</details>
 
 ## Requirements
 
@@ -78,8 +91,6 @@ Online label lookup is optional and off by default. When enabled, only the label
 - [Setup and options](docs/setup.md)
 - [Troubleshooting](docs/troubleshooting.md) ([한국어](docs/ko/troubleshooting.md))
 - [Development and tests](CONTRIBUTING.md)
-- [License](LICENSE)
-- [Report a bug](https://github.com/eigger/hass-niimbot/issues) · [Questions and feature requests](https://github.com/eigger/hass-niimbot/discussions)
 
 <!-- hass-standards:support:start -->
 ## Support
