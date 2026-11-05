@@ -16,11 +16,9 @@ A Home Assistant custom integration that prints labels on Niimbot Bluetooth prin
 <!-- hass-standards:badges:end -->
 <!-- hass-standards:header:end -->
 
-<p align="center">
-<ruby><bdi>B21 Pro</bdi><rt><img src="docs/images/b21pro.jpg" alt="B21 Pro" width="210" height="170"></rt></ruby> &emsp;
-<ruby><bdi>B1 / B1 Pro</bdi><rt><img src="docs/images/b1.jpg" alt="B1 / B1 Pro" width="170" height="170"></rt></ruby> &emsp;
-<ruby><bdi>D110</bdi><rt><img src="docs/images/d110.jpg" alt="D110" width="170" height="170"></rt></ruby>
-</p>
+| B1 / B1 Pro | B21 Pro | D110 |
+|---|---|---|
+| <img src="docs/images/b1.jpg" width="280" alt="B1 / B1 Pro"> | <img src="docs/images/b21pro.jpg" width="280" alt="B21 Pro"> | <img src="docs/images/d110.jpg" width="280" alt="D110"> |
 
 ## Requirements
 
