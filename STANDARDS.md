@@ -1,9 +1,9 @@
 # 적용한 공통 규칙
 
-- 표준: https://github.com/eigger/hass-repo-standards/tree/v1.1.5
-- 참조 커밋 SHA: f56987f7f765a774c926fb8005fe5df68bb32451
-- Standards release: v1.1.5
-- Resolved standards SHA: f56987f7f765a774c926fb8005fe5df68bb32451
+- 표준: https://github.com/eigger/hass-repo-standards/tree/v1.2.0
+- 참조 커밋 SHA: 66ab62181edb0a4a1bc0fe53209905b8f637633c
+- Standards release: v1.2.0
+- Resolved standards SHA: 66ab62181edb0a4a1bc0fe53209905b8f637633c
 - 검토일: 2026-10-20; 이전 기준 `0490b2ad8378364b487746ea18fca7a0e1d22edc`에서 공식 Hassfest source 검증 호환 경로 채택
 - profile: integration / ha; 실제 domain `niimbot`, 기본 브랜치 `master`
 - 시작 커밋: `96b6482f419c3f77efd83c627cfefaacd6f22733` (PR #130 병합 후); 통합 버전 `4.2.3`
