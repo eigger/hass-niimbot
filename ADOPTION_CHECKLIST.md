@@ -314,3 +314,15 @@ PR 생성·동일 head의 Tests/Validate 및 독립 최종 리뷰를 기록합�
 - 기준 대상: 기본 브랜치 base `19134bcc151a8bd3cfa91138be347b23660eefff`. 중앙 release는 `manage_integration.py verify-release`로 published/non-prerelease/immutable 및 peeled SHA 일치를 원격 확인.
 - 실제 검증: Python 3.14 중앙 `check_integration.py` 변경 전/후, changed workflow actionlint, `git diff --check`, reference-only 범위 assert를 실행. 이번 refs-only 변경에서는 HA/device 테스트를 재실행하지 않았고 PR CI/병합은 대기.
 - 리뷰: 중앙 generated reference-only 결과로 GOV-05 자체 검토; 별도 교차 검토는 조율자가 수행 예정. 기존 실패·미검증은 PASS로 재분류하지 않음.
+
+
+## 2026-11-16 blesession 0.10 compatibility follow-up
+
+- Scope/plan: investigate the failed dependency updater, repair the affected cleanup/test contract, verify current and exact existing package minima, and submit a separate fix PR. Explicitly set unknown MTU to None and permit FakeClient initialization in test property setters; preserve chunk contents, MTU read counts and warning-derived unknown-value assertions.
+- Owner: Codex root. Base: `677e951352a0aa120ad3bb54873268d0edd0509b`; tested implementation: `20971b1bc5b28641f88b249b189b1cf2be8c9dc4`. Adopted standards remain `v1.1.5 / f56987f7f765a774c926fb8005fe5df68bb32451`. No support-minimum, manifest floor, integration version or CI workflow changes. This is a scoped follow-up, not full re-adoption.
+- Local environment: macOS arm64, Python 3.14.5, Home Assistant 2026.10.4, pytest-homeassistant-custom-component 0.13.375, Ruff 0.17.4. Separate resolver-built environments: current blesession **0.10.0** / imagespec **1.2.0**, exact package minima blesession **0.9.1** / imagespec **1.1.1**. Each resolves all three target manifests and relevant HA component requirements; `python -m pip check` passed in both. Per-repository isolated Linux and minimum HA checks remain the existing PR CI's responsibility.
+- `python -m pytest tests/components/niimbot/ -q --timeout 120` with only `--ignore=tests/components/niimbot/test_payload_examples.py` after the separate contract succeeds: **707 passed** in both environments. Logs: `/private/tmp/hass-niimbot-current.log` and `/private/tmp/hass-niimbot-min.log`.
+- Installed-renderer contract in each environment: `PAYLOAD_REPOSITORY=$PWD PAYLOAD_DOMAIN=niimbot PYTHONPATH=<adopted-standards>/scripts python -m pytest -p hass_standards_payload tests/components/niimbot/test_payload_examples.py -q`: **1 passed**. The tooling uses the adopted standards SHA above; no replacement renderer is installed.
+- `ruff check .`, `ruff format --check .`, central `scripts/check_integration.py <target>`, and `git diff --check` passed. Central `python3 scripts/check_repository.py`: 41 documents, 20 workflows and contracts passed.
+- GOV-05: root self-review plus independent `review_compat` review of test fidelity; no blocking findings. No production runtime code changes.
+- PR CI is pending at submission; exact head and results are linked in the PR. Existing minimum HA jobs are preserved and are not claimed as locally executed. Hardware/HA UI and browser tests were not run locally. Central status updated in a separate local standards worktree; not published by this fix PR.
