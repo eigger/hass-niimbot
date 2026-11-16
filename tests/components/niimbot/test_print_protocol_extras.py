@@ -471,8 +471,7 @@ async def test_print_image_d110_continues_when_print_clear_is_refused(
 
 def _ble_transport(mtu: int | None):
     client = FakeClient()
-    if mtu is not None:
-        client.mtu_size = mtu
+    client.mtu_size = mtu
     return client, BLETransport(client)
 
 
@@ -636,6 +635,11 @@ async def test_the_mtu_is_read_once_per_print():
             reads.append(1)
             return 240
 
+        @mtu_size.setter
+        def mtu_size(self, value):
+            # This test controls the reported value through the getter.
+            pass
+
     transport = BLETransport(CountingClient())
     transport.begin_print()
     for row in _b1_rows(10):
@@ -694,8 +698,7 @@ async def test_check_line_flushes_every_buffered_row_before_it():
 def _transport_reporting(size, mtu=None):
     """A link whose printer characteristic reports `size` bytes per write."""
     client = FakeClient()
-    if mtu is not None:
-        client.mtu_size = mtu
+    client.mtu_size = mtu
     client.services.get_characteristic = lambda uuid: SimpleNamespace(
         max_write_without_response_size=size
     )
@@ -800,6 +803,11 @@ async def test_link_facts_leave_out_an_mtu_bleak_only_defaulted():
             warnings.warn("Using default MTU value", stacklevel=2)
             return 23
 
+        @mtu_size.setter
+        def mtu_size(self, value):
+            # This test controls the reported value through the getter.
+            pass
+
     client = DefaultingClient()
     client.services.get_characteristic = lambda uuid: SimpleNamespace(
         max_write_without_response_size=244
@@ -817,6 +825,11 @@ async def test_link_facts_leave_out_a_write_size_derived_from_a_defaulted_mtu():
         def mtu_size(self):
             warnings.warn("Using default MTU value", stacklevel=2)
             return 23
+
+        @mtu_size.setter
+        def mtu_size(self, value):
+            # This test controls the reported value through the getter.
+            pass
 
     transport = BLETransport(DefaultingClient())
     with warnings.catch_warnings():
