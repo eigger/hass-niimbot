@@ -144,6 +144,29 @@ def test_heartbeat_advanced1_length_20_no_battery():
     run(_test())
 
 
+@pytest.mark.parametrize(
+    ("model_id", "payload_hex", "expected"),
+    [
+        # D110_M (2320): byte 8 is 1 when the lid is closed -> inverted to 0
+        (2320, "101f0069006932460104", 0),
+        (2320, "10200097009732460104", 0),
+        (2320, "10220054005432460004", 1),
+        # D110 (2304) behaves the same
+        (2304, "101f0069006932460104", 0),
+    ],
+)
+def test_heartbeat_advanced1_length_10_inverted_lid(model_id, payload_hex, expected):
+    async def _test():
+        data = bytes.fromhex(payload_hex)
+        transport = FakeTransport([NiimbotPacket(HEARTBEAT_RESP_ADVANCED1, data)])
+        client = PrinterClient(transport=transport)
+        result = await client.heartbeat(model_id=model_id)
+        assert result["closingstate"] == expected
+        assert result["powerlevel"] == 4
+
+    run(_test())
+
+
 def test_heartbeat_advanced1_unknown_length():
     async def _test():
         data = bytes([1, 2, 3, 4, 5])
