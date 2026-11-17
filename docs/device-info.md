@@ -184,10 +184,10 @@ from `data[8]`.
 On these model IDs the lid bit is reversed and must be flipped after parsing:
 
 ```
-272, 273, 274, 512, 513, 514, 1792, 2304, 2560, 3584, 3840, 4352, 5120
+272, 273, 274, 512, 513, 514, 1792, 2304, 2320, 2560, 3584, 3840, 4352, 5120
 ```
 
-B3S_P, A8_P, S6_P, D11, Fust, D11S, B16, D110, D101, B18, H1, H1S, C1.
+B3S_P, A8_P, S6_P, D11, Fust, D11S, B16, D110, D110_M, D101, B18, H1, H1S, C1.
 
 ### Advanced2 response (`0xD9`)
 
