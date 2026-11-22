@@ -14,6 +14,7 @@ from custom_components.niimbot.niimprint.packet import NiimbotPacket
 from custom_components.niimbot.niimprint.printer import (
     PAGE_INDEX_CMD,
     PRINTER_STATUS_DATA_RESP,
+    ConnectResult,
     PrinterClient,
     RequestCodeEnum,
 )
@@ -68,7 +69,7 @@ def _build_standard_responses():
 
 def test_print_sequence_old_d11():
     async def _test():
-        responses = _build_standard_responses()
+        responses = [NiimbotPacket(0xC2, b"\x01"), *_build_standard_responses()]
         transport = FakeTransport(responses)
         client = PrinterClient(transport=transport)
         img = Image.new("1", (96, 10))
@@ -270,3 +271,95 @@ def test_unknown_model_fallback_default_v4():
         assert len(start_print_pkt.data) == 7
 
     run(_test())
+
+
+CONNECT_ACK = 0xC2
+
+
+def _page_size(transport):
+    packet = next(
+        p for p in transport.written_packets if p.type == RequestCodeEnum.SET_DIMENSION
+    )
+    return struct.unpack(">HH", packet.data)
+
+
+def _connect_writes(transport):
+    return [w for w in transport.written if w[:1] == b"\x03"]
+
+
+def _print(model, connect_packets):
+    transport = FakeTransport([*connect_packets, *_build_standard_responses()])
+    client = PrinterClient(transport=transport)
+    run(client.print_image(model, Image.new("1", (96, 10)), density=3))
+    return transport
+
+
+def test_connect_packet_has_extra_leading_byte():
+    transport = FakeTransport([NiimbotPacket(CONNECT_ACK, b"\x02")])
+    client = PrinterClient(transport=transport)
+    assert run(client.connect_negotiate()) == ConnectResult.ConnectedNew
+    # 0x03 prefix, then 55 55 | C1 | len 1 | 01 | checksum C1 | AA AA
+    assert transport.written == [bytes.fromhex("03 5555 C1 01 01 C1 AAAA")]
+
+
+def test_d11_connected_new_uses_d110_sequence():
+    transport = _print(PrinterModel.D11, [NiimbotPacket(CONNECT_ACK, b"\x02")])
+    assert len(_connect_writes(transport)) == 1
+    assert _page_size(transport) == (10, 96)
+
+
+def test_d11_connected_uses_old_d11_sequence():
+    transport = _print(PrinterModel.D11, [NiimbotPacket(CONNECT_ACK, b"\x01")])
+    assert len(_connect_writes(transport)) == 1
+    assert _page_size(transport) == (10, 0)
+
+
+def test_d11_connected_v3_keeps_old_d11_sequence():
+    transport = _print(PrinterModel.D11, [NiimbotPacket(CONNECT_ACK, b"\x03")])
+    assert _page_size(transport) == (10, 0)
+
+
+def test_d11_without_connect_answer_still_prints_old_d11():
+    class SilentConnect(FakeTransport):
+        async def read(self, length, timeout=30.0):
+            if self.written and self.written[-1][:1] == b"\x03":
+                raise TimeoutError("no answer to connect")
+            return await super().read(length, timeout)
+
+    transport = SilentConnect(_build_standard_responses())
+    client = PrinterClient(transport=transport)
+    run(client.print_image(PrinterModel.D11, Image.new("1", (96, 10)), density=3))
+    assert len(_connect_writes(transport)) == 1
+    assert _page_size(transport) == (10, 0)
+
+
+def test_connect_unsupported_returns_none():
+    transport = FakeTransport([NiimbotPacket(0, b"\x01")])
+    client = PrinterClient(transport=transport)
+    assert run(client.connect_negotiate()) is None
+
+
+def test_d11s_and_other_models_never_send_connect():
+    for model in (PrinterModel.D11S, PrinterModel.D110, PrinterModel.HI_NB_D11):
+        transport = FakeTransport(_build_standard_responses())
+        client = PrinterClient(transport=transport)
+        run(client.print_image(model, Image.new("1", (96, 10)), density=3))
+        assert not _connect_writes(transport), model
+
+
+def test_parse_connect_result():
+    parse = PrinterClient._parse_connect_result
+    assert parse(b"") is None
+    assert parse(b"\x00") == ConnectResult.Disconnect
+    assert parse(b"\x01") == ConnectResult.Connected
+    assert parse(b"\x02\x00") == ConnectResult.ConnectedNew
+    assert parse(b"\x03") == ConnectResult.ConnectedV3
+    assert parse(b"Z") == ConnectResult.FirmwareErrors
+    assert parse(b"\x7f") is None
+
+
+def test_connect_answered_with_error_packet_falls_back_to_old_d11():
+    transport = _print(PrinterModel.D11, [NiimbotPacket(0xDB, b"\x01")])
+    assert _page_size(transport) == (10, 0)
+    probe = PrinterClient(transport=FakeTransport([NiimbotPacket(0xDB, b"\x01")]))
+    assert run(probe.connect_negotiate()) is None
