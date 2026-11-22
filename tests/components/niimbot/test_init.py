@@ -114,7 +114,8 @@ async def test_a_failed_refresh_reaches_the_diagnostic_sensors_and_unload_drops_
         if e.translation_key in {"error_count", "last_failure"}
     }
     assert set(by_key) == {"error_count", "last_failure"}
-    assert hass.states.get(by_key["error_count"]).state == "unavailable"
+    # In-memory session reports stay available even though the printer is off.
+    assert hass.states.get(by_key["error_count"]).state == "0"
     # A successful external response recovers the coordinator before the
     # independent device session failure updates its diagnostic entities.
     from unittest.mock import AsyncMock, patch

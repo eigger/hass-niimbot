@@ -190,6 +190,11 @@ class NiimbotConnectionBinarySensor(
         self.async_write_ha_state()
 
     @property
+    def available(self) -> bool:
+        """Always available: ``off`` is the signal that the printer is offline."""
+        return True
+
+    @property
     def is_on(self) -> bool:
         """Return true if the device is connected."""
         return self._device.is_connected
