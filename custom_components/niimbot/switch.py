@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import EntityCategory
+from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -40,6 +41,7 @@ class NiimbotConnectionSoundSwitch(
     NiimbotKeepLastKnown,
     CoordinatorEntity[DataUpdateCoordinator[BLEData]],
     SwitchEntity,
+    RestoreEntity,
 ):
     """Switch for Bluetooth connection beep."""
 
@@ -58,10 +60,25 @@ class NiimbotConnectionSoundSwitch(
         self._bind_printer(ble_data, "connection_sound")
 
     def _has_known_value(self) -> bool:
-        return self.coordinator.data.sensors.get("connection_sound") is not None
+        return (
+            self._restored_value is not None
+            or self.coordinator.data.sensors.get("connection_sound") is not None
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Load the last stored state for use until the printer reports one."""
+        await super().async_added_to_hass()
+        state = await self.async_get_last_state()
+        value = state.state if state else None
+        if value in (STATE_ON, STATE_OFF) and self._accept_restored(value):
+            self._restored_value = value == STATE_ON
 
     @property
     def is_on(self) -> bool:
+        # Until the printer reports it, the sensors hold only the configured
+        # seed, so a restored value takes precedence over it.
+        if self._restored_value is not None:
+            return self._restored_value
         value = self.coordinator.data.sensors.get("connection_sound")
         if value is None:
             return bool(self._device.connection_sound)

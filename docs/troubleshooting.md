@@ -152,7 +152,7 @@ Three kinds of problem never reach the failure sensors, because the session did 
 
 **The action itself errored before any BLE traffic.** A payload that does not render, a `density` or `label_type` outside the model's range (*is not supported for this printer*), or a printer no radio currently sees (*could not find printer with address …*): the action fails immediately with that message, and nothing is recorded on the session sensors. Check the action trace or the error shown in the UI.
 
-**No session was attempted.** When no radio sees the printer or polling fails, the coordinator retains its previous data internally and marks live entities (progress and lid/paper/RFID states) unavailable; entities with static values keep their last known value. It does not treat cached values as a successful refresh. Diagnostic session history remains useful. **Connection** is off when disconnected. Turn the printer on and wait one scan interval, or call `niimbot.refresh_info`.
+**No session was attempted.** When no radio sees the printer or polling fails, the coordinator retains its previous data internally and marks live entities (progress and lid/paper/RFID states) unavailable; entities with static values keep their last known value, also across a Home Assistant restart. It does not treat cached values as a successful refresh. Diagnostic session history remains useful. **Connection** is off when disconnected. Turn the printer on and wait one scan interval, or call `niimbot.refresh_info`.
 
 ### Intermittent failures
 
