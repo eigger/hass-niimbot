@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .ble import require_ble_device
-from .entity import NiimbotBleEntity
+from .entity import NiimbotBleEntity, NiimbotKeepLastKnown
 from .niimprint import BLEData, NiimbotDevice
 from .types import NiimbotConfigEntry
 
@@ -36,7 +36,10 @@ async def async_setup_entry(
 
 
 class NiimbotConnectionSoundSwitch(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SwitchEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SwitchEntity,
 ):
     """Switch for Bluetooth connection beep."""
 
@@ -53,6 +56,9 @@ class NiimbotConnectionSoundSwitch(
         super().__init__(coordinator)
         self._device = device
         self._bind_printer(ble_data, "connection_sound")
+
+    def _has_known_value(self) -> bool:
+        return self.coordinator.data.sensors.get("connection_sound") is not None
 
     @property
     def is_on(self) -> bool:

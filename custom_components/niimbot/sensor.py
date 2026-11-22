@@ -31,7 +31,7 @@ from .const import (
     CONF_USE_CLOUD_LABEL_INFO,
     DEFAULT_USE_CLOUD_LABEL_INFO,
 )
-from .entity import NiimbotBleEntity
+from .entity import NiimbotBleEntity, NiimbotKeepLastKnown
 from .types import NiimbotConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -294,7 +294,9 @@ async def async_setup_entry(
             if key in created_keys:
                 continue
             if key in coordinator.data.sensors:
-                added.append(NiimbotSensor(coordinator, coordinator.data, description))
+                added.append(
+                    NiimbotLiveSensor(coordinator, coordinator.data, description)
+                )
                 created_keys.add(key)
         return added
 
@@ -363,9 +365,19 @@ async def async_setup_entry(
 
 
 class NiimbotSensor(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SensorEntity,
 ):
-    """Niimbot BLE sensors for the device."""
+    """Niimbot BLE sensors for the device.
+
+    Keeps its last known value (stays available) while the printer is
+    unreachable. Subclasses with live state override ``_has_known_value``.
+    """
+
+    def _has_known_value(self) -> bool:
+        return self.native_value is not None
 
     def __init__(
         self,
@@ -385,6 +397,16 @@ class NiimbotSensor(
             return self.coordinator.data.sensors[self.entity_description.key]
         except KeyError:
             return None
+
+
+class NiimbotLiveSensor(NiimbotSensor):
+    """Sensor for state that can change while the printer is off.
+
+    Follows the coordinator: unavailable when the last poll failed.
+    """
+
+    def _has_known_value(self) -> bool:
+        return False
 
 
 class NiimbotBatterySensor(NiimbotSensor):
@@ -535,7 +557,10 @@ class NiimbotRibbonRfidSensor(NiimbotSensor):
 
 
 class NiimbotPrintDurationSensor(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SensorEntity,
 ):
     """Niimbot print duration sensor."""
 
@@ -597,6 +622,10 @@ class NiimbotPrintDurationSensor(
         else:
             self._stop_timer()
         self.async_write_ha_state()
+
+    def _has_known_value(self) -> bool:
+        # The last job's report lives in memory, not on the printer.
+        return True
 
     @property
     def native_value(self) -> float:
@@ -672,7 +701,10 @@ class NiimbotPrintProgressSensor(
 
 
 class NiimbotLastFailureSensor(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SensorEntity,
 ):
     """When a BLE session last failed, with that session's breakdown.
 
@@ -712,6 +744,10 @@ class NiimbotLastFailureSensor(
     def _handle_session_update(self) -> None:
         self.async_write_ha_state()
 
+    def _has_known_value(self) -> bool:
+        # Session reports live in memory, not on the printer.
+        return True
+
     @property
     def native_value(self):
         return self._device.reports.last_failure_at
@@ -727,7 +763,10 @@ class NiimbotLastFailureSensor(
 
 
 class NiimbotErrorCountSensor(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SensorEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SensorEntity,
 ):
     """How many BLE sessions have failed since this entry was loaded.
 
@@ -764,6 +803,10 @@ class NiimbotErrorCountSensor(
     @callback
     def _handle_session_update(self) -> None:
         self.async_write_ha_state()
+
+    def _has_known_value(self) -> bool:
+        # Session reports live in memory, not on the printer.
+        return True
 
     @property
     def native_value(self) -> int:

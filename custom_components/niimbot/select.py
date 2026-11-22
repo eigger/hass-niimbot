@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .ble import require_ble_device
-from .entity import NiimbotBleEntity
+from .entity import NiimbotBleEntity, NiimbotKeepLastKnown
 from .niimprint import BLEData, NiimbotDevice
 from .types import NiimbotConfigEntry
 from .niimprint.model import (
@@ -41,7 +41,10 @@ async def async_setup_entry(
 
 
 class NiimbotAutoShutdownSelect(
-    NiimbotBleEntity, CoordinatorEntity[DataUpdateCoordinator[BLEData]], SelectEntity
+    NiimbotBleEntity,
+    NiimbotKeepLastKnown,
+    CoordinatorEntity[DataUpdateCoordinator[BLEData]],
+    SelectEntity,
 ):
     """Select for printer auto-shutdown time."""
 
@@ -59,6 +62,9 @@ class NiimbotAutoShutdownSelect(
         super().__init__(coordinator)
         self._device = device
         self._bind_printer(ble_data, "auto_shutdown")
+
+    def _has_known_value(self) -> bool:
+        return self.current_option is not None
 
     @property
     def current_option(self) -> str | None:

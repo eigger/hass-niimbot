@@ -9,7 +9,7 @@ from blesession import fallback_report
 from homeassistant.components import bluetooth
 from homeassistant.components.image import Image
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -27,6 +27,7 @@ from .const import (
     ImageAndBLEData,
 )
 from .data import NiimbotRuntimeData
+from .entity import async_sync_device_registry
 from .niimprint import BLEData, NiimbotDevice
 from .services import async_setup_services
 from .session_report import build_session_report
@@ -275,6 +276,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiimbotConfigEntry) -> b
             "Initial printer update failed; entities will start as unavailable: %s",
             coordinator.last_exception,
         )
+
+    @callback
+    def _sync_device_registry() -> None:
+        """Model / firmware / serial are only known after the first connection.
+
+        That can be later than entity (device) creation, and through any path
+        that updates coordinator data (poll, print, refresh, settings).
+        """
+        async_sync_device_registry(hass, coordinator.data)
+
+    entry.async_on_unload(coordinator.async_add_listener(_sync_device_registry))
 
     image_coordinator: DataUpdateCoordinator[ImageAndBLEData] = DataUpdateCoordinator(
         hass,
