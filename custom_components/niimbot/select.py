@@ -8,6 +8,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -45,6 +46,7 @@ class NiimbotAutoShutdownSelect(
     NiimbotKeepLastKnown,
     CoordinatorEntity[DataUpdateCoordinator[BLEData]],
     SelectEntity,
+    RestoreEntity,
 ):
     """Select for printer auto-shutdown time."""
 
@@ -66,9 +68,18 @@ class NiimbotAutoShutdownSelect(
     def _has_known_value(self) -> bool:
         return self.current_option is not None
 
+    async def async_added_to_hass(self) -> None:
+        """Load the last stored option for use until the printer reports one."""
+        await super().async_added_to_hass()
+        state = await self.async_get_last_state()
+        option = state.state if state else None
+        if option in self._attr_options and self._accept_restored(option):
+            self._restored_value = option
+
     @property
     def current_option(self) -> str | None:
-        return auto_shutdown_option(self._device.ble_data.autoshutdowntime)
+        live = auto_shutdown_option(self._device.ble_data.autoshutdowntime)
+        return self._restored_value if live is None else live
 
     async def async_select_option(self, option: str) -> None:
         index = auto_shutdown_index(option)

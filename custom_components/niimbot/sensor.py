@@ -9,6 +9,7 @@ from .niimprint import NiimbotDevice, BLEData
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
+    RestoreSensor,
     SensorEntity,
     SensorEntityDescription,
 )
@@ -368,13 +369,17 @@ class NiimbotSensor(
     NiimbotBleEntity,
     NiimbotKeepLastKnown,
     CoordinatorEntity[DataUpdateCoordinator[BLEData]],
-    SensorEntity,
+    RestoreSensor,
 ):
     """Niimbot BLE sensors for the device.
 
     Keeps its last known value (stays available) while the printer is
     unreachable. Subclasses with live state override ``_has_known_value``.
     """
+
+    # Restore the value stored before a restart. Subclasses whose value is
+    # tied to attributes that are not restored turn this off.
+    _restore_value = True
 
     def _has_known_value(self) -> bool:
         return self.native_value is not None
@@ -390,20 +395,38 @@ class NiimbotSensor(
         self.entity_description = entity_description
         self._bind_printer(ble_data, entity_description.key)
 
-    @property
-    def native_value(self) -> StateType:
-        """Return the value reported by the sensor."""
+    async def async_added_to_hass(self) -> None:
+        """Load the last stored value for use until the printer reports one."""
+        await super().async_added_to_hass()
+        if not self._restore_value:
+            return
+        if (data := await self.async_get_last_sensor_data()) is None:
+            return
+        if self._accept_restored(data.native_value):
+            self._restored_value = data.native_value
+
+    def _live_value(self) -> StateType:
+        """Return the value reported by the printer, if any."""
         try:
             return self.coordinator.data.sensors[self.entity_description.key]
         except KeyError:
             return None
 
+    @property
+    def native_value(self) -> StateType:
+        """Return the live value, else the one restored after a restart."""
+        value = self._live_value()
+        return self._restored_value if value is None else value
+
 
 class NiimbotLiveSensor(NiimbotSensor):
     """Sensor for state that can change while the printer is off.
 
-    Follows the coordinator: unavailable when the last poll failed.
+    Follows the coordinator: unavailable when the last poll failed. Never
+    restored, an old value would be wrong.
     """
+
+    _restore_value = False
 
     def _has_known_value(self) -> bool:
         return False
@@ -459,8 +482,7 @@ class NiimbotLastErrorSensor(NiimbotSensor):
     def _handle_error_update(self) -> None:
         self.async_write_ha_state()
 
-    @property
-    def native_value(self) -> StateType:
+    def _live_value(self) -> StateType:
         return self._device.last_error or self.coordinator.data.sensors.get(
             "last_error"
         )
@@ -505,7 +527,13 @@ class NiimbotRfidSensor(NiimbotSensor):
 
 
 class NiimbotCloudLabelInfoSensor(NiimbotSensor):
-    """Cloud catalogue lookup result (status + request time)."""
+    """Cloud catalogue lookup result (status + request time).
+
+    Not restored: the value is meaningless without its attributes (status,
+    request time) and it is only produced right after a label read.
+    """
+
+    _restore_value = False
 
     def __init__(
         self,

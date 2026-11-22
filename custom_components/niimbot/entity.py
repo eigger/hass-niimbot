@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
@@ -60,7 +63,27 @@ class NiimbotKeepLastKnown:
     make every entity unavailable although the value has not changed. Put this
     mixin before ``CoordinatorEntity``. Entities whose state can change while
     the printer is off (lid, paper, progress) must not use it.
+
+    Entities that also inherit ``RestoreEntity`` (via ``RestoreSensor`` or
+    directly) keep the value stored before a Home Assistant restart in
+    ``_restored_value``. It is only a display fallback used while the live
+    data has no value; it is never written to the device or ``ble_data``.
     """
+
+    _restored_value: Any = None
+
+    def _accept_restored(self, value: Any) -> bool:
+        """Return True when a stored value may be shown until the printer is reached."""
+        if value is None or value in (STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
+            return False
+        return not self.coordinator.last_update_success  # type: ignore[attr-defined]
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Drop the restored value once the printer has been reached."""
+        if self.coordinator.last_update_success:  # type: ignore[attr-defined]
+            self._restored_value = None
+        super()._handle_coordinator_update()  # type: ignore[misc]
 
     def _has_known_value(self) -> bool:
         """Return True when the entity has a value to show."""
