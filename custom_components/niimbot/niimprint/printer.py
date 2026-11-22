@@ -99,7 +99,23 @@ class InfoEnum(enum.IntEnum):
     AREA = 15
 
 
+class ConnectResult(enum.IntEnum):
+    """First byte of the Connect (0xC2) response, as in niimbluelib."""
+
+    Disconnect = 0
+    Connected = 1
+    ConnectedNew = 2
+    ConnectedV3 = 3
+    FirmwareErrors = 90
+
+
+# The Connect request is framed with one extra leading byte before 55 55.
+CONNECT_PREFIX = b"\x03"
+CONNECT_TIMEOUT = 1.5
+
+
 class RequestCodeEnum(enum.IntEnum):
+    CONNECT = 193  # 0xC1
     GET_INFO = 64  # 0x40
     GET_RFID = 26  # 0x1A
     GET_RFID2 = 28  # 0x1C
@@ -584,6 +600,19 @@ class PrinterClient:
                     generation.value,
                 )
 
+            if generation == PrintGeneration.OLD_D11 and model == PrinterModel.D11:
+                # Model id 512 covers two firmware families that BLE names cannot
+                # tell apart; niimbluelib uses the Connect result to choose.
+                result = await self.connect_negotiate()
+                if result == ConnectResult.ConnectedNew:
+                    _LOGGER.debug(
+                        "D11 Connect result ConnectedNew; using D110 sequence"
+                    )
+                    return await self.print_image_d110(**kwargs)
+                _LOGGER.debug(
+                    "D11 Connect result %s; using OLD_D11 sequence",
+                    result.name if result is not None else None,
+                )
             if generation == PrintGeneration.OLD_D11:
                 return await self.print_image_old_d11(**kwargs)
             elif generation == PrintGeneration.D110:
@@ -967,8 +996,8 @@ class PrinterClient:
                 break
         return packets
 
-    async def _send(self, packet, response=True):
-        await self._transport.write(packet.to_bytes(), response=response)
+    async def _send(self, packet, response=True, prefix: bytes = b""):
+        await self._transport.write(prefix + packet.to_bytes(), response=response)
 
     def _log_buffer(self, prefix: str, buff: bytes):
         # Payloads can contain serial numbers, RFID identifiers and label pixels.
@@ -983,12 +1012,13 @@ class PrinterClient:
         await_for_response=True,
         resp_codes: set[int] | None = None,
         timeout: float = DEFAULT_TRANSCEIVE_TIMEOUT,
+        prefix: bytes = b"",
     ):
         if resp_codes is None:
             resp_codes = {respoffset + reqcode}
         packet = NiimbotPacket(reqcode, data)
         self._log_buffer("send", packet.to_bytes())
-        await self._send(packet)
+        await self._send(packet, prefix=prefix)
         if not await_for_response:
             return None
         deadline = time.monotonic() + timeout
@@ -1092,6 +1122,29 @@ class PrinterClient:
         if n >= 302:
             return 5
         return 0
+
+    async def connect_negotiate(self) -> ConnectResult | None:
+        """Best-effort Connect (0xC1) handshake; None when unanswered or unknown."""
+        try:
+            packet = await self._transceive(
+                RequestCodeEnum.CONNECT,
+                b"\x01",
+                timeout=CONNECT_TIMEOUT,
+                prefix=CONNECT_PREFIX,
+            )
+        except (PrinterTimeout, PrinterCommandUnsupported, PrinterError) as err:
+            _LOGGER.debug("Connect negotiation unavailable: %s", type(err).__name__)
+            return None
+        return self._parse_connect_result(packet.data)
+
+    @staticmethod
+    def _parse_connect_result(data: bytes) -> ConnectResult | None:
+        if not data:
+            return None
+        try:
+            return ConnectResult(data[0])
+        except ValueError:
+            return None
 
     async def get_printer_status_data(self) -> dict | None:
         """Colour support flag and protocol version from PrinterStatusData (0xA5)."""

@@ -24,8 +24,13 @@ class FakeTransport(BaseTransport):
             raise TimeoutError("no canned response")
         return self._responses.popleft()
 
+    # Auto-answer for the prefixed Connect request; None leaves it unanswered.
+    connect_reply: int | None = None
+
     async def write(self, data: bytes, response=True):
         self.written.append(data)
+        if data[:1] == b"\x03" and self.connect_reply is not None:
+            self.queue(NiimbotPacket(0xC2, bytes((self.connect_reply,))))
 
     async def start_notify(self, uuid: str):
         return None
@@ -35,4 +40,8 @@ class FakeTransport(BaseTransport):
 
     @property
     def written_packets(self) -> list[NiimbotPacket]:
-        return [NiimbotPacket.from_bytes(b) for b in self.written]
+        # Connect is framed with one extra leading 0x03 byte; strip it to parse.
+        return [
+            NiimbotPacket.from_bytes(b[1:] if b[:1] == b"\x03" else b)
+            for b in self.written
+        ]

@@ -51,6 +51,7 @@ class StatusTransport(FakeTransport):
         protocol_version=5,
     ):
         super().__init__()
+        self.connect_reply = 1
         self.statuses = iter(statuses)
         self.now = 0.0
         self.cleanup_error = cleanup_error
@@ -64,6 +65,8 @@ class StatusTransport(FakeTransport):
 
     async def write(self, data, response=True):
         await super().write(data, response=response)
+        if data[:1] == b"\x03":
+            return  # Connect negotiation, answered by FakeTransport
         packet = NiimbotPacket.from_bytes(data)
         command = packet.type
         if self.on_command:
