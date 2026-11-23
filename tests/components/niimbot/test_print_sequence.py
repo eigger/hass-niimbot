@@ -27,7 +27,7 @@ def run(coro):
 
 def test_models_library_generation_assignments():
     old_d11_models = {PrinterModel.D11, PrinterModel.D11S}
-    d110_models = {PrinterModel.D110, PrinterModel.B21S, PrinterModel.B21S_C2B}
+    d110_models = {PrinterModel.D110, PrinterModel.B21S_C2B}
     v5_models = {
         PrinterModel.D11_H,
         PrinterModel.D11_PRO,

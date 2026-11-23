@@ -365,7 +365,10 @@ modelsLibrary: list[PrinterModelMeta] = [
     },
     {
         "model": PrinterModel.B21S,
-        "generation": PrintGeneration.D110,
+        # B21S hw 40.1 / fw 40.36 acks the D110 sequence and feeds the label but
+        # prints it blank (#153). It prints with niimbluelib's B1 task
+        # (printStart7b + setPageSize6b), i.e. the V4 sequence.
+        "generation": PrintGeneration.V4,
         "id": [777],
         "dpi": 203,
         "printDirection": PrintDirection.TOP,

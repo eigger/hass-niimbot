@@ -351,7 +351,7 @@ async def test_wait_print_complete_ends_on_page_bump_before_settle(monkeypatch):
 async def test_wait_print_complete_require_page_ignores_feed_and_short_settle(
     monkeypatch,
 ):
-    """B21S: progress 100 arrives long before the label prints; wait for page."""
+    """D110 task: progress 100 arrives long before the label prints; wait for page."""
     now = _fake_clock(monkeypatch)
     statuses = [(0, 20, 0), (0, 100, 0)] + [(0, 100, 100)] * 6 + [(1, 100, 100)]
     client = PrinterClient(transport=FakeTransport())
@@ -415,7 +415,7 @@ async def test_wait_print_complete_require_page_ends_on_page_notification():
     [
         (PrinterModel.B21, True, "print_image_v4"),
         (PrinterModel.B21_L2B, True, "print_image_v4"),
-        (PrinterModel.B21S, False, "print_image_d110"),
+        (PrinterModel.B21S, False, "print_image_v4"),
         (PrinterModel.B1, False, "print_image_v4"),
     ],
 )
