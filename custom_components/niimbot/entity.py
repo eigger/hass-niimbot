@@ -16,18 +16,20 @@ from .niimprint import BLEData
 def device_info(ble_data: BLEData) -> DeviceInfo:
     """Device registry info shared by every platform."""
     name = f"{ble_data.name} {ble_data.identifier}"
-    info = DeviceInfo(
-        connections={(CONNECTION_BLUETOOTH, ble_data.address)},
-        name=name,
-        manufacturer="Niimbot",
-    )
+    fields: dict[str, Any] = {
+        "connections": {(CONNECTION_BLUETOOTH, ble_data.address)},
+        "name": name,
+        "manufacturer": "Niimbot",
+    }
     # Unknown values are left out so a printer that is off at (re)load never
     # blanks what the registry already learned from an earlier connection.
     for field in _DEVICE_FIELDS:
         value = getattr(ble_data, field)
         if value:
-            info[field] = value  # type: ignore[literal-required]
-    return info
+            fields[field] = value
+    # Keyword construction only: DeviceInfo is a TypedDict before HA 2026.11 and
+    # a dataclass after it, so unset fields must be omitted (never passed as None).
+    return DeviceInfo(**fields)
 
 
 _DEVICE_FIELDS = ("model", "hw_version", "sw_version", "serial_number")
